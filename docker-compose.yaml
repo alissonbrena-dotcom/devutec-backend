@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:16
+    container_name: devutec-db
+    environment:
+      POSTGRES_DB: devutec
+      POSTGRES_USER: devutec
+      POSTGRES_PASSWORD: devutec
+    ports:
+      - "5432:5432"
+    volumes:
+      - devutec_data:/var/lib/postgresql/data
+
+volumes:
+  devutec_data:
+
