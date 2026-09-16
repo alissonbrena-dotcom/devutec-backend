@@ -1,8 +1,11 @@
 package pe.edu.utec.devutec.service;
 
 import lombok.RequiredArgsConstructor;
+import org.modelmapper.ModelMapper;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import pe.edu.utec.devutec.dto.PaymentRequestDTO;
+import pe.edu.utec.devutec.dto.PaymentResponseDTO;
 import pe.edu.utec.devutec.events.PaymentReleasedEvent;
 import pe.edu.utec.devutec.model.Payment;
 import pe.edu.utec.devutec.model.PaymentStatus;
@@ -17,46 +20,50 @@ public class PaymentService {
 
     private final PaymentRepository repository;
     private final ApplicationEventPublisher publisher;
+    private final ModelMapper modelMapper;
 
-    public List<Payment> list() {
-        return repository.findAll();
+    public List<PaymentResponseDTO> list() {
+        return repository.findAll().stream().map(payment -> modelMapper.map(payment, PaymentResponseDTO.class)).toList();
     }
 
-    public Payment findById(Long id) {
-        return repository.findById(id)
+    public PaymentResponseDTO findById(Long id) {
+        Payment payment = repository.findById(id).orElseThrow(() -> new RuntimeException("Pago no encontrado"));
+        return modelMapper.map(payment, PaymentResponseDTO.class);
+    }
+
+    public PaymentResponseDTO createPayment(PaymentRequestDTO request) {
+        Payment payment = modelMapper.map(request, Payment.class);
+        Payment saved = repository.save(payment);
+        return modelMapper.map(saved, PaymentResponseDTO.class);
+    }
+
+    public PaymentResponseDTO releasePayment(Long id) {
+        Payment payment = repository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Pago no encontrado"));
-    }
-
-    public Payment createPayment(BigDecimal amount) {
-        Payment payment = new Payment();
-        payment.setAmount(amount);
-        // el status se pone en HELD solo, gracias al @PrePersist
-        return repository.save(payment);
-    }
-
-    public Payment releasePayment(Long id) {
-        Payment payment = findById(id);
 
         if (payment.getStatus() != PaymentStatus.HELD) {
             throw new RuntimeException("Solo se puede liberar un pago que está retenido (HELD)");
         }
 
         payment.setStatus(PaymentStatus.RELEASED);
-        Payment savedPayment = repository.save(payment);
+        Payment saved = repository.save(payment);
 
-        publisher.publishEvent(new PaymentReleasedEvent(this, savedPayment));
+        publisher.publishEvent(new PaymentReleasedEvent(this, saved));
 
-        return savedPayment;
+        return modelMapper.map(saved, PaymentResponseDTO.class);
     }
 
-    public Payment refundPayment(Long id) {
-        Payment payment = findById(id);
+    public PaymentResponseDTO refundPayment(Long id) {
+        Payment payment = repository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Pago no encontrado"));
 
         if (payment.getStatus() != PaymentStatus.HELD) {
             throw new RuntimeException("Solo se puede reembolsar un pago que está retenido (HELD)");
         }
 
         payment.setStatus(PaymentStatus.REFUNDED);
-        return repository.save(payment);
+        Payment saved = repository.save(payment);
+
+        return modelMapper.map(saved, PaymentResponseDTO.class);
     }
 }

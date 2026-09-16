@@ -1,9 +1,12 @@
 package pe.edu.utec.devutec.controller;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import pe.edu.utec.devutec.dto.PaymentRequestDTO;
+import pe.edu.utec.devutec.dto.PaymentResponseDTO;
 import pe.edu.utec.devutec.model.Payment;
 import pe.edu.utec.devutec.service.PaymentService;
 
@@ -18,28 +21,28 @@ public class PaymentController {
     private final PaymentService service;
 
     @GetMapping
-    public ResponseEntity<List<Payment>> list() {
+    public ResponseEntity<List<PaymentResponseDTO>> list() {
         return ResponseEntity.ok(service.list());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Payment> findById(@PathVariable Long id) {
+    public ResponseEntity<PaymentResponseDTO> findById(@PathVariable Long id) {
         return ResponseEntity.ok(service.findById(id));
     }
 
     @PostMapping
-    public ResponseEntity<Payment> create(@RequestParam BigDecimal amount) {
-        Payment payment = service.createPayment(amount);
-        return ResponseEntity.status(HttpStatus.CREATED).body(payment);
+    public ResponseEntity<PaymentResponseDTO> create(@Valid @RequestBody PaymentRequestDTO request) {
+        PaymentResponseDTO response= service.createPayment(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PatchMapping("/{id}/release")
-    public ResponseEntity<Payment> release(@PathVariable Long id) {
+    public ResponseEntity<PaymentResponseDTO> release(@PathVariable Long id) {
         return ResponseEntity.ok(service.releasePayment(id));
     }
 
     @PatchMapping("/{id}/refund")
-    public ResponseEntity<Payment> refund(@PathVariable Long id) {
+    public ResponseEntity<PaymentResponseDTO> refund(@PathVariable Long id) {
         return ResponseEntity.ok(service.refundPayment(id));
     }
 }
