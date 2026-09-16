@@ -1,7 +1,9 @@
 package pe.edu.utec.devutec.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import pe.edu.utec.devutec.events.PaymentReleasedEvent;
 import pe.edu.utec.devutec.model.Payment;
 import pe.edu.utec.devutec.model.PaymentStatus;
 import pe.edu.utec.devutec.repository.PaymentRepository;
@@ -14,6 +16,7 @@ import java.util.List;
 public class PaymentService {
 
     private final PaymentRepository repository;
+    private final ApplicationEventPublisher publisher;
 
     public List<Payment> list() {
         return repository.findAll();
@@ -39,7 +42,11 @@ public class PaymentService {
         }
 
         payment.setStatus(PaymentStatus.RELEASED);
-        return repository.save(payment);
+        Payment savedPayment = repository.save(payment);
+
+        publisher.publishEvent(new PaymentReleasedEvent(this, savedPayment));
+
+        return savedPayment;
     }
 
     public Payment refundPayment(Long id) {
