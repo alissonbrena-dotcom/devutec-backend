@@ -1,8 +1,10 @@
-package pe.edu.utec.devutec.payment.domain;
+package pe.edu.utec.devutec.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import pe.edu.utec.devutec.payment.infrastructure.PaymentRepository;
+import pe.edu.utec.devutec.model.Payment;
+import pe.edu.utec.devutec.model.PaymentStatus;
+import pe.edu.utec.devutec.repository.PaymentRepository;
 
 import java.math.BigDecimal;
 import java.util.List;
