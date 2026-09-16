@@ -7,6 +7,8 @@ import org.springframework.stereotype.Service;
 import pe.edu.utec.devutec.dto.PaymentRequestDTO;
 import pe.edu.utec.devutec.dto.PaymentResponseDTO;
 import pe.edu.utec.devutec.events.PaymentReleasedEvent;
+import pe.edu.utec.devutec.exceptions.ConflictException;
+import pe.edu.utec.devutec.exceptions.ResourceNotFoundException;
 import pe.edu.utec.devutec.model.Payment;
 import pe.edu.utec.devutec.model.PaymentStatus;
 import pe.edu.utec.devutec.repository.PaymentRepository;
@@ -27,7 +29,7 @@ public class PaymentService {
     }
 
     public PaymentResponseDTO findById(Long id) {
-        Payment payment = repository.findById(id).orElseThrow(() -> new RuntimeException("Pago no encontrado"));
+        Payment payment = repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Pago no encontrado"));
         return modelMapper.map(payment, PaymentResponseDTO.class);
     }
 
@@ -39,10 +41,10 @@ public class PaymentService {
 
     public PaymentResponseDTO releasePayment(Long id) {
         Payment payment = repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Pago no encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Pago no encontrado"));
 
         if (payment.getStatus() != PaymentStatus.HELD) {
-            throw new RuntimeException("Solo se puede liberar un pago que está retenido (HELD)");
+            throw new ConflictException("Solo se puede liberar un pago que está retenido (HELD)");
         }
 
         payment.setStatus(PaymentStatus.RELEASED);
@@ -55,10 +57,10 @@ public class PaymentService {
 
     public PaymentResponseDTO refundPayment(Long id) {
         Payment payment = repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Pago no encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Pago no encontrado"));
 
         if (payment.getStatus() != PaymentStatus.HELD) {
-            throw new RuntimeException("Solo se puede reembolsar un pago que está retenido (HELD)");
+            throw new ConflictException("Solo se puede reembolsar un pago que está retenido (HELD)");
         }
 
         payment.setStatus(PaymentStatus.REFUNDED);
