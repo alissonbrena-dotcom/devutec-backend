@@ -6,6 +6,8 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import pe.edu.utec.devutec.service.EmailService;
 
+import java.util.Map;
+
 @Component
 @RequiredArgsConstructor
 public class PaymentReleasedNotifier {
@@ -16,11 +18,17 @@ public class PaymentReleasedNotifier {
     @Async
     public void onPaymentReleased(PaymentReleasedEvent event) {
         String to = "freelancer@example.com"; // temporal, luego se reemplaza por el correo real del freelancer
-        String subject = "¡Tu pago ha sido liberado!";
-        String body = "Hola, el pago #" + event.getPayment().getId()
-                + " de S/ " + event.getPayment().getAmount()
-                + " ha sido liberado a tu cuenta. ¡Gracias por tu trabajo!";
 
-        emailService.sendEmail(to, subject, body);
+        Map<String, Object> variables = Map.of(
+                "amount", event.getPayment().getAmount(),
+                "paymentId", event.getPayment().getId()
+        );
+
+        emailService.sendHtmlEmail(
+                to,
+                "¡Tu pago ha sido liberado",
+                "payment-released",
+                variables
+        );
     }
 }
