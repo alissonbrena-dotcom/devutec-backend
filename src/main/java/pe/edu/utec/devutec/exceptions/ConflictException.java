@@ -4,6 +4,6 @@ import org.springframework.http.HttpStatus;
 
 public class ConflictException extends ApiException {
     public ConflictException(String message) {
-        super(HttpStatus.NOT_FOUND,message);
+        super(HttpStatus.CONFLICT, message);
     }
 }
