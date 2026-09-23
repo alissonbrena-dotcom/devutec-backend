@@ -1,50 +1,59 @@
 package pe.edu.utec.devutec.model.application;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
+import pe.edu.utec.devutec.auth.domain.FreelancerProfile;
+import pe.edu.utec.devutec.model.Project;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+@NoArgsConstructor
+@AllArgsConstructor
 @Setter
 @Getter
 @Entity
-@Table(uniqueConstraints = @UniqueConstraint(columnNames = {"project_id", "freelancer_id"}))
+@Table(
+        name = "applications",
+        uniqueConstraints = @UniqueConstraint(
+                columnNames = {"project_id", "freelancer_id"}
+        )
+)
+
 public class Application {
     @Id
-    @GeneratedValue(strategy=GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
-    @JoinColumn(name = "project_id")
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "project_id", nullable = false)
     private Project project;
 
-    @ManyToOne
-    @JoinColumn(name = "freelancer_id")
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "freelancer_id", nullable = false)
     private FreelancerProfile freelancer;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String message;
 
+    @Column(name = "proposed_price", nullable = false)
     private BigDecimal proposedPrice;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private AppStatus status;
 
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    public Application() {
-
-    }
-
-    public Application (Long id, Project project, FreelancerProfile freelancer, String message, BigDecimal proposedPrice, AppStatus status, LocalDateTime createdAt) {
-        this.id = id;
-        this.project = project;
-        this.freelancer = freelancer;
-        this.message = message;
-        this.proposedPrice = proposedPrice;
-        this.status = status;
-        this.createdAt = createdAt;
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now();
+        if (this.status == null) {
+            this.status = AppStatus.PENDING;
+        }
     }
 }

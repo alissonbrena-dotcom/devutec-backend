@@ -1,46 +1,40 @@
 package pe.edu.utec.devutec.model.contract;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import pe.edu.utec.devutec.model.application.Application;
 
 import java.time.LocalDateTime;
 
+@NoArgsConstructor
+@AllArgsConstructor
 @Setter
 @Getter
 @Entity
+@Table(name = "contracts")
 public class Contract {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @OneToOne
-    @JoinColumn(name = "project_id")
-    private Project project;
-
-    @OneToOne
-    @JoinColumn(name = "application_id")
+    @OneToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "application_id", nullable = false, unique = true)
     private Application application;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private ContractStatus status;
 
+    @Column(name = "started_at", nullable = false, updatable = false)
     private LocalDateTime startedAt;
 
+    @Column(name = "delivered_at")
     private LocalDateTime deliveredAt;
 
-    public Contract () {
-
+    @PrePersist
+    protected void onCreate() {
+        this.startedAt = LocalDateTime.now();
+        if (this.status == null) {
+            this.status = ContractStatus.IN_PROGRESS;
+        }
     }
-
-    public Contract (Long id, Project project, Application application, ContractStatus status, LocalDateTime startedAt, LocalDateTime deliveredAt) {
-        this.id = id;
-        this.project = project;
-        this.application = application;
-        this.status = status;
-        this.startedAt = startedAt;
-        this.deliveredAt = deliveredAt
-    }
-
 }
