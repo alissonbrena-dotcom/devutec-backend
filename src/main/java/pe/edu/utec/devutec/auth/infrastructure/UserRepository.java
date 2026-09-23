@@ -1,6 +1,6 @@
-package pe.edu.utec.devutec.auth.infrastructure;
+package pe.edu.utec.devutec.repository;
 
-import pe.edu.utec.devutec.auth.domain.User;
+import pe.edu.utec.devutec.model.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
 
