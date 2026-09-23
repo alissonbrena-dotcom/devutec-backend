@@ -16,6 +16,10 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "contracts")
 public class Contract {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
     @OneToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "application_id", nullable = false, unique = true)
     private Application application;
