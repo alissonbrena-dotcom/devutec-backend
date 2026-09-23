@@ -1,4 +1,4 @@
-package pe.edu.utec.devutec.entity;
+package pe.edu.utec.devutec.model;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;

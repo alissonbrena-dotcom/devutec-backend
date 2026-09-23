@@ -6,9 +6,9 @@ import pe.edu.utec.devutec.dto.ProjectCreateDTO;
 import pe.edu.utec.devutec.dto.ProjectResponseDTO;
 import pe.edu.utec.devutec.dto.ProjectUpdateDTO;
 import pe.edu.utec.devutec.dto.SkillResponseDTO;
-import pe.edu.utec.devutec.entity.Project;
-import pe.edu.utec.devutec.entity.ProjectStatus;
-import pe.edu.utec.devutec.entity.Skill;
+import pe.edu.utec.devutec.model.Project;
+import pe.edu.utec.devutec.model.ProjectStatus;
+import pe.edu.utec.devutec.model.Skill;
 import pe.edu.utec.devutec.repository.ProjectRepository;
 import pe.edu.utec.devutec.repository.SkillRepository;
 

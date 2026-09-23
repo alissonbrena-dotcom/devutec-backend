@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import pe.edu.utec.devutec.dto.SkillRequestDTO;
 import pe.edu.utec.devutec.dto.SkillResponseDTO;
-import pe.edu.utec.devutec.entity.Skill;
+import pe.edu.utec.devutec.model.Skill;
 import pe.edu.utec.devutec.repository.SkillRepository;
 
 import java.util.List;
