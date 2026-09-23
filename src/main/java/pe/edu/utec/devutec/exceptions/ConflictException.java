@@ -1,7 +1,9 @@
 package pe.edu.utec.devutec.exceptions;
 
-public class ConflictException extends RuntimeException {
+import org.springframework.http.HttpStatus;
+
+public class ConflictException extends ApiException {
     public ConflictException(String message) {
-        super(message);
+        super(HttpStatus.NOT_FOUND,message);
     }
 }
