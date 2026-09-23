@@ -1,12 +1,15 @@
 package pe.edu.utec.devutec.dto;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-
+@AllArgsConstructor
+@NoArgsConstructor
 @Setter
 @Getter
 public class ApplicationResponseDTO {
@@ -17,17 +20,4 @@ public class ApplicationResponseDTO {
     private BigDecimal proposedPrice;
     private String status;
     private LocalDateTime createdAt;
-
-    public ApplicationResponseDTO () {
-
-    }
-
-    public ApplicationResponseDTO(Long id, String projectTitle, String freelancerName, String message, BigDecimal proposedPrice, String status, LocalDateTime createdAt) {
-        this.id = id;
-        this.projectTitle = projectTitle;
-        this.freelancerName = freelancerName;
-        this.message = message;
-        this.proposedPrice = proposedPrice;
-        this.createdAt = createdAt;
-    }
 }
