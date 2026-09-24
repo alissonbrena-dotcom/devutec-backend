@@ -8,6 +8,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 import pe.edu.utec.devutec.dto.ErrorResponseDTO;
@@ -41,6 +42,15 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({MethodArgumentTypeMismatchException.class, MissingServletRequestParameterException.class})
     public ResponseEntity<ErrorResponseDTO> handleBadParameter(Exception ex, HttpServletRequest request) {
         return build(HttpStatus.BAD_REQUEST, "Parámetro inválido o faltante en la petición", request);
+    }
+
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    public ResponseEntity<ErrorResponseDTO> handleMethodValidation(HandlerMethodValidationException ex, HttpServletRequest request) {
+        String message = ex.getAllErrors().stream()
+                .map(error -> error.getDefaultMessage())
+                .findFirst()
+                .orElse("Parámetro inválido en la petición");
+        return build(HttpStatus.BAD_REQUEST, message, request);
     }
 
     @ExceptionHandler(AccessDeniedException.class)

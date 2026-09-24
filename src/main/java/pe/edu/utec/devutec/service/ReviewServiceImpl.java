@@ -1,10 +1,14 @@
 package pe.edu.utec.devutec.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pe.edu.utec.devutec.auth.domain.User;
 import pe.edu.utec.devutec.auth.infrastructure.UserRepository;
+import pe.edu.utec.devutec.dto.PageResponseDTO;
 import pe.edu.utec.devutec.dto.ReviewCreateDTO;
 import pe.edu.utec.devutec.dto.ReviewResponseDTO;
 import pe.edu.utec.devutec.exceptions.DuplicateResourceException;
@@ -56,6 +60,21 @@ public class ReviewServiceImpl implements ReviewService {
         return reviewRepository.findByContract_IdOrderByCreatedAtDesc(contractId).stream()
                 .map(reviewMapper::toResponse)
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponseDTO<ReviewResponseDTO> findByReviewee(Long userId, int page, int size) {
+        ensureUserExists(userId);
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        return PageResponseDTO.from(
+                reviewRepository.findByReviewee_Id(userId, pageable).map(reviewMapper::toResponse));
+    }
+
+    private void ensureUserExists(Long userId) {
+        if (!userRepository.existsById(userId)) {
+            throw new ResourceNotFoundException("Usuario no encontrado con id: " + userId);
+        }
     }
 
     private Contract findContract(Long contractId) {
