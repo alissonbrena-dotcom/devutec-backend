@@ -2,8 +2,8 @@ package pe.edu.utec.devutec.exceptions;
 
 import org.springframework.http.HttpStatus;
 
-public class ConflictException extends ApiException {
-    public ConflictException(String message) {
+public class InvalidOperationException extends ApiException {
+    public InvalidOperationException(String message) {
         super(HttpStatus.CONFLICT, message);
     }
 }
