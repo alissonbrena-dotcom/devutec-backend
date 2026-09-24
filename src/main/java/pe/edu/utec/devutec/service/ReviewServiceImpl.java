@@ -18,6 +18,8 @@ import pe.edu.utec.devutec.model.review.Review;
 import pe.edu.utec.devutec.repository.ContractRepository;
 import pe.edu.utec.devutec.repository.ReviewRepository;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class ReviewServiceImpl implements ReviewService {
@@ -46,23 +48,51 @@ public class ReviewServiceImpl implements ReviewService {
         return reviewMapper.toResponse(reviewRepository.save(review));
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<ReviewResponseDTO> findByContract(Long contractId) {
+        Contract contract = findContract(contractId);
+        ensureIsParticipant(contract, currentUserService.getCurrentUser());
+        return reviewRepository.findByContract_IdOrderByCreatedAtDesc(contractId).stream()
+                .map(reviewMapper::toResponse)
+                .toList();
+    }
+
     private Contract findContract(Long contractId) {
         return contractRepository.findById(contractId)
                 .orElseThrow(() -> new ResourceNotFoundException("Contrato no encontrado con id: " + contractId));
     }
 
     private User resolveReviewee(Contract contract, User author) {
-        User freelancer = contract.getApplication().getFreelancer().getUser();
-        Long clientId = contract.getApplication().getProject().getClientId();
+        ensureIsParticipant(contract, author);
+        if (isClient(contract, author)) {
+            return freelancerOf(contract);
+        }
+        Long clientId = clientIdOf(contract);
+        return userRepository.findById(clientId)
+                .orElseThrow(() -> new ResourceNotFoundException("Cliente no encontrado con id: " + clientId));
+    }
 
-        if (author.getId().equals(clientId)) {
-            return freelancer;
+    private void ensureIsParticipant(Contract contract, User user) {
+        if (!isClient(contract, user) && !isFreelancer(contract, user)) {
+            throw new ForbiddenOperationException("Solo el cliente o el freelancer del contrato tienen acceso a sus reseñas");
         }
-        if (author.getId().equals(freelancer.getId())) {
-            return userRepository.findById(clientId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Cliente no encontrado con id: " + clientId));
-        }
-        throw new ForbiddenOperationException("Solo el cliente o el freelancer del contrato pueden reseñarlo");
+    }
+
+    private boolean isClient(Contract contract, User user) {
+        return user.getId().equals(clientIdOf(contract));
+    }
+
+    private boolean isFreelancer(Contract contract, User user) {
+        return user.getId().equals(freelancerOf(contract).getId());
+    }
+
+    private Long clientIdOf(Contract contract) {
+        return contract.getApplication().getProject().getClientId();
+    }
+
+    private User freelancerOf(Contract contract) {
+        return contract.getApplication().getFreelancer().getUser();
     }
 
     private void ensureIsConfirmed(Contract contract) {
