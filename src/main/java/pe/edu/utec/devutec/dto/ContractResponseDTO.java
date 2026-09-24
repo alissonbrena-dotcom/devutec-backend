@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @AllArgsConstructor
@@ -16,6 +17,8 @@ public class ContractResponseDTO {
     private String projectTitle;
     private String freelancerName;
     private String status;
+    private BigDecimal amount;
+    private String paymentStatus;
     private LocalDateTime startedAt;
     private LocalDateTime deliveredAt;
 }
