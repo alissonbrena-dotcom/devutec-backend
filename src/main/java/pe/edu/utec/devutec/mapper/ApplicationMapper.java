@@ -5,7 +5,7 @@ import pe.edu.utec.devutec.dto.ApplicationResponseDTO;
 import pe.edu.utec.devutec.model.application.Application;
 
 @Component
-public class ApplicationMaper {
+public class ApplicationMapper {
     public ApplicationResponseDTO toResponse(Application application) {
         return new ApplicationResponseDTO(
                 application.getId(),

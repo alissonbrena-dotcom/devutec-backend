@@ -1,6 +1,6 @@
 package pe.edu.utec.devutec.auth.dto;
 
-import pe.edu.utec.devutec.model.Role;
+import pe.edu.utec.devutec.auth.domain.Role;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -10,7 +10,7 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class RegisterRequestDTO {
+public class RegisterRequest {
 
     @NotBlank
     private String nombre;

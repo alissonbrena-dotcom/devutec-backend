@@ -1,4 +1,4 @@
-package pe.edu.utec.devutec.model;
+package pe.edu.utec.devutec.auth.domain;
 
 import jakarta.persistence.*;
 import lombok.Getter;
