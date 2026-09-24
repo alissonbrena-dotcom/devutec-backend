@@ -7,6 +7,7 @@ import pe.edu.utec.devutec.dto.SkillResponseDTO;
 import pe.edu.utec.devutec.model.Skill;
 import pe.edu.utec.devutec.repository.SkillRepository;
 import pe.edu.utec.devutec.exceptions.ResourceNotFoundException;
+import pe.edu.utec.devutec.exceptions.ConflictException;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -19,6 +20,9 @@ public class SkillServiceImpl implements SkillService {
 
     @Override
     public SkillResponseDTO create(SkillRequestDTO dto) {
+        if (skillRepository.existsByNameIgnoreCase(dto.getName())) {
+            throw new ConflictException("Ya existe una skill con el nombre: " + dto.getName());
+        }
         Skill skill = new Skill();
         skill.setName(dto.getName());
         Skill saved = skillRepository.save(skill);

@@ -36,7 +36,7 @@ public class ProjectController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ProjectResponseDTO> update(@PathVariable Long id, @RequestBody ProjectUpdateDTO dto) {
+    public ResponseEntity<ProjectResponseDTO> update(@PathVariable Long id, @Valid @RequestBody ProjectUpdateDTO dto) {
         return ResponseEntity.ok(projectService.update(id, dto));
     }
 
@@ -46,6 +46,3 @@ public class ProjectController {
         return ResponseEntity.noContent().build();
     }
 }
-
-
-// serviria tener bueno algo preparado
