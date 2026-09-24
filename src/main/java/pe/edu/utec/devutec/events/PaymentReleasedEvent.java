@@ -2,14 +2,18 @@ package pe.edu.utec.devutec.events;
 
 import lombok.Getter;
 import org.springframework.context.ApplicationEvent;
-import pe.edu.utec.devutec.model.Payment;
+
+import java.math.BigDecimal;
 
 @Getter
 public class PaymentReleasedEvent extends ApplicationEvent {
-    private final Payment payment;
 
-    public PaymentReleasedEvent(Object source, Payment payment) {
+    private final Long paymentId;
+    private final BigDecimal amount;
+
+    public PaymentReleasedEvent(Object source, Long paymentId, BigDecimal amount) {
         super(source);
-        this.payment = payment;
+        this.paymentId = paymentId;
+        this.amount = amount;
     }
 }

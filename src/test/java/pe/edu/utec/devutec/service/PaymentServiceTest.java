@@ -7,7 +7,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.modelmapper.ModelMapper;
-import pe.edu.utec.devutec.dto.PaymentRequestDTO;
 import pe.edu.utec.devutec.dto.PaymentResponseDTO;
 import pe.edu.utec.devutec.events.PaymentReleasedEvent;
 import pe.edu.utec.devutec.exceptions.ConflictException;
@@ -35,34 +34,28 @@ class PaymentServiceTest {
     private ModelMapper modelMapper;
 
     @InjectMocks
-    private PaymentService paymentService;
+    private PaymentServiceImpl paymentService;
 
-    // TEST 1 - Crear un pago debería guardar el pago con su monto
+    // TEST 1 - Reembolsar un pago en HELD lo pasa a REFUNDED sin publicar evento de liberación
     @Test
-    void createPayment_deberiaGuardarPagoConMonto() {
-        // Given (preparar)
-        BigDecimal monto = new BigDecimal("100.00");
-        PaymentRequestDTO request = new PaymentRequestDTO();
-        request.setAmount(monto);
+    void refundPayment_conPagoHeld_deberiaReembolsarlo() {
+        // Given
+        Payment pago = new Payment();
+        pago.setId(1L);
+        pago.setAmount(new BigDecimal("100.00"));
+        pago.setStatus(PaymentStatus.HELD);
 
-        Payment pagoMapeado = new Payment();
-        pagoMapeado.setAmount(monto);
-
-        Payment pagoGuardado = new Payment();
-        pagoGuardado.setId(1L);
-        pagoGuardado.setAmount(monto);
-        pagoGuardado.setStatus(PaymentStatus.HELD);
-
-        when(modelMapper.map(request, Payment.class)).thenReturn(pagoMapeado);
-        when(repository.save(any(Payment.class))).thenReturn(pagoGuardado);
+        when(repository.findById(1L)).thenReturn(Optional.of(pago));
+        when(repository.save(any(Payment.class))).thenReturn(pago);
         when(modelMapper.map(any(Payment.class), eq(PaymentResponseDTO.class)))
                 .thenReturn(new PaymentResponseDTO());
 
-        // When (ejecutar)
-        paymentService.createPayment(request);
+        // When
+        paymentService.refundPayment(1L);
 
-        // Then (verificar)
-        verify(repository, times(1)).save(any(Payment.class));
+        // Then
+        assertEquals(PaymentStatus.REFUNDED, pago.getStatus());
+        verify(publisher, never()).publishEvent(any(PaymentReleasedEvent.class));
     }
 
     // TEST 2 - Liberar un pago en HELD lo pasa a RELEASED
