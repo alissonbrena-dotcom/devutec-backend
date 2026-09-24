@@ -11,9 +11,9 @@
     </div>
 
     <div style="padding:32px; color:#333333; line-height:1.6;">
-        <p style="font-size:16px;">Hola,</p>
+        <p style="font-size:16px;">Hola <span th:text="${freelancerName}">freelancer</span>,</p>
         <p style="font-size:16px;">
-            Te confirmamos que el pago por tu trabajo ya fue liberado a tu cuenta.
+            El cliente confirmó la entrega de <strong th:text="${projectTitle}">tu proyecto</strong> y el pago retenido ya fue liberado a tu cuenta.
         </p>
 
         <div style="background-color:#f0f5ff; border-radius:8px; padding:20px; margin:24px 0; text-align:center;">
