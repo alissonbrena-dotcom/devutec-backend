@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+</head>
+<body style="margin:0; padding:0; background-color:#f4f4f7; font-family:Arial, sans-serif;">
+<div style="max-width:600px; margin:40px auto; background:#ffffff; border-radius:12px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+
+    <div style="background-color:#2563eb; padding:32px; text-align:center;">
+        <h1 style="color:#ffffff; margin:0; font-size:24px;">📩 ¡Tienes una nueva postulación!</h1>
+    </div>
+
+    <div style="padding:32px; color:#333333; line-height:1.6;">
+        <p style="font-size:16px;">Hola <span th:text="${clientName}">cliente</span>,</p>
+        <p style="font-size:16px;">
+            <strong th:text="${freelancerName}">Un freelancer</strong> postuló a tu proyecto
+            <strong th:text="${projectTitle}">proyecto</strong>.
+        </p>
+        <p style="font-size:16px;">Ingresa a DevUTEC para revisar su propuesta.</p>
+    </div>
+
+    <div style="background-color:#f4f4f7; padding:20px; text-align:center; color:#999; font-size:12px;">
+        <p style="margin:0;">Este es un correo automático de DevUTEC, no responder.</p>
+    </div>
+</div>
+</body>
+</html>
