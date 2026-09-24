@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import pe.edu.utec.devutec.model.Payment;
 import pe.edu.utec.devutec.model.application.Application;
 
 import java.time.LocalDateTime;
@@ -23,6 +24,10 @@ public class Contract {
     @OneToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "application_id", nullable = false, unique = true)
     private Application application;
+
+    @OneToOne(fetch = FetchType.LAZY, optional = false, cascade = CascadeType.PERSIST)
+    @JoinColumn(name = "payment_id", nullable = false, unique = true)
+    private Payment payment;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
