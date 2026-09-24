@@ -6,6 +6,7 @@ import pe.edu.utec.devutec.dto.SkillRequestDTO;
 import pe.edu.utec.devutec.dto.SkillResponseDTO;
 import pe.edu.utec.devutec.model.Skill;
 import pe.edu.utec.devutec.repository.SkillRepository;
+import pe.edu.utec.devutec.exceptions.ResourceNotFoundException;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -35,14 +36,14 @@ public class SkillServiceImpl implements SkillService {
     @Override
     public SkillResponseDTO findById(Long id) {
         Skill skill = skillRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Skill no encontrada con id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Skill no encontrada con id: " + id));
         return toResponseDTO(skill);
     }
 
     @Override
     public void delete(Long id) {
         if (!skillRepository.existsById(id)) {
-            throw new RuntimeException("Skill no encontrada con id: " + id);
+            throw new ResourceNotFoundException("Skill no encontrada con id: " + id);
         }
         skillRepository.deleteById(id);
     }

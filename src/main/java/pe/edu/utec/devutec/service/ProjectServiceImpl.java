@@ -11,6 +11,7 @@ import pe.edu.utec.devutec.model.ProjectStatus;
 import pe.edu.utec.devutec.model.Skill;
 import pe.edu.utec.devutec.repository.ProjectRepository;
 import pe.edu.utec.devutec.repository.SkillRepository;
+import pe.edu.utec.devutec.exceptions.ResourceNotFoundException;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -72,14 +73,14 @@ public class ProjectServiceImpl implements ProjectService {
     @Override
     public void delete(Long id) {
         if (!projectRepository.existsById(id)) {
-            throw new RuntimeException("Proyecto no encontrado con id: " + id);
+            throw new ResourceNotFoundException("Proyecto no encontrado con id: " + id);
         }
         projectRepository.deleteById(id);
     }
 
     private Project findEntityById(Long id) {
         return projectRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Proyecto no encontrado con id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + id));
     }
 
     private Set<Skill> resolveSkills(Set<Long> skillIds) {
