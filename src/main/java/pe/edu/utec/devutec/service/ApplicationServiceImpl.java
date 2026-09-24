@@ -35,6 +35,7 @@ public class ApplicationServiceImpl implements ApplicationService {
     private final CurrentUserService currentUserService;
     private final ApplicationMapper applicationMapper;
     private final ApplicationEventPublisher eventPublisher;
+    private final ContractService contractService;
 
     @Override
     @Transactional
@@ -93,6 +94,7 @@ public class ApplicationServiceImpl implements ApplicationService {
         application.setStatus(AppStatus.ACCEPTED);
         rejectOtherPendingApplications(application);
         application.getProject().setStatus(ProjectStatus.IN_PROGRESS);
+        contractService.createFromApplication(application);
 
         User freelancerUser = application.getFreelancer().getUser();
         eventPublisher.publishEvent(new ApplicationAcceptedEvent(
