@@ -2,16 +2,19 @@ package pe.edu.utec.devutec.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import pe.edu.utec.devutec.auth.domain.Role;
+import pe.edu.utec.devutec.auth.domain.User;
 import pe.edu.utec.devutec.dto.ProjectCreateDTO;
 import pe.edu.utec.devutec.dto.ProjectResponseDTO;
 import pe.edu.utec.devutec.dto.ProjectUpdateDTO;
 import pe.edu.utec.devutec.dto.SkillResponseDTO;
+import pe.edu.utec.devutec.exceptions.ForbiddenOperationException;
+import pe.edu.utec.devutec.exceptions.ResourceNotFoundException;
 import pe.edu.utec.devutec.model.Project;
 import pe.edu.utec.devutec.model.ProjectStatus;
 import pe.edu.utec.devutec.model.Skill;
 import pe.edu.utec.devutec.repository.ProjectRepository;
 import pe.edu.utec.devutec.repository.SkillRepository;
-import pe.edu.utec.devutec.exceptions.ResourceNotFoundException;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -25,15 +28,18 @@ public class ProjectServiceImpl implements ProjectService {
 
     private final ProjectRepository projectRepository;
     private final SkillRepository skillRepository;
+    private final CurrentUserService currentUserService;
 
     @Override
     public ProjectResponseDTO create(ProjectCreateDTO dto) {
+        User client = currentUserService.getCurrentUser();
+
         Project project = new Project();
         project.setTitle(dto.getTitle());
         project.setDescription(dto.getDescription());
         project.setBudget(dto.getBudget());
         project.setDeadline(dto.getDeadline());
-        project.setClientId(dto.getClientId());
+        project.setClientId(client.getId());
         project.setStatus(ProjectStatus.OPEN);
         project.setCreatedAt(LocalDateTime.now());
         project.setSkills(resolveSkills(dto.getSkillIds()));
@@ -52,13 +58,13 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     public ProjectResponseDTO findById(Long id) {
-        Project project = findEntityById(id);
-        return toResponseDTO(project);
+        return toResponseDTO(findEntityById(id));
     }
 
     @Override
     public ProjectResponseDTO update(Long id, ProjectUpdateDTO dto) {
         Project project = findEntityById(id);
+        ensureCanModify(project);
 
         if (dto.getTitle() != null) project.setTitle(dto.getTitle());
         if (dto.getDescription() != null) project.setDescription(dto.getDescription());
@@ -66,21 +72,28 @@ public class ProjectServiceImpl implements ProjectService {
         if (dto.getDeadline() != null) project.setDeadline(dto.getDeadline());
         if (dto.getSkillIds() != null) project.setSkills(resolveSkills(dto.getSkillIds()));
 
-        Project updated = projectRepository.save(project);
-        return toResponseDTO(updated);
+        return toResponseDTO(projectRepository.save(project));
     }
 
     @Override
     public void delete(Long id) {
-        if (!projectRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Proyecto no encontrado con id: " + id);
-        }
-        projectRepository.deleteById(id);
+        Project project = findEntityById(id);
+        ensureCanModify(project);
+        projectRepository.delete(project);
     }
 
     private Project findEntityById(Long id) {
         return projectRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + id));
+    }
+
+    private void ensureCanModify(Project project) {
+        User user = currentUserService.getCurrentUser();
+        boolean isOwner = user.getId().equals(project.getClientId());
+        boolean isAdmin = user.getRol() == Role.ADMIN;
+        if (!isOwner && !isAdmin) {
+            throw new ForbiddenOperationException("Solo el cliente que publicó el proyecto puede modificarlo");
+        }
     }
 
     private Set<Skill> resolveSkills(Set<Long> skillIds) {
