@@ -2,88 +2,35 @@ package pe.edu.utec.devutec.auth.application;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.web.bind.annotation.*;
 import org.springframework.security.access.prepost.PreAuthorize;
-import pe.edu.utec.devutec.auth.domain.User;
+import org.springframework.web.bind.annotation.*;
 import pe.edu.utec.devutec.auth.dto.AuthResponse;
 import pe.edu.utec.devutec.auth.dto.LoginRequest;
+import pe.edu.utec.devutec.auth.dto.RefreshTokenRequest;
 import pe.edu.utec.devutec.auth.dto.RegisterRequest;
-import pe.edu.utec.devutec.auth.infrastructure.CustomUserDetailsService;
-import pe.edu.utec.devutec.auth.infrastructure.JwtService;
-import pe.edu.utec.devutec.auth.infrastructure.UserRepository;
-import pe.edu.utec.devutec.auth.dto.RefreshRequest;
 
 @RestController
-@RequestMapping("/auth")
+@RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
 public class AuthController {
 
-    private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
-    private final JwtService jwtService;
-    private final AuthenticationManager authenticationManager;
-    private final CustomUserDetailsService userDetailsService;
+    private final AuthService authService;
 
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
-        if (userRepository.existsByEmail(request.getEmail())) {
-            return ResponseEntity.status(409).build();
-        }
-
-        User user = new User();
-        user.setNombre(request.getNombre());
-        user.setEmail(request.getEmail());
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
-        user.setRol(request.getRol());
-
-        userRepository.save(user);
-
-        String accessToken = jwtService.generateAccessToken(user);
-        String refreshToken = jwtService.generateRefreshToken(user);
-
-        return ResponseEntity.status(201).body(
-                new AuthResponse(accessToken, refreshToken, user.getEmail(), user.getRol().name())
-        );
+        return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(request));
     }
 
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
-        );
-
-        UserDetails userDetails = userDetailsService.loadUserByUsername(request.getEmail());
-        User user = userRepository.findByEmail(request.getEmail()).orElseThrow();
-
-        String accessToken = jwtService.generateAccessToken(userDetails);
-        String refreshToken = jwtService.generateRefreshToken(userDetails);
-
-        return ResponseEntity.ok(
-                new AuthResponse(accessToken, refreshToken, user.getEmail(), user.getRol().name())
-        );
+        return ResponseEntity.ok(authService.login(request));
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<AuthResponse> refresh(@Valid @RequestBody RefreshRequest request) {
-        String email = jwtService.extractEmail(request.getRefreshToken());
-        UserDetails userDetails = userDetailsService.loadUserByUsername(email);
-
-        if (!jwtService.isTokenValid(request.getRefreshToken(), userDetails)) {
-            return ResponseEntity.status(401).build();
-        }
-
-        User user = userRepository.findByEmail(email).orElseThrow();
-        String newAccessToken = jwtService.generateAccessToken(userDetails);
-        String newRefreshToken = jwtService.generateRefreshToken(userDetails);
-
-        return ResponseEntity.ok(
-                new AuthResponse(newAccessToken, newRefreshToken, user.getEmail(), user.getRol().name())
-        );
+    public ResponseEntity<AuthResponse> refresh(@Valid @RequestBody RefreshTokenRequest request) {
+        return ResponseEntity.ok(authService.refresh(request));
     }
 
     @GetMapping("/admin-only")
