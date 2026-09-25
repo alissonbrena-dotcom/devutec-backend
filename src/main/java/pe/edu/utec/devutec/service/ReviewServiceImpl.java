@@ -55,7 +55,7 @@ public class ReviewServiceImpl implements ReviewService {
         review.setComment(dto.getComment());
         Review saved = reviewRepository.save(review);
 
-        eventPublisher.publishEvent(new ReviewCreatedEvent(this, saved.getId(), reviewee.getId()));
+        publishReviewCreated(saved);
         return reviewMapper.toResponse(saved);
     }
 
@@ -88,6 +88,18 @@ public class ReviewServiceImpl implements ReviewService {
         if (!userRepository.existsById(userId)) {
             throw new ResourceNotFoundException("Usuario no encontrado con id: " + userId);
         }
+    }
+
+    private void publishReviewCreated(Review review) {
+        eventPublisher.publishEvent(new ReviewCreatedEvent(
+                this,
+                review.getId(),
+                review.getReviewee().getId(),
+                review.getReviewee().getEmail(),
+                review.getReviewee().getNombre(),
+                review.getAuthor().getNombre(),
+                review.getContract().getApplication().getProject().getTitle(),
+                review.getRating()));
     }
 
     private Contract findContract(Long contractId) {
