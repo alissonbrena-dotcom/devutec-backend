@@ -5,7 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import pe.edu.utec.devutec.auth.domain.FreelancerProfile;
+import pe.edu.utec.devutec.model.FreelancerProfile;
 import pe.edu.utec.devutec.model.Project;
 
 import java.math.BigDecimal;

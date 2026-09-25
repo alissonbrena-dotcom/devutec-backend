@@ -1,7 +1,7 @@
 package pe.edu.utec.devutec.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
-import pe.edu.utec.devutec.auth.domain.FreelancerProfile;
+import pe.edu.utec.devutec.model.FreelancerProfile;
 
 import java.util.Optional;
 

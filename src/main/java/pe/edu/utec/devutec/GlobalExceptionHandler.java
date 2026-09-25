@@ -13,8 +13,10 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 import pe.edu.utec.devutec.dto.ErrorResponseDTO;
 import pe.edu.utec.devutec.exceptions.ApiException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import java.time.LocalDateTime;
 
 @RestControllerAdvice
@@ -59,6 +61,16 @@ public class GlobalExceptionHandler {
             return build(HttpStatus.UNAUTHORIZED, "Debes iniciar sesión para realizar esta acción", request);
         }
         return build(HttpStatus.FORBIDDEN, "No tienes permiso para realizar esta acción", request);
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ErrorResponseDTO> handleAuthentication(AuthenticationException ex, HttpServletRequest request) {
+        return build(HttpStatus.UNAUTHORIZED, "Email o contraseña incorrectos", request);
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponseDTO> handleMethodNotAllowed(HttpRequestMethodNotSupportedException ex, HttpServletRequest request) {
+        return build(HttpStatus.METHOD_NOT_ALLOWED, "Método HTTP no permitido para esta ruta", request);
     }
 
     @ExceptionHandler(NoResourceFoundException.class)
