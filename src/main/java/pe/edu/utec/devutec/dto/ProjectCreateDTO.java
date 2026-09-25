@@ -29,8 +29,5 @@ public class ProjectCreateDTO {
 
     private LocalDate deadline;
 
-    @NotNull(message = "El cliente es obligatorio")
-    private Long clientId;
-
     private Set<Long> skillIds;
 }

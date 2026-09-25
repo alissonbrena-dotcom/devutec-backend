@@ -1,14 +1,15 @@
 package pe.edu.utec.devutec.controller;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import pe.edu.utec.devutec.dto.SkillRequestDTO;
 import pe.edu.utec.devutec.dto.SkillResponseDTO;
 import pe.edu.utec.devutec.service.SkillService;
 
-import jakarta.validation.Valid;
 import java.util.List;
 
 @RestController
@@ -19,9 +20,9 @@ public class SkillController {
     private final SkillService skillService;
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('CLIENT', 'ADMIN')")
     public ResponseEntity<SkillResponseDTO> create(@Valid @RequestBody SkillRequestDTO dto) {
-        SkillResponseDTO created = skillService.create(dto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+        return ResponseEntity.status(HttpStatus.CREATED).body(skillService.create(dto));
     }
 
     @GetMapping
@@ -35,6 +36,7 @@ public class SkillController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         skillService.delete(id);
         return ResponseEntity.noContent().build();
