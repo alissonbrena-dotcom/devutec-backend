@@ -1,24 +1,23 @@
 package pe.edu.utec.devutec.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import pe.edu.utec.devutec.auth.domain.Role;
 import pe.edu.utec.devutec.auth.domain.User;
-import pe.edu.utec.devutec.dto.ProjectCreateDTO;
-import pe.edu.utec.devutec.dto.ProjectResponseDTO;
-import pe.edu.utec.devutec.dto.ProjectUpdateDTO;
-import pe.edu.utec.devutec.dto.SkillResponseDTO;
+import pe.edu.utec.devutec.dto.*;
 import pe.edu.utec.devutec.exceptions.ForbiddenOperationException;
 import pe.edu.utec.devutec.exceptions.ResourceNotFoundException;
 import pe.edu.utec.devutec.model.Project;
 import pe.edu.utec.devutec.model.ProjectStatus;
 import pe.edu.utec.devutec.model.Skill;
 import pe.edu.utec.devutec.repository.ProjectRepository;
+import pe.edu.utec.devutec.repository.ProjectSpecifications;
 import pe.edu.utec.devutec.repository.SkillRepository;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -49,11 +48,11 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
-    public List<ProjectResponseDTO> findAll() {
-        return projectRepository.findAll()
-                .stream()
-                .map(this::toResponseDTO)
-                .collect(Collectors.toList());
+    public PageResponseDTO<ProjectResponseDTO> findAll(ProjectFilterDTO filters, Pageable pageable) {
+        Page<ProjectResponseDTO> page = projectRepository
+                .findAll(ProjectSpecifications.withFilters(filters), pageable)
+                .map(this::toResponseDTO);
+        return PageResponseDTO.from(page);
     }
 
     @Override
