@@ -16,6 +16,7 @@ import pe.edu.utec.devutec.auth.dto.RegisterRequest;
 import pe.edu.utec.devutec.auth.infrastructure.CustomUserDetailsService;
 import pe.edu.utec.devutec.auth.infrastructure.JwtService;
 import pe.edu.utec.devutec.auth.infrastructure.UserRepository;
+import pe.edu.utec.devutec.auth.dto.RefreshRequest;
 
 @RestController
 @RequestMapping("/auth")
@@ -64,6 +65,24 @@ public class AuthController {
 
         return ResponseEntity.ok(
                 new AuthResponse(accessToken, refreshToken, user.getEmail(), user.getRol().name())
+        );
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<AuthResponse> refresh(@Valid @RequestBody RefreshRequest request) {
+        String email = jwtService.extractEmail(request.getRefreshToken());
+        UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+
+        if (!jwtService.isTokenValid(request.getRefreshToken(), userDetails)) {
+            return ResponseEntity.status(401).build();
+        }
+
+        User user = userRepository.findByEmail(email).orElseThrow();
+        String newAccessToken = jwtService.generateAccessToken(userDetails);
+        String newRefreshToken = jwtService.generateRefreshToken(userDetails);
+
+        return ResponseEntity.ok(
+                new AuthResponse(newAccessToken, newRefreshToken, user.getEmail(), user.getRol().name())
         );
     }
 

@@ -13,13 +13,14 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 import pe.edu.utec.devutec.dto.ErrorResponseDTO;
 import pe.edu.utec.devutec.exceptions.ApiException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
+import io.jsonwebtoken.JwtException;
 
 import org.springframework.security.access.AccessDeniedException;
 import java.time.LocalDateTime;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
-
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(GlobalExceptionHandler.class);
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<ErrorResponseDTO> handleApiException(ApiException ex, HttpServletRequest request) {
         return build(ex.getStatus(), ex.getMessage(), request);
@@ -62,8 +63,15 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.NOT_FOUND, "La ruta solicitada no existe", request);
     }
 
+    @ExceptionHandler(JwtException.class)
+    public ResponseEntity<ErrorResponseDTO> handleJwtException(JwtException ex, HttpServletRequest request) {
+        log.warn("Token inválido en {}: {}", request.getRequestURI(), ex.getMessage());
+        return build(HttpStatus.UNAUTHORIZED, "El token es inválido o ha expirado", request);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponseDTO> handleUnexpected(Exception ex, HttpServletRequest request) {
+        log.error("Error inesperado en {}: ", request.getRequestURI(), ex);
         return build(HttpStatus.INTERNAL_SERVER_ERROR, "Ocurrió un error inesperado", request);
     }
 
