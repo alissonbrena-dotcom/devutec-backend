@@ -11,6 +11,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
+import pe.edu.utec.devutec.exceptions.EmailSendingException;
 
 import java.util.Map;
 
@@ -39,7 +40,7 @@ public class EmailService {
             mailSender.send(message);
             log.info("Correo '{}' enviado a {}", templateName, to);
         } catch (MessagingException | MailException e) {
-            log.error("Error al enviar el correo '{}' a {}", templateName, to, e);
+            throw new EmailSendingException(to, templateName, e);
         }
     }
 }
