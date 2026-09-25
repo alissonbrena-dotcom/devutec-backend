@@ -5,7 +5,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import pe.edu.utec.devutec.auth.domain.FreelancerProfile;
+import pe.edu.utec.devutec.model.FreelancerProfile;
 import pe.edu.utec.devutec.repository.FreelancerProfileRepository;
 import pe.edu.utec.devutec.repository.ReviewRepository;
 

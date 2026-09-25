@@ -12,7 +12,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import pe.edu.utec.devutec.auth.domain.FreelancerProfile;
+import pe.edu.utec.devutec.model.FreelancerProfile;
 import pe.edu.utec.devutec.auth.domain.User;
 import pe.edu.utec.devutec.auth.infrastructure.UserRepository;
 import pe.edu.utec.devutec.dto.PageResponseDTO;
