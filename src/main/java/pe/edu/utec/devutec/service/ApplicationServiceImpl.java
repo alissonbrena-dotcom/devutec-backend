@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import pe.edu.utec.devutec.auth.domain.FreelancerProfile;
+import pe.edu.utec.devutec.model.FreelancerProfile;
 import pe.edu.utec.devutec.auth.domain.User;
 import pe.edu.utec.devutec.dto.ApplicationRequestDTO;
 import pe.edu.utec.devutec.dto.ApplicationResponseDTO;

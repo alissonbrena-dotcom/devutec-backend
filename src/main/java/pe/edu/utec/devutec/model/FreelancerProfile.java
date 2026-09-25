@@ -1,10 +1,11 @@
-package pe.edu.utec.devutec.auth.domain;
+package pe.edu.utec.devutec.model;
 
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+import pe.edu.utec.devutec.auth.domain.User;
 
 import java.math.BigDecimal;
 

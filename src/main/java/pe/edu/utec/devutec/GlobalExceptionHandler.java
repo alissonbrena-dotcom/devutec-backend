@@ -8,6 +8,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 import pe.edu.utec.devutec.dto.ErrorResponseDTO;
@@ -15,6 +16,7 @@ import pe.edu.utec.devutec.exceptions.ApiException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import java.time.LocalDateTime;
 
 @RestControllerAdvice
@@ -44,12 +46,26 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.BAD_REQUEST, "Parámetro inválido o faltante en la petición", request);
     }
 
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    public ResponseEntity<ErrorResponseDTO> handleMethodValidation(HandlerMethodValidationException ex, HttpServletRequest request) {
+        String message = ex.getAllErrors().stream()
+                .map(error -> error.getDefaultMessage())
+                .findFirst()
+                .orElse("Parámetro inválido en la petición");
+        return build(HttpStatus.BAD_REQUEST, message, request);
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponseDTO> handleAccessDenied(AccessDeniedException ex, HttpServletRequest request) {
         if (request.getUserPrincipal() == null) {
             return build(HttpStatus.UNAUTHORIZED, "Debes iniciar sesión para realizar esta acción", request);
         }
         return build(HttpStatus.FORBIDDEN, "No tienes permiso para realizar esta acción", request);
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ErrorResponseDTO> handleAuthentication(AuthenticationException ex, HttpServletRequest request) {
+        return build(HttpStatus.UNAUTHORIZED, "Email o contraseña incorrectos", request);
     }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
