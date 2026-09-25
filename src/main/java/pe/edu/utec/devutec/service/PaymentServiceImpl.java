@@ -7,7 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pe.edu.utec.devutec.dto.PaymentResponseDTO;
 import pe.edu.utec.devutec.events.PaymentReleasedEvent;
-import pe.edu.utec.devutec.exceptions.ConflictException;
+import pe.edu.utec.devutec.exceptions.InvalidPaymentStateException;
 import pe.edu.utec.devutec.exceptions.ResourceNotFoundException;
 import pe.edu.utec.devutec.model.Payment;
 import pe.edu.utec.devutec.model.PaymentStatus;
@@ -41,7 +41,7 @@ public class PaymentServiceImpl implements PaymentService {
     @Transactional
     public PaymentResponseDTO releasePayment(Long id) {
         Payment payment = findPayment(id);
-        ensureIsHeld(payment, "Solo se puede liberar un pago que está retenido (HELD)");
+        ensureIsHeld(payment, "liberar");
 
         payment.setStatus(PaymentStatus.RELEASED);
         Payment saved = repository.save(payment);
@@ -54,7 +54,7 @@ public class PaymentServiceImpl implements PaymentService {
     @Transactional
     public PaymentResponseDTO refundPayment(Long id) {
         Payment payment = findPayment(id);
-        ensureIsHeld(payment, "Solo se puede reembolsar un pago que está retenido (HELD)");
+        ensureIsHeld(payment, "reembolsar");
 
         payment.setStatus(PaymentStatus.REFUNDED);
         return toResponse(repository.save(payment));
@@ -65,9 +65,9 @@ public class PaymentServiceImpl implements PaymentService {
                 .orElseThrow(() -> new ResourceNotFoundException("Pago no encontrado con id: " + id));
     }
 
-    private void ensureIsHeld(Payment payment, String message) {
+    private void ensureIsHeld(Payment payment, String action) {
         if (payment.getStatus() != PaymentStatus.HELD) {
-            throw new ConflictException(message);
+            throw new InvalidPaymentStateException(action, payment.getStatus());
         }
     }
 

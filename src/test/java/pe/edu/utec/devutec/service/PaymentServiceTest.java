@@ -9,7 +9,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.modelmapper.ModelMapper;
 import pe.edu.utec.devutec.dto.PaymentResponseDTO;
 import pe.edu.utec.devutec.events.PaymentReleasedEvent;
-import pe.edu.utec.devutec.exceptions.ConflictException;
+import pe.edu.utec.devutec.exceptions.InvalidPaymentStateException;
 import pe.edu.utec.devutec.exceptions.ResourceNotFoundException;
 import pe.edu.utec.devutec.model.Payment;
 import pe.edu.utec.devutec.model.PaymentStatus;
@@ -80,7 +80,7 @@ class PaymentServiceTest {
         verify(publisher, times(1)).publishEvent(any(PaymentReleasedEvent.class));
     }
 
-    // TEST 3 - Liberar un pago que NO está HELD lanza ConflictException
+    // TEST 3 - Liberar un pago que NO está HELD lanza InvalidPaymentStateException indicando el estado actual
     @Test
     void releasePayment_conPagoNoHeld_deberiaLanzarConflict() {
         // Given
@@ -91,7 +91,9 @@ class PaymentServiceTest {
         when(repository.findById(1L)).thenReturn(Optional.of(pago));
 
         // When + Then
-        assertThrows(ConflictException.class, () -> paymentService.releasePayment(1L));
+        InvalidPaymentStateException ex = assertThrows(InvalidPaymentStateException.class,
+                () -> paymentService.releasePayment(1L));
+        assertTrue(ex.getMessage().contains("RELEASED"));
     }
 
     // TEST 4 - Buscar un pago inexistente lanza ResourceNotFoundException
