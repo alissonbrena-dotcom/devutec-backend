@@ -1,6 +1,7 @@
 package pe.edu.utec.devutec.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -64,11 +65,17 @@ public class ReviewServiceImpl implements ReviewService {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponseDTO<ReviewResponseDTO> findByReviewee(Long userId, int page, int size) {
+    public PageResponseDTO<ReviewResponseDTO> findByReviewee(Long userId, Integer minRating, int page, int size) {
         ensureUserExists(userId);
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        return PageResponseDTO.from(
-                reviewRepository.findByReviewee_Id(userId, pageable).map(reviewMapper::toResponse));
+        return PageResponseDTO.from(findReceivedReviews(userId, minRating, pageable).map(reviewMapper::toResponse));
+    }
+
+    private Page<Review> findReceivedReviews(Long userId, Integer minRating, Pageable pageable) {
+        if (minRating == null) {
+            return reviewRepository.findByReviewee_Id(userId, pageable);
+        }
+        return reviewRepository.findByReviewee_IdAndRatingGreaterThanEqual(userId, minRating, pageable);
     }
 
     private void ensureUserExists(Long userId) {

@@ -16,4 +16,7 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
 
     @EntityGraph(attributePaths = {"author", "reviewee", "contract.application.project"})
     Page<Review> findByReviewee_Id(Long revieweeId, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"author", "reviewee", "contract.application.project"})
+    Page<Review> findByReviewee_IdAndRatingGreaterThanEqual(Long revieweeId, Integer minRating, Pageable pageable);
 }

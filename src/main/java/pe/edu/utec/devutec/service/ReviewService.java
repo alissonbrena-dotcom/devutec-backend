@@ -9,5 +9,5 @@ import java.util.List;
 public interface ReviewService {
     ReviewResponseDTO create(Long contractId, ReviewCreateDTO dto);
     List<ReviewResponseDTO> findByContract(Long contractId);
-    PageResponseDTO<ReviewResponseDTO> findByReviewee(Long userId, int page, int size);
+    PageResponseDTO<ReviewResponseDTO> findByReviewee(Long userId, Integer minRating, int page, int size);
 }

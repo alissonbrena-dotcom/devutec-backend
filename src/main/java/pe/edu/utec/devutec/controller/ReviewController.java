@@ -35,10 +35,13 @@ public class ReviewController {
     @GetMapping("/users/{userId}/reviews")
     public ResponseEntity<PageResponseDTO<ReviewResponseDTO>> findByReviewee(
             @PathVariable Long userId,
+            @RequestParam(required = false)
+            @Min(value = 1, message = "minRating debe estar entre 1 y 5")
+            @Max(value = 5, message = "minRating debe estar entre 1 y 5") Integer minRating,
             @RequestParam(defaultValue = "0") @Min(value = 0, message = "page debe ser mayor o igual a 0") int page,
             @RequestParam(defaultValue = "10")
             @Min(value = 1, message = "size debe ser al menos 1")
             @Max(value = 50, message = "size no puede ser mayor a 50") int size) {
-        return ResponseEntity.ok(reviewService.findByReviewee(userId, page, size));
+        return ResponseEntity.ok(reviewService.findByReviewee(userId, minRating, page, size));
     }
 }
