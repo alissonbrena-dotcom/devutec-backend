@@ -1,6 +1,7 @@
 package pe.edu.utec.devutec.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -12,6 +13,7 @@ import pe.edu.utec.devutec.auth.infrastructure.UserRepository;
 import pe.edu.utec.devutec.dto.PageResponseDTO;
 import pe.edu.utec.devutec.dto.ReviewCreateDTO;
 import pe.edu.utec.devutec.dto.ReviewResponseDTO;
+import pe.edu.utec.devutec.events.ReviewCreatedEvent;
 import pe.edu.utec.devutec.exceptions.DuplicateResourceException;
 import pe.edu.utec.devutec.exceptions.ForbiddenOperationException;
 import pe.edu.utec.devutec.exceptions.InvalidOperationException;
@@ -34,6 +36,7 @@ public class ReviewServiceImpl implements ReviewService {
     private final UserRepository userRepository;
     private final CurrentUserService currentUserService;
     private final ReviewMapper reviewMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -50,7 +53,10 @@ public class ReviewServiceImpl implements ReviewService {
         review.setReviewee(reviewee);
         review.setRating(dto.getRating());
         review.setComment(dto.getComment());
-        return reviewMapper.toResponse(reviewRepository.save(review));
+        Review saved = reviewRepository.save(review);
+
+        eventPublisher.publishEvent(new ReviewCreatedEvent(this, saved.getId(), reviewee.getId()));
+        return reviewMapper.toResponse(saved);
     }
 
     @Override
