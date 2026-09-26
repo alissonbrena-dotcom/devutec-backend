@@ -185,3 +185,30 @@ erDiagram
 | **Review** | Reseña de un participante a otro; única por par (contrato, autor). |
 
 **Decisiones de diseño:** todas las relaciones usan `FetchType.LAZY` y las consultas que necesitan datos relacionados cargan solo lo necesario con `@EntityGraph`. La integridad se refuerza en la base de datos con claves únicas (`email`, `skill.name`, `(project_id, freelancer_id)`, `(contract_id, author_id)`), un `CHECK` para `rating` entre 1 y 5 y un índice en `reviews.reviewee_id` para el perfil público.
+
+---
+
+## Manejo de errores
+
+Todos los errores se centralizan en un `@RestControllerAdvice` (`GlobalExceptionHandler`) y se devuelven con un formato único (`ErrorResponseDTO`), para que el cliente de la API siempre sepa qué falló sin exponer detalles internos:
+
+```json
+{ "timestamp": "2026-09-25T16:21:28", "status": 409, "error": "Conflict",
+  "message": "Ya postulaste a este proyecto", "path": "/api/v1/applications" }
+```
+
+**Excepciones personalizadas.** Heredan de `ApiException`, que guarda el código HTTP, así un solo manejador las cubre a todas:
+
+| Excepción | HTTP | Ejemplo de uso |
+|---|---|---|
+| `ResourceNotFoundException` | 404 | Proyecto, contrato o usuario inexistente |
+| `DuplicateResourceException` | 409 | Email ya registrado, postulación o reseña repetida |
+| `ConflictException` → `InvalidPaymentStateException` | 409 | Liberar un pago que no está retenido |
+| `InvalidOperationException` | 409 | Transición de estado inválida (confirmar sin entrega) |
+| `ForbiddenOperationException` | 403 | Modificar el proyecto o contrato de otro usuario |
+| `UnauthorizedException` | 401 | Refresh token inválido o sin sesión |
+| `EmailSendingException` | 503 | Fallo del servidor de correo (tarea asíncrona) |
+
+**Excepciones de Spring manejadas:** validación de `@Valid` y de parámetros (400), JSON mal formado (400), credenciales incorrectas (401), acceso denegado (403), ruta inexistente (404), método no permitido (405), clave duplicada en base de datos (409), `Content-Type` no soportado (415) y cualquier error inesperado (500, registrado en el log con su stacktrace).
+
+**Por qué es importante:** sin este manejo, cada error llegaría como un 500 genérico o con el stacktrace de Java, lo que confunde al cliente y filtra información interna. Los errores de tareas asíncronas (como el envío de correos) no llegan a ningún controlador, por eso se capturan aparte con un `AsyncUncaughtExceptionHandler` que los registra sin afectar la respuesta al usuario.
