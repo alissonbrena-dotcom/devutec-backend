@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "DevUTEC API",
-    "description": "API REST de DevUTEC — plataforma freelance con pago en garantía (escrow) para desarrolladores junior de CS.\n\nCS 2031 Desarrollo Basado en Plataforma.\n\n**Cómo usarla:**\n1. Ajusta `baseUrl` en las variables de la colección (local: http://localhost:8080).\n2. Ejecuta *Auth → Login*: el token se guarda solo en `token`.\n3. Todas las peticiones heredan la autorización Bearer `{{token}}`.\n\nErrores: todas las respuestas de error usan el mismo formato `{ timestamp, status, error, message, path }`.\n\n**Roles y sesión:**\n- Registra un cliente y un freelancer (*Auth*), y usa *Iniciar sesión (cliente)* o *Iniciar sesión (freelancer)*. Cada login guarda su token en `clientToken` / `freelancerToken`.\n- Las peticiones que exigen un rol usan automáticamente el token de ese rol; el resto usa `token` (el del último login).\n- El flujo completo del negocio sigue el orden de las carpetas: Skills → Projects → Applications → Contracts → Reviews.\n- Sin token la API responde 401; con un rol sin permiso, 403.",
+    "description": "API REST de DevUTEC — plataforma freelance con pago en garantía (escrow) para desarrolladores junior de CS.\n\nCS 2031 Desarrollo Basado en Plataforma.\n\n**Cómo usarla:**\n1. `baseUrl` apunta al deploy en AWS (EC2 + RDS): http://ec2-52-7-186-192.compute-1.amazonaws.com:8080. Para probar en local, cámbialo a http://localhost:8080 en las variables de la colección.\n2. Ejecuta *Auth → Login*: el token se guarda solo en `token`.\n3. Todas las peticiones heredan la autorización Bearer `{{token}}`.\n\nErrores: todas las respuestas de error usan el mismo formato `{ timestamp, status, error, message, path }`.\n\n**Roles y sesión:**\n- Registra un cliente y un freelancer (*Auth*), y usa *Iniciar sesión (cliente)* o *Iniciar sesión (freelancer)*. Cada login guarda su token en `clientToken` / `freelancerToken`.\n- Las peticiones que exigen un rol usan automáticamente el token de ese rol; el resto usa `token` (el del último login).\n- El flujo completo del negocio sigue el orden de las carpetas: Skills → Projects → Applications → Contracts → Reviews.\n- Sin token la API responde 401; con un rol sin permiso, 403.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -17,7 +17,7 @@
   "variable": [
     {
       "key": "baseUrl",
-      "value": "http://localhost:8080",
+      "value": "http://ec2-52-7-186-192.compute-1.amazonaws.com:8080",
       "type": "string"
     },
     {
