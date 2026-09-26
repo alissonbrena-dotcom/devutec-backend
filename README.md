@@ -252,3 +252,13 @@ Los servicios publican **eventos de dominio** (`ApplicationEvent`) y no conocen 
 Todos los listeners usan `@TransactionalEventListener`, por lo que **solo se ejecutan si la transacción se confirmó**: nunca se envía un correo de "pago liberado" si la operación se revirtió. Los correos usan plantillas HTML con Thymeleaf.
 
 **Por qué son asíncronos:** enviar un correo depende de un servidor SMTP externo y puede tardar segundos o fallar. Con `@Async`, el usuario recibe la respuesta de la API de inmediato y el envío ocurre en segundo plano, en un `ThreadPoolTaskExecutor` propio (5 a 10 hilos, cola de 25). Si una tarea falla, un `AsyncUncaughtExceptionHandler` registra el error sin afectar la operación principal. En el deploy se verificó el flujo completo: los 5 correos llegaron a la bandeja de Mailtrap.
+
+---
+
+## GitHub & Management
+
+**Organización de tareas.** El trabajo se dividió en **issues** por módulo, cada uno asignado a una integrante y etiquetado con un *label* (`auth`, `projects`, `contracts`, `payments`), con checklists de subtareas. Los 13 issues del proyecto se cerraron, varios automáticamente al unir el PR correspondiente (`Closes #12`).
+
+**Flujo de trabajo.** Cada funcionalidad o corrección se desarrolló en su propia rama (`feature/…`, `fix/…`, `docs/…`) y se integró a `main` mediante **pull request**: 26 PRs unidos, 14 con aprobación explícita en la revisión de código. Las revisiones detectaron problemas reales antes del merge, como vulnerabilidades en el registro, incompatibilidades entre ramas y casos de prueba faltantes.
+
+**GitHub Actions (CI).** El workflow `.github/workflows/ci.yml` se ejecuta en cada push y pull request a `main`: levanta un contenedor de PostgreSQL 16, instala Java 21 y ejecuta `./mvnw verify`, que compila el proyecto y corre toda la suite de pruebas. Un PR con el build en rojo no se integra, lo que mantiene `main` siempre funcional.
