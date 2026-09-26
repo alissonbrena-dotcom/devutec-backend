@@ -87,3 +87,101 @@ El estudiante gana experiencia, ingresos y un historial verificable; el negocio 
 | Correo | JavaMailSender con plantillas Thymeleaf y Mailtrap (sandbox SMTP) |
 | Pruebas | JUnit 5 y Mockito; colección de Postman ejecutada con Newman |
 | DevOps | Maven, GitHub Actions (CI), AWS EC2 + RDS con Elastic IP |
+
+---
+
+## Modelo de entidades
+
+### Diagrama entidad-relación
+
+```mermaid
+erDiagram
+    USERS ||--o| FREELANCER_PROFILES : "tiene"
+    USERS ||--o{ PROJECTS : "publica (client_id)"
+    PROJECTS }o--o{ SKILLS : "requiere (project_skills)"
+    PROJECTS ||--o{ APPLICATIONS : "recibe"
+    FREELANCER_PROFILES ||--o{ APPLICATIONS : "envía"
+    APPLICATIONS ||--o| CONTRACTS : "genera"
+    CONTRACTS ||--|| PAYMENTS : "retiene"
+    CONTRACTS ||--o{ REVIEWS : "recibe"
+    USERS ||--o{ REVIEWS : "escribe / recibe"
+
+    USERS {
+        Long id PK
+        String email UK
+        String password "BCrypt"
+        String nombre
+        Role rol "CLIENT | FREELANCER | ADMIN"
+        LocalDateTime fechaRegistro
+    }
+    FREELANCER_PROFILES {
+        Long id PK
+        Long user_id FK, UK
+        String universidad
+        Integer ciclo
+        BigDecimal tarifaHora
+        String portafolioUrl
+        BigDecimal calificacionPromedio
+    }
+    PROJECTS {
+        Long id PK
+        String title
+        String description
+        BigDecimal budget
+        LocalDate deadline
+        Long client_id
+        ProjectStatus status "OPEN | IN_PROGRESS | DONE"
+        LocalDateTime createdAt
+    }
+    SKILLS {
+        Long id PK
+        String name UK
+    }
+    APPLICATIONS {
+        Long id PK
+        Long project_id FK
+        Long freelancer_id FK
+        String message
+        BigDecimal proposedPrice
+        AppStatus status "PENDING | ACCEPTED | REJECTED"
+        LocalDateTime createdAt
+    }
+    CONTRACTS {
+        Long id PK
+        Long application_id FK, UK
+        Long payment_id FK, UK
+        ContractStatus status "IN_PROGRESS | DELIVERED | CONFIRMED | CANCELLED"
+        LocalDateTime startedAt
+        LocalDateTime deliveredAt
+    }
+    PAYMENTS {
+        Long id PK
+        BigDecimal amount
+        PaymentStatus status "HELD | RELEASED | REFUNDED"
+        LocalDateTime createdAt
+    }
+    REVIEWS {
+        Long id PK
+        Long contract_id FK
+        Long author_id FK
+        Long reviewee_id FK
+        Integer rating "1 a 5"
+        String comment
+        LocalDateTime createdAt
+    }
+```
+
+### Descripción de las entidades
+
+| Entidad | Rol en el sistema |
+|---|---|
+| **User** | Cuenta de acceso con email único, contraseña cifrada y rol. |
+| **FreelancerProfile** | Datos profesionales del freelancer (1:1 con `User`), incluida su calificación promedio. |
+| **Project** | Trabajo publicado por un cliente, con presupuesto, plazo y estado. |
+| **Skill** | Habilidad técnica; se relaciona N:M con los proyectos. |
+| **Application** | Postulación de un freelancer a un proyecto; única por par (proyecto, freelancer). |
+| **Contract** | Se crea al aceptar una postulación (1:1) y controla el ciclo de entrega. |
+| **Payment** | Pago en garantía asociado al contrato (1:1); se persiste en cascada al crear el contrato. |
+| **Review** | Reseña de un participante a otro; única por par (contrato, autor). |
+
+**Decisiones de diseño:** todas las relaciones usan `FetchType.LAZY` y las consultas que necesitan datos relacionados cargan solo lo necesario con `@EntityGraph`. La integridad se refuerza en la base de datos con claves únicas (`email`, `skill.name`, `(project_id, freelancer_id)`, `(contract_id, author_id)`), un `CHECK` para `rating` entre 1 y 5 y un índice en `reviews.reviewee_id` para el perfil público.
