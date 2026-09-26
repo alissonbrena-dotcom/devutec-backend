@@ -234,3 +234,21 @@ Todos los errores se centralizan en un `@RestControllerAdvice` (`GlobalException
 | **Enumeración de usuarios** | El login responde siempre "Email o contraseña incorrectos", sin revelar si el email existe. |
 
 **En producción (AWS):** solo el puerto 8080 de la API está abierto a internet; el SSH acepta únicamente conexiones de EC2 Instance Connect y la base de datos RDS no es accesible desde fuera. Las credenciales se configuran como variables de entorno y nunca se suben al repositorio.
+
+---
+
+## Eventos y asincronía
+
+Los servicios publican **eventos de dominio** (`ApplicationEvent`) y no conocen a quién los procesa; los *listeners* reaccionan por separado. Así, agregar una nueva reacción no requiere modificar la lógica de negocio.
+
+| Evento | Se publica cuando... | Listener → acción |
+|---|---|---|
+| `ApplicationCreatedEvent` | un freelancer postula | `ApplicationNotifier` → correo al cliente |
+| `ApplicationAcceptedEvent` | el cliente acepta una postulación | `ApplicationNotifier` → correo al freelancer |
+| `ContractDeliveredEvent` | el freelancer entrega el trabajo | `ContractNotifier` → correo al cliente |
+| `PaymentReleasedEvent` | el cliente confirma y se libera el pago | `PaymentReleasedNotifier` → correo al freelancer |
+| `ReviewCreatedEvent` | se registra una reseña | `FreelancerRatingUpdater` → recalcula la calificación promedio; `ReviewNotifier` → correo al reseñado |
+
+Todos los listeners usan `@TransactionalEventListener`, por lo que **solo se ejecutan si la transacción se confirmó**: nunca se envía un correo de "pago liberado" si la operación se revirtió. Los correos usan plantillas HTML con Thymeleaf.
+
+**Por qué son asíncronos:** enviar un correo depende de un servidor SMTP externo y puede tardar segundos o fallar. Con `@Async`, el usuario recibe la respuesta de la API de inmediato y el envío ocurre en segundo plano, en un `ThreadPoolTaskExecutor` propio (5 a 10 hilos, cola de 25). Si una tarea falla, un `AsyncUncaughtExceptionHandler` registra el error sin afectar la operación principal. En el deploy se verificó el flujo completo: los 5 correos llegaron a la bandeja de Mailtrap.
