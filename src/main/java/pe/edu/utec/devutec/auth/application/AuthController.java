@@ -33,9 +33,4 @@ public class AuthController {
         return ResponseEntity.ok(authService.refresh(request));
     }
 
-    @GetMapping("/admin-only")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<String> adminOnlyEndpoint() {
-        return ResponseEntity.ok("Si ves esto, eres ADMIN");
-    }
 }
