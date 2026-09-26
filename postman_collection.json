@@ -109,6 +109,16 @@
       "key": "paymentId",
       "value": "1",
       "type": "string"
+    },
+    {
+      "key": "tempApplicationId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "tempContractId",
+      "value": "",
+      "type": "string"
     }
   ],
   "item": [
@@ -1357,7 +1367,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.sendRequest({",
-                  "  url: pm.collectionVariables.get('baseUrl') + '/api/v1/skills',",
+                  "  url: pm.variables.get('baseUrl') + '/api/v1/skills',",
                   "  method: 'POST',",
                   "  header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + pm.collectionVariables.get('token') },",
                   "  body: { mode: 'raw', raw: JSON.stringify({ name: 'Temporal ' + Date.now() }) }",
@@ -1988,7 +1998,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.sendRequest({",
-                  "  url: pm.collectionVariables.get('baseUrl') + '/api/v1/projects',",
+                  "  url: pm.variables.get('baseUrl') + '/api/v1/projects',",
                   "  method: 'POST',",
                   "  header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + pm.collectionVariables.get('clientToken') },",
                   "  body: { mode: 'raw', raw: JSON.stringify({ title: 'Proyecto temporal', budget: 100 }) }",
@@ -2700,7 +2710,7 @@
             "method": "PATCH",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/applications/{{applicationId}}/reject",
+              "raw": "{{baseUrl}}/api/v1/applications/{{tempApplicationId}}/reject",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2708,11 +2718,11 @@
                 "api",
                 "v1",
                 "applications",
-                "{{applicationId}}",
+                "{{tempApplicationId}}",
                 "reject"
               ]
             },
-            "description": "**Rol:** CLIENT (dueño del proyecto)\n\nDescarta una propuesta. Solo aplica a postulaciones `PENDING`.",
+            "description": "**Rol:** CLIENT (dueño del proyecto)\n\nDescarta una propuesta. Solo aplica a postulaciones `PENDING`.\n\n**Datos de prueba:** el pre-request script crea datos nuevos (`tempApplicationId`) para que esta petición funcione aunque se ejecute la colección completa en orden.",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -2765,6 +2775,22 @@
                   "pm.test(\"Status 200\", () => pm.response.to.have.status(200));"
                 ]
               }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const base = pm.variables.get('baseUrl');",
+                  "const auth = (who) => ({ 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + pm.collectionVariables.get(who) });",
+                  "const post = (path, who, body, cb) => pm.sendRequest({ url: base + path, method: 'POST', header: auth(who), body: { mode: 'raw', raw: JSON.stringify(body) } }, cb);",
+                  "const patch = (path, who, cb) => pm.sendRequest({ url: base + path, method: 'PATCH', header: auth(who) }, cb);",
+                  "const newPendingApplication = (cb) => post('/api/v1/projects', 'clientToken', { title: 'Proyecto temporal ' + Date.now(), budget: 500 }, (e1, project) => {",
+                  "    post('/api/v1/applications', 'freelancerToken', { projectId: project.json().id, message: 'Postulación temporal para la demo de la API', proposedPrice: 450 }, (e2, application) => cb(application.json().id));",
+                  "});",
+                  "newPendingApplication((id) => pm.collectionVariables.set('tempApplicationId', id));"
+                ]
+              }
             }
           ]
         },
@@ -2774,7 +2800,7 @@
             "method": "DELETE",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/applications/{{applicationId}}",
+              "raw": "{{baseUrl}}/api/v1/applications/{{tempApplicationId}}",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2782,10 +2808,10 @@
                 "api",
                 "v1",
                 "applications",
-                "{{applicationId}}"
+                "{{tempApplicationId}}"
               ]
             },
-            "description": "**Rol:** FREELANCER (el que postuló)\n\nEl freelancer retira su propuesta mientras siga `PENDING`. Responde 204 sin cuerpo.",
+            "description": "**Rol:** FREELANCER (el que postuló)\n\nEl freelancer retira su propuesta mientras siga `PENDING`. Responde 204 sin cuerpo.\n\n**Datos de prueba:** el pre-request script crea datos nuevos (`tempApplicationId`) para que esta petición funcione aunque se ejecute la colección completa en orden.",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -2864,6 +2890,22 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"Status 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const base = pm.variables.get('baseUrl');",
+                  "const auth = (who) => ({ 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + pm.collectionVariables.get(who) });",
+                  "const post = (path, who, body, cb) => pm.sendRequest({ url: base + path, method: 'POST', header: auth(who), body: { mode: 'raw', raw: JSON.stringify(body) } }, cb);",
+                  "const patch = (path, who, cb) => pm.sendRequest({ url: base + path, method: 'PATCH', header: auth(who) }, cb);",
+                  "const newPendingApplication = (cb) => post('/api/v1/projects', 'clientToken', { title: 'Proyecto temporal ' + Date.now(), budget: 500 }, (e1, project) => {",
+                  "    post('/api/v1/applications', 'freelancerToken', { projectId: project.json().id, message: 'Postulación temporal para la demo de la API', proposedPrice: 450 }, (e2, application) => cb(application.json().id));",
+                  "});",
+                  "newPendingApplication((id) => pm.collectionVariables.set('tempApplicationId', id));"
                 ]
               }
             }
@@ -3323,7 +3365,7 @@
             "method": "PATCH",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/contracts/{{contractId}}/cancel",
+              "raw": "{{baseUrl}}/api/v1/contracts/{{tempContractId}}/cancel",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -3331,11 +3373,11 @@
                 "api",
                 "v1",
                 "contracts",
-                "{{contractId}}",
+                "{{tempContractId}}",
                 "cancel"
               ]
             },
-            "description": "**Rol:** CLIENT (dueño del proyecto)\n\nEl cliente cancela antes de la entrega. Contrato → `CANCELLED`, pago → `REFUNDED` (vuelve al cliente) y el proyecto vuelve a `OPEN` para recibir nuevas postulaciones.\n\nSolo desde `IN_PROGRESS` (si no → 409).",
+            "description": "**Rol:** CLIENT (dueño del proyecto)\n\nEl cliente cancela antes de la entrega. Contrato → `CANCELLED`, pago → `REFUNDED` (vuelve al cliente) y el proyecto vuelve a `OPEN` para recibir nuevas postulaciones.\n\nSolo desde `IN_PROGRESS` (si no → 409).\n\n**Datos de prueba:** el pre-request script crea datos nuevos (`tempContractId`) para que esta petición funcione aunque se ejecute la colección completa en orden.",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -3416,6 +3458,29 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"Status 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const base = pm.variables.get('baseUrl');",
+                  "const auth = (who) => ({ 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + pm.collectionVariables.get(who) });",
+                  "const post = (path, who, body, cb) => pm.sendRequest({ url: base + path, method: 'POST', header: auth(who), body: { mode: 'raw', raw: JSON.stringify(body) } }, cb);",
+                  "const patch = (path, who, cb) => pm.sendRequest({ url: base + path, method: 'PATCH', header: auth(who) }, cb);",
+                  "const newPendingApplication = (cb) => post('/api/v1/projects', 'clientToken', { title: 'Proyecto temporal ' + Date.now(), budget: 500 }, (e1, project) => {",
+                  "    post('/api/v1/applications', 'freelancerToken', { projectId: project.json().id, message: 'Postulación temporal para la demo de la API', proposedPrice: 450 }, (e2, application) => cb(application.json().id));",
+                  "});",
+                  "newPendingApplication((applicationId) => {",
+                  "    patch('/api/v1/applications/' + applicationId + '/accept', 'clientToken', () => {",
+                  "        pm.sendRequest({ url: base + '/api/v1/contracts/me', method: 'GET', header: auth('clientToken') }, (e, res) => {",
+                  "            const inProgress = res.json().filter(c => c.status === 'IN_PROGRESS');",
+                  "            pm.collectionVariables.set('tempContractId', inProgress[inProgress.length - 1].id);",
+                  "        });",
+                  "    });",
+                  "});"
                 ]
               }
             }
