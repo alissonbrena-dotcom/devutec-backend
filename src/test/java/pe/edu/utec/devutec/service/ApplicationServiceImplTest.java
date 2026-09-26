@@ -264,6 +264,31 @@ class ApplicationServiceImplTest {
         assertThrows(ForbiddenOperationException.class, () -> applicationService.findById(1L));
     }
 
+    @Test
+    void apply_conProyectoInexistente_deberiaLanzarNotFound() {
+        // Given
+        ApplicationRequestDTO dto = new ApplicationRequestDTO(999L, "Tengo experiencia en Spring Boot", new BigDecimal("1200"));
+        when(currentUserService.getCurrentUser()).thenReturn(freelancerUser);
+        when(freelancerProfileRepository.findByUserId(2L)).thenReturn(Optional.of(freelancer));
+        when(projectRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> applicationService.apply(dto));
+        verify(applicationRepository, never()).save(any());
+    }
+
+    @Test
+    void reject_postulacionYaAceptada_deberiaLanzarInvalidOperation() {
+        // Given
+        Application application = createApplication(1L, AppStatus.ACCEPTED);
+        when(applicationRepository.findById(1L)).thenReturn(Optional.of(application));
+        when(currentUserService.getCurrentUser()).thenReturn(client);
+
+        // When / Then
+        assertThrows(InvalidOperationException.class, () -> applicationService.reject(1L));
+        assertEquals(AppStatus.ACCEPTED, application.getStatus());
+    }
+
+
     private User createUser(Long id, String name, Role role) {
         User user = new User();
         user.setId(id);

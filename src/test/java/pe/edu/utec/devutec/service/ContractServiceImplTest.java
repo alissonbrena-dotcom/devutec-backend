@@ -233,14 +233,22 @@ class ContractServiceImplTest {
         verify(contractRepository, never()).findByApplication_Freelancer_User_Id(anyLong());
     }
 
-    // TEST 11 - Buscar un contrato que no existe
     @Test
     void findById_contratoInexistente_deberiaLanzarNotFound() {
-        // Given
         when(contractRepository.findById(99L)).thenReturn(Optional.empty());
 
-        // When / Then
         assertThrows(ResourceNotFoundException.class, () -> contractService.findById(99L));
+    }
+
+    @Test
+    void confirm_porElFreelancer_deberiaLanzarForbiddenSinLiberarPago() {
+        Contract contract = createContract(ContractStatus.DELIVERED);
+        when(contractRepository.findById(1L)).thenReturn(Optional.of(contract));
+        when(currentUserService.getCurrentUser()).thenReturn(freelancerUser);
+
+        assertThrows(ForbiddenOperationException.class, () -> contractService.confirm(1L));
+        assertEquals(ContractStatus.DELIVERED, contract.getStatus());
+        verify(paymentService, never()).releasePayment(anyLong());
     }
 
     private User createUser(Long id, String name, Role role) {
