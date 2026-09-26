@@ -211,7 +211,7 @@ Todos los errores se centralizan en un `@RestControllerAdvice` (`GlobalException
 
 **Excepciones de Spring manejadas:** validación de `@Valid` y de parámetros (400), JSON mal formado (400), credenciales incorrectas (401), acceso denegado (403), ruta inexistente (404), método no permitido (405), clave duplicada en base de datos (409), `Content-Type` no soportado (415) y cualquier error inesperado (500, registrado en el log con su stacktrace).
 
-**Por qué es importante:** sin este manejo, cada error llegaría como un 500 genérico o con el stacktrace de Java, lo que confunde al cliente y filtra información interna. Los errores de tareas asíncronas (como el envío de correos) no llegan a ningún controlador, por eso se capturan aparte con un `AsyncUncaughtExceptionHandler` que los registra sin afectar la respuesta al usuario.
+**Por qué es importante:** sin este manejo, cada error llegaría como un 500 genérico o con el stacktrace de Java, confundiendo al cliente y filtrando información interna. Los errores de tareas asíncronas se capturan aparte con un `AsyncUncaughtExceptionHandler`.
 
 ---
 
@@ -233,7 +233,7 @@ Todos los errores se centralizan en un `@RestControllerAdvice` (`GlobalException
 | **CSRF** | Deshabilitado a propósito: la API no usa cookies de sesión, el token viaja en el header `Authorization`, así que un sitio externo no puede enviarlo por el usuario. |
 | **Enumeración de usuarios** | El login responde siempre "Email o contraseña incorrectos", sin revelar si el email existe. |
 
-**En producción (AWS):** solo el puerto 8080 de la API está abierto a internet; el SSH acepta únicamente conexiones de EC2 Instance Connect y la base de datos RDS no es accesible desde fuera. Las credenciales se configuran como variables de entorno y nunca se suben al repositorio.
+**En producción (AWS):** solo el puerto 8080 está abierto a internet; el SSH acepta únicamente EC2 Instance Connect y RDS no es accesible desde fuera. Las credenciales nunca se suben al repositorio.
 
 ---
 
@@ -251,7 +251,7 @@ Los servicios publican **eventos de dominio** (`ApplicationEvent`) y no conocen 
 
 Todos los listeners usan `@TransactionalEventListener`, por lo que **solo se ejecutan si la transacción se confirmó**: nunca se envía un correo de "pago liberado" si la operación se revirtió. Los correos usan plantillas HTML con Thymeleaf.
 
-**Por qué son asíncronos:** enviar un correo depende de un servidor SMTP externo y puede tardar segundos o fallar. Con `@Async`, el usuario recibe la respuesta de la API de inmediato y el envío ocurre en segundo plano, en un `ThreadPoolTaskExecutor` propio (5 a 10 hilos, cola de 25). Si una tarea falla, un `AsyncUncaughtExceptionHandler` registra el error sin afectar la operación principal. En el deploy se verificó el flujo completo: los 5 correos llegaron a la bandeja de Mailtrap.
+**Por qué son asíncronos:** enviar un correo depende de un servidor SMTP externo que puede tardar o fallar. Con `@Async`, la API responde de inmediato y el envío ocurre en segundo plano, en un `ThreadPoolTaskExecutor` propio (5 a 10 hilos, cola de 25); si falla, no afecta la operación principal. En el deploy se verificó que llegan los 5 correos del flujo.
 
 ---
 
@@ -259,7 +259,7 @@ Todos los listeners usan `@TransactionalEventListener`, por lo que **solo se eje
 
 **Organización de tareas.** El trabajo se dividió en **issues** por módulo, cada uno asignado a una integrante y etiquetado con un *label* (`auth`, `projects`, `contracts`, `payments`), con checklists de subtareas. Los 13 issues del proyecto se cerraron, varios automáticamente al unir el PR correspondiente (`Closes #12`).
 
-**Flujo de trabajo.** Cada funcionalidad o corrección se desarrolló en su propia rama (`feature/…`, `fix/…`, `docs/…`) y se integró a `main` mediante **pull request**: 26 PRs unidos, 14 con aprobación explícita en la revisión de código. Las revisiones detectaron problemas reales antes del merge, como vulnerabilidades en el registro, incompatibilidades entre ramas y casos de prueba faltantes.
+**Flujo de trabajo.** Cada funcionalidad se desarrolló en su propia rama (`feature/…`, `fix/…`, `docs/…`) y se integró a `main` mediante **pull request**: 26 PRs unidos, 14 con aprobación explícita. Las revisiones detectaron problemas reales antes del merge, como vulnerabilidades en el registro y pruebas faltantes.
 
 **GitHub Actions (CI).** El workflow `.github/workflows/ci.yml` se ejecuta en cada push y pull request a `main`: levanta un contenedor de PostgreSQL 16, instala Java 21 y ejecuta `./mvnw verify`, que compila el proyecto y corre toda la suite de pruebas. Un PR con el build en rojo no se integra, lo que mantiene `main` siempre funcional.
 
@@ -309,3 +309,42 @@ La documentación completa, con descripciones y ejemplos de cada respuesta, est�
 La API está desplegada en **AWS**: la aplicación corre en una instancia **EC2** con **Elastic IP** y la base de datos en **Amazon RDS** (PostgreSQL). Las variables de entorno se configuran en el servidor, y los *security groups* solo exponen el puerto 8080.
 
 **URL:** http://ec2-52-7-186-192.compute-1.amazonaws.com:8080
+
+---
+
+## Conclusión
+
+### Logros del proyecto
+
+Se construyó un backend desplegado que resuelve el problema de confianza entre clientes y freelancers junior: el flujo publicar → postular → contratar → entregar → pagar → reseñar funciona de punta a punta en producción, con pago en garantía y reputación verificable, respaldado por JWT, roles, eventos asíncronos y 54 pruebas unitarias en CI.
+
+### Aprendizajes clave
+
+- Las **reglas de negocio** (estados del contrato y del pago) deben validarse en los servicios y en la base de datos.
+- La seguridad no es solo autenticar: hay que verificar **quién es dueño** de cada recurso.
+- Las **revisiones de código** detectaron errores que las pruebas no cubrían.
+- Desplegar en la nube implica configurar redes, secretos y accesos.
+
+### Trabajo futuro
+
+- Chat con IA que convierta la necesidad del cliente en un brief técnico y recomiende freelancers.
+- Pagos reales con Stripe, verificación de portafolio con GitHub y agendamiento con Cal.com.
+- Límite de intentos de login y reintentos automáticos para correos rechazados por el proveedor.
+- Carga de entregables y portafolios a Amazon S3.
+
+---
+
+## Apéndices
+
+### Licencia
+
+Distribuido bajo la licencia **MIT**. Ver el archivo [`LICENSE`](LICENSE).
+
+### Referencias
+
+- [Documentación de Spring Boot](https://docs.spring.io/spring-boot/)
+- [Spring Security Reference](https://docs.spring.io/spring-security/reference/)
+- [Spring Data JPA Reference](https://docs.spring.io/spring-data/jpa/reference/)
+- [JJWT — Java JWT](https://github.com/jwtk/jjwt)
+- [Amazon EC2](https://docs.aws.amazon.com/ec2/) y [Amazon RDS](https://docs.aws.amazon.com/rds/)
+- [Mailtrap Email Testing](https://docs.mailtrap.io/)
