@@ -212,3 +212,25 @@ Todos los errores se centralizan en un `@RestControllerAdvice` (`GlobalException
 **Excepciones de Spring manejadas:** validación de `@Valid` y de parámetros (400), JSON mal formado (400), credenciales incorrectas (401), acceso denegado (403), ruta inexistente (404), método no permitido (405), clave duplicada en base de datos (409), `Content-Type` no soportado (415) y cualquier error inesperado (500, registrado en el log con su stacktrace).
 
 **Por qué es importante:** sin este manejo, cada error llegaría como un 500 genérico o con el stacktrace de Java, lo que confunde al cliente y filtra información interna. Los errores de tareas asíncronas (como el envío de correos) no llegan a ningún controlador, por eso se capturan aparte con un `AsyncUncaughtExceptionHandler` que los registra sin afectar la respuesta al usuario.
+
+---
+
+## Medidas de seguridad implementadas
+
+### Seguridad de datos
+
+- **Autenticación con JWT.** El login devuelve un *access token* (15 min) y un *refresh token* (7 días), firmados con HMAC. El token lleva los claims `userId`, `role` y `type`; un `JwtAuthenticationFilter` lo valida en cada petición y rechaza los refresh tokens usados como access. La clave se lee de la variable de entorno `JWT_SECRET`.
+- **Contraseñas cifradas con BCrypt**, con validación de fortaleza (mínimo 8 caracteres, letras y números). Nunca se devuelven en las respuestas: la API solo expone DTOs.
+- **Autorización por roles y por propiedad.** 15 endpoints usan `@PreAuthorize` según el rol; además, los servicios verifican con el usuario autenticado del `SecurityContext` que solo el dueño modifique su proyecto, que solo los participantes vean un contrato y que el cliente se tome del token y no del body. El registro como `ADMIN` está bloqueado.
+- **Sesiones sin estado** (`STATELESS`) y CORS limitado a los orígenes del frontend.
+
+### Prevención de vulnerabilidades
+
+| Vulnerabilidad | Medida |
+|---|---|
+| **Inyección SQL** | Todas las consultas pasan por Spring Data JPA (métodos derivados, `Specification` y JPQL con parámetros); no hay SQL armado concatenando texto. |
+| **XSS** | La API solo responde JSON y valida las entradas con Bean Validation; las plantillas de correo usan `th:text`, que escapa el HTML. |
+| **CSRF** | Deshabilitado a propósito: la API no usa cookies de sesión, el token viaja en el header `Authorization`, así que un sitio externo no puede enviarlo por el usuario. |
+| **Enumeración de usuarios** | El login responde siempre "Email o contraseña incorrectos", sin revelar si el email existe. |
+
+**En producción (AWS):** solo el puerto 8080 de la API está abierto a internet; el SSH acepta únicamente conexiones de EC2 Instance Connect y la base de datos RDS no es accesible desde fuera. Las credenciales se configuran como variables de entorno y nunca se suben al repositorio.
