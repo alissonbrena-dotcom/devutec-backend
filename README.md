@@ -262,3 +262,50 @@ Todos los listeners usan `@TransactionalEventListener`, por lo que **solo se eje
 **Flujo de trabajo.** Cada funcionalidad o corrección se desarrolló en su propia rama (`feature/…`, `fix/…`, `docs/…`) y se integró a `main` mediante **pull request**: 26 PRs unidos, 14 con aprobación explícita en la revisión de código. Las revisiones detectaron problemas reales antes del merge, como vulnerabilidades en el registro, incompatibilidades entre ramas y casos de prueba faltantes.
 
 **GitHub Actions (CI).** El workflow `.github/workflows/ci.yml` se ejecuta en cada push y pull request a `main`: levanta un contenedor de PostgreSQL 16, instala Java 21 y ejecuta `./mvnw verify`, que compila el proyecto y corre toda la suite de pruebas. Un PR con el build en rojo no se integra, lo que mantiene `main` siempre funcional.
+
+---
+
+## Guía de uso
+
+### Ejecución local
+
+Requisitos: Java 21 y Docker.
+
+```bash
+git clone https://github.com/alissonbrena-dotcom/devutec-backend.git
+cd devutec-backend
+docker compose up -d          # PostgreSQL 16 en localhost:5432
+./mvnw spring-boot:run        # API en http://localhost:8080
+./mvnw test                   # suite de pruebas
+```
+
+### Variables de entorno
+
+| Variable | Uso | Valor por defecto |
+|---|---|---|
+| `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | Conexión a PostgreSQL | Base local de Docker Compose |
+| `JWT_SECRET` | Clave de firma de los tokens | Solo para desarrollo; **obligatorio cambiarla en producción** |
+| `JWT_ACCESS_EXPIRATION_MS`, `JWT_REFRESH_EXPIRATION_MS` | Duración de los tokens | 15 min y 7 días |
+| `MAIL_USERNAME`, `MAIL_PASSWORD` | Credenciales SMTP de Mailtrap | Sin valor: la API funciona, pero no envía correos |
+
+### Endpoints
+
+Todos bajo `/api/v1`. Salvo los públicos, requieren el header `Authorization: Bearer <token>`.
+
+| Módulo | Endpoints | Acceso |
+|---|---|---|
+| Auth | `POST /auth/register`, `/auth/login`, `/auth/refresh` | Público |
+| Skills | `GET /skills`, `GET /skills/{id}` · `POST /skills` · `DELETE /skills/{id}` | Autenticado · CLIENT/ADMIN · ADMIN |
+| Projects | `GET /projects` (filtros y paginación), `GET /projects/{id}` · `POST /projects` · `PUT`, `DELETE /projects/{id}` | Autenticado · CLIENT · dueño o ADMIN |
+| Applications | `POST /applications`, `GET /applications/me`, `DELETE /applications/{id}` · `GET /applications?projectId=`, `PATCH /applications/{id}/accept`, `/reject` · `GET /applications/{id}` | FREELANCER · CLIENT dueño · participantes |
+| Contracts | `GET /contracts/me`, `GET /contracts/{id}` · `PATCH /contracts/{id}/deliver` · `/confirm`, `/cancel` | Participantes · FREELANCER · CLIENT |
+| Reviews | `POST`, `GET /contracts/{id}/reviews` · `GET /users/{id}/reviews` (paginado, `minRating`) | Participantes · Público |
+| Payments | `GET /payments`, `GET /payments/{id}` | ADMIN |
+
+La documentación completa, con descripciones y ejemplos de cada respuesta, está en la colección [`postman_collection.json`](postman_collection.json). Ejecutando las carpetas en orden se recorre el flujo completo del negocio.
+
+### Deploy
+
+La API está desplegada en **AWS**: la aplicación corre en una instancia **EC2** con **Elastic IP** y la base de datos en **Amazon RDS** (PostgreSQL). Las variables de entorno se configuran en el servidor, y los *security groups* solo exponen el puerto 8080.
+
+**URL:** http://ec2-52-7-186-192.compute-1.amazonaws.com:8080
