@@ -1367,7 +1367,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.sendRequest({",
-                  "  url: pm.collectionVariables.get('baseUrl') + '/api/v1/skills',",
+                  "  url: pm.variables.get('baseUrl') + '/api/v1/skills',",
                   "  method: 'POST',",
                   "  header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + pm.collectionVariables.get('token') },",
                   "  body: { mode: 'raw', raw: JSON.stringify({ name: 'Temporal ' + Date.now() }) }",
@@ -1998,7 +1998,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.sendRequest({",
-                  "  url: pm.collectionVariables.get('baseUrl') + '/api/v1/projects',",
+                  "  url: pm.variables.get('baseUrl') + '/api/v1/projects',",
                   "  method: 'POST',",
                   "  header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + pm.collectionVariables.get('clientToken') },",
                   "  body: { mode: 'raw', raw: JSON.stringify({ title: 'Proyecto temporal', budget: 100 }) }",
@@ -2781,7 +2781,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "const base = pm.collectionVariables.get('baseUrl');",
+                  "const base = pm.variables.get('baseUrl');",
                   "const auth = (who) => ({ 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + pm.collectionVariables.get(who) });",
                   "const post = (path, who, body, cb) => pm.sendRequest({ url: base + path, method: 'POST', header: auth(who), body: { mode: 'raw', raw: JSON.stringify(body) } }, cb);",
                   "const patch = (path, who, cb) => pm.sendRequest({ url: base + path, method: 'PATCH', header: auth(who) }, cb);",
@@ -2898,7 +2898,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "const base = pm.collectionVariables.get('baseUrl');",
+                  "const base = pm.variables.get('baseUrl');",
                   "const auth = (who) => ({ 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + pm.collectionVariables.get(who) });",
                   "const post = (path, who, body, cb) => pm.sendRequest({ url: base + path, method: 'POST', header: auth(who), body: { mode: 'raw', raw: JSON.stringify(body) } }, cb);",
                   "const patch = (path, who, cb) => pm.sendRequest({ url: base + path, method: 'PATCH', header: auth(who) }, cb);",
@@ -3466,7 +3466,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "const base = pm.collectionVariables.get('baseUrl');",
+                  "const base = pm.variables.get('baseUrl');",
                   "const auth = (who) => ({ 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + pm.collectionVariables.get(who) });",
                   "const post = (path, who, body, cb) => pm.sendRequest({ url: base + path, method: 'POST', header: auth(who), body: { mode: 'raw', raw: JSON.stringify(body) } }, cb);",
                   "const patch = (path, who, cb) => pm.sendRequest({ url: base + path, method: 'PATCH', header: auth(who) }, cb);",
