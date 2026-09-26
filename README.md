@@ -35,11 +35,7 @@
 
 ### Contexto
 
-Los estudiantes de Ciencias de la Computación terminan sus primeros ciclos con las competencias técnicas para construir software real, pero conseguir su primer trabajo pagado es difícil. En las plataformas freelance establecidas compiten contra desarrolladores senior con años de trayectoria, y en los canales informales (grupos de WhatsApp, recomendaciones) nada garantiza que el cliente pague al terminar el trabajo.
-
-Del otro lado, los emprendedores y negocios pequeños necesitan proyectos de software puntuales —una web para su restaurante, un tablero de ventas— y no tienen forma sencilla de encontrar talento confiable a un precio accesible.
-
-DevUTEC es el backend de una plataforma que conecta a ambos grupos con reglas claras y un pago protegido para las dos partes.
+Los estudiantes de Ciencias de la Computación tienen las competencias para construir software real, pero les cuesta conseguir su primer trabajo pagado. Al mismo tiempo, los negocios pequeños necesitan proyectos puntuales y no encuentran talento accesible y confiable. DevUTEC es el backend de una plataforma que conecta a ambos con reglas claras y un pago protegido para las dos partes.
 
 ### Objetivos del proyecto
 
@@ -47,3 +43,47 @@ DevUTEC es el backend de una plataforma que conecta a ambos grupos con reglas cl
 - Implementar un **pago en garantía (escrow)**: el dinero queda retenido al aceptar una postulación y solo se libera al freelancer cuando el cliente confirma la entrega; si el contrato se cancela, se reembolsa.
 - Construir **reputación verificable** mediante reseñas entre cliente y freelancer al cerrar cada contrato.
 - Ofrecer una **API REST segura** (JWT y roles), con notificaciones por correo asíncronas y desplegada en la nube.
+
+---
+
+## Identificación del problema o necesidad
+
+### Descripción del problema
+
+El problema tiene dos públicos:
+
+- **El freelancer junior**: estudiante de CS que busca su primera experiencia remunerada. En las plataformas grandes pierde frente a perfiles senior, y en canales informales trabaja sin garantía de cobro.
+- **El cliente**: emprendedor o negocio pequeño que necesita un proyecto puntual, no sabe cómo evaluar a un desarrollador y teme pagar por un trabajo que quizá no llegue.
+
+La raíz común es la **falta de confianza entre dos partes que no se conocen**.
+
+### Justificación
+
+El estudiante gana experiencia, ingresos y un historial verificable; el negocio obtiene software accesible pagando solo por lo que recibe. El pago en garantía y las reseñas reemplazan la confianza personal por reglas que la plataforma hace cumplir.
+
+---
+
+## Descripción de la solución
+
+### Funcionalidades implementadas
+
+| Funcionalidad | Cómo contribuye a resolver el problema |
+|---|---|
+| **Registro y login con roles** (`CLIENT`, `FREELANCER`, `ADMIN`) | Cada usuario solo hace lo que le corresponde; el freelancer obtiene un perfil profesional. |
+| **Publicación de proyectos** y **búsqueda con filtros y paginación** | El cliente describe lo que necesita; el freelancer encuentra proyectos acordes a su perfil. |
+| **Postulaciones** con mensaje y precio | El cliente compara propuestas y acepta una; las demás se rechazan automáticamente. |
+| **Contrato con pago en garantía (escrow)** | El pago queda retenido (`HELD`) al aceptar, se libera (`RELEASED`) al confirmar la entrega y se reembolsa (`REFUNDED`) si se cancela. |
+| **Reseñas bidireccionales** y **calificación promedio** | Cada parte califica a la otra (1–5); el freelancer acumula reputación pública. |
+| **Notificaciones por correo** asíncronas | Avisan de cada etapa: postulación, aceptación, entrega, pago liberado y reseña. |
+
+### Tecnologías utilizadas
+
+| Categoría | Tecnología |
+|---|---|
+| Lenguaje y framework | Java 21, Spring Boot 4.1 (Web MVC, Data JPA, Security, Validation, Mail) |
+| Base de datos | PostgreSQL 16 (Docker Compose en local, Amazon RDS en producción) |
+| Seguridad | JWT con jjwt 0.12, BCrypt, Spring Security con `@PreAuthorize` |
+| Mapeo y utilidades | ModelMapper, Lombok, SLF4J |
+| Correo | JavaMailSender con plantillas Thymeleaf y Mailtrap (sandbox SMTP) |
+| Pruebas | JUnit 5 y Mockito; colección de Postman ejecutada con Newman |
+| DevOps | Maven, GitHub Actions (CI), AWS EC2 + RDS con Elastic IP |
