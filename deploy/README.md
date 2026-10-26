@@ -44,8 +44,9 @@ Cada merge a `main` se despliega solo:
 
 1. `devutec-autodeploy.timer` corre cada 5 minutos (y 2 minutos después de encender el servidor).
 2. `devutec-autodeploy` compara el commit desplegado con `origin/main`. Si no hay cambios, termina.
-3. Si hay cambios, ejecuta `devutec-redeploy`: baja el código, compila, reinicia la app y verifica que la API responda.
-4. Si la compilación falla, el script se detiene antes de reiniciar y la app sigue con la versión anterior.
+3. Si los cambios no tocan el backend (`src/`, `pom.xml`, `mvnw`, `.mvn/`), por ejemplo cambios en `web/`, `mobile/`, `deploy/` o la documentación, solo actualiza el código del servidor y no reinicia la API.
+4. Si cambió el backend, ejecuta `devutec-redeploy`: baja el código, compila, reinicia la app y verifica que la API responda.
+5. Si la compilación falla, el script se detiene antes de reiniciar y la app sigue con la versión anterior.
 
 No se usa GitHub Actions para desplegar porque requeriría abrir el puerto 22 a internet y guardar credenciales en GitHub; con este enfoque el servidor solo consulta GitHub y no se abre ningún puerto adicional. El CI (`.github/workflows/ci.yml`) sigue validando cada pull request antes del merge.
 
