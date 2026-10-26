@@ -1,0 +1,15 @@
+#!/bin/bash
+set -euo pipefail
+cd /home/ec2-user/devutec-backend
+
+git fetch -q origin main
+LOCAL=$(git rev-parse HEAD)
+REMOTE=$(git rev-parse origin/main)
+
+if [ "$LOCAL" = "$REMOTE" ]; then
+  echo "Sin cambios en main ($(git log -1 --format=%h))"
+  exit 0
+fi
+
+echo "Hay cambios nuevos en main ($(git log -1 --format='%h %s' origin/main)). Desplegando..."
+exec /usr/local/bin/devutec-redeploy
