@@ -18,7 +18,10 @@ public class ContractMapper {
                 contract.getPayment().getAmount(),
                 contract.getPayment().getStatus().name(),
                 contract.getStartedAt(),
-                contract.getDeliveredAt()
+                contract.getDeliveredAt(),
+                application.getProject().getId(),
+                application.getProject().getClientId(),
+                application.getFreelancer().getUser().getId()
         );
     }
 }
