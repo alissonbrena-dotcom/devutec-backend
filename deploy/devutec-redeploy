@@ -1,0 +1,33 @@
+#!/bin/bash
+set -euo pipefail
+
+if [ "$(id -u)" -eq 0 ]; then
+  echo "Correlo sin sudo: devutec-redeploy"
+  exit 1
+fi
+
+cd /home/ec2-user/devutec-backend
+
+echo "==> 1/4 Bajando el codigo de main..."
+git pull --ff-only origin main
+
+echo "==> 2/4 Compilando (tarda unos segundos)..."
+./mvnw -B -q -DskipTests package
+
+echo "==> 3/4 Reiniciando la app..."
+sudo systemctl restart devutec
+
+echo "==> 4/4 Esperando a que la API responda..."
+for i in $(seq 1 45); do
+  code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/v1/skills || true)
+  if [[ "$code" == 2* || "$code" == 4* ]]; then
+    echo "LISTO: la API respondio ($code). Version desplegada:"
+    git log -1 --format="%h %s (%cr)"
+    exit 0
+  fi
+  sleep 2
+done
+
+echo "ERROR: la API no respondio en 90 segundos."
+echo "Revisa el log con: sudo journalctl -u devutec -n 50 --no-pager"
+exit 1

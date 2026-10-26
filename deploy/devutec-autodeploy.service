@@ -1,0 +1,9 @@
+[Unit]
+Description=Devutec: revisa main y despliega si hay cambios
+After=network-online.target devutec.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ec2-user
+ExecStart=/usr/local/bin/devutec-autodeploy
