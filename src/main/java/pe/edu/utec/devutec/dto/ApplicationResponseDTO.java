@@ -20,4 +20,6 @@ public class ApplicationResponseDTO {
     private BigDecimal proposedPrice;
     private String status;
     private LocalDateTime createdAt;
+    private Long projectId;
+    private Long freelancerUserId;
 }

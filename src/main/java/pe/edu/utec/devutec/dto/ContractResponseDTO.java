@@ -21,4 +21,7 @@ public class ContractResponseDTO {
     private String paymentStatus;
     private LocalDateTime startedAt;
     private LocalDateTime deliveredAt;
+    private Long projectId;
+    private Long clientId;
+    private Long freelancerUserId;
 }

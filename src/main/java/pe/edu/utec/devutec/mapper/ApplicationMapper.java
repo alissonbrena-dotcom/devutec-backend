@@ -14,7 +14,9 @@ public class ApplicationMapper {
                 application.getMessage(),
                 application.getProposedPrice(),
                 application.getStatus().name(),
-                application.getCreatedAt()
+                application.getCreatedAt(),
+                application.getProject().getId(),
+                application.getFreelancer().getUser().getId()
         );
     }
 }
