@@ -27,9 +27,13 @@ public class FreelancerProfile {
 
     private Integer ciclo;
 
+    private Boolean egresado;
+
     private BigDecimal tarifaHora;
 
     private String portafolioUrl;
+
+    private String githubUsername;
 
     private BigDecimal calificacionPromedio;
 
