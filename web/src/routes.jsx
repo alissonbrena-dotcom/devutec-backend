@@ -7,6 +7,11 @@ const Login = lazy(() => import('./pages/Login'))
 const Register = lazy(() => import('./pages/Register'))
 const Home = lazy(() => import('./pages/Home'))
 const NotFound = lazy(() => import('./pages/NotFound'))
+const ProjectsExplore = lazy(() => import('./pages/projects/ProjectsExplore'))
+const ProjectDetail = lazy(() => import('./pages/projects/ProjectDetail'))
+const ProjectCreate = lazy(() => import('./pages/projects/ProjectCreate'))
+const ProjectEdit = lazy(() => import('./pages/projects/ProjectEdit'))
+const MyProjects = lazy(() => import('./pages/projects/MyProjects'))
 
 export default function AppRoutes() {
   return (
@@ -19,10 +24,19 @@ export default function AppRoutes() {
         {/* Requieren sesión */}
         <Route element={<PrivateRoute />}>
           <Route path="/" element={<Home />} />
+          <Route path="/projects" element={<ProjectsExplore />} />
+          <Route path="/projects/:id" element={<ProjectDetail />} />
         </Route>
 
         {/* Solo clientes */}
         <Route element={<PrivateRoute roles={['CLIENT']} />}>
+          <Route path="/projects/new" element={<ProjectCreate />} />
+          <Route path="/my-projects" element={<MyProjects />} />
+        </Route>
+
+        {/* Dueño del proyecto o admin (el backend valida que sea el dueño) */}
+        <Route element={<PrivateRoute roles={['CLIENT', 'ADMIN']} />}>
+          <Route path="/projects/:id/edit" element={<ProjectEdit />} />
         </Route>
 
         {/* Solo freelancers */}
