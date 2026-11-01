@@ -11,5 +11,13 @@ if [ "$LOCAL" = "$REMOTE" ]; then
   exit 0
 fi
 
-echo "Hay cambios nuevos en main ($(git log -1 --format='%h %s' origin/main)). Desplegando..."
+BACKEND_CHANGES=$(git diff --name-only "$LOCAL" "$REMOTE" -- src pom.xml mvnw .mvn)
+
+if [ -z "$BACKEND_CHANGES" ]; then
+  git merge -q --ff-only origin/main
+  echo "Cambios sin tocar el backend ($(git log -1 --format='%h %s')). Codigo actualizado; la API no se reinicia."
+  exit 0
+fi
+
+echo "Cambios en el backend ($(git log -1 --format='%h %s' origin/main)). Desplegando..."
 exec /usr/local/bin/devutec-redeploy
