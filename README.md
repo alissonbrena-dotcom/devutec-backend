@@ -11,7 +11,7 @@
 | Ariana Alejandra Isla Urbina | 202510309 | [@aisla9](https://github.com/aisla9), [@aaariana9](https://github.com/aaariana9) |
 | Nicole Valeria Yucra Castro | 202510210 | [@ny216](https://github.com/ny216), [@nicoleyucra1](https://github.com/nicoleyucra1) |
 
-**API desplegada (AWS EC2 + RDS):** `http://ec2-52-7-186-192.compute-1.amazonaws.com:8080`
+**API desplegada (AWS EC2 + RDS, HTTPS):** https://devutec.duckdns.org
 
 ---
 
@@ -86,7 +86,7 @@ El estudiante gana experiencia, ingresos y un historial verificable; el negocio 
 | Mapeo y utilidades | ModelMapper, Lombok, SLF4J |
 | Correo | JavaMailSender con plantillas Thymeleaf y Mailtrap (sandbox SMTP) |
 | Pruebas | JUnit 5 y Mockito; colección de Postman ejecutada con Newman |
-| DevOps | Maven, GitHub Actions (CI), AWS EC2 + RDS con Elastic IP |
+| DevOps | Maven, GitHub Actions (CI), AWS EC2 + RDS con Elastic IP, Caddy (HTTPS con Let's Encrypt), DuckDNS, despliegue automático con systemd |
 
 ---
 
@@ -233,7 +233,7 @@ Todos los errores se centralizan en un `@RestControllerAdvice` (`GlobalException
 | **CSRF** | Deshabilitado a propósito: la API no usa cookies de sesión, el token viaja en el header `Authorization`, así que un sitio externo no puede enviarlo por el usuario. |
 | **Enumeración de usuarios** | El login responde siempre "Email o contraseña incorrectos", sin revelar si el email existe. |
 
-**En producción (AWS):** solo el puerto 8080 está abierto a internet; el SSH acepta únicamente EC2 Instance Connect y RDS no es accesible desde fuera. Las credenciales nunca se suben al repositorio.
+**En producción (AWS):** solo los puertos 80 y 443 están abiertos a internet. Caddy atiende HTTPS con un certificado de Let's Encrypt que se renueva solo, redirige HTTP a HTTPS y reenvía las peticiones a la app, cuyo puerto 8080 ya no es accesible desde fuera. El SSH acepta únicamente EC2 Instance Connect y RDS no es accesible desde fuera. Las credenciales viven en un archivo de entorno del servidor y nunca se suben al repositorio.
 
 ---
 
@@ -306,9 +306,15 @@ La documentación completa, con descripciones y ejemplos de cada respuesta, est�
 
 ### Deploy
 
-La API está desplegada en **AWS**: la aplicación corre en una instancia **EC2** con **Elastic IP** y la base de datos en **Amazon RDS** (PostgreSQL). Las variables de entorno se configuran en el servidor, y los *security groups* solo exponen el puerto 8080.
+La API está desplegada en **AWS**: la aplicación corre en una instancia **EC2** con **Elastic IP** y la base de datos en **Amazon RDS** (PostgreSQL). Las variables de entorno se configuran en el servidor.
 
-**URL:** http://ec2-52-7-186-192.compute-1.amazonaws.com:8080
+- **HTTPS:** el dominio `devutec.duckdns.org` (DuckDNS) apunta a la Elastic IP y **Caddy** actúa como proxy inverso con certificado de Let's Encrypt. Los *security groups* solo exponen los puertos 80 y 443.
+- **Despliegue continuo:** un temporizador de systemd revisa `main` cada 5 minutos. Si hay cambios en el backend, descarga el código, compila, reinicia la app y verifica que responda; si la compilación falla, la versión anterior sigue funcionando. Los cambios que no tocan el backend (por ejemplo, documentación) se descargan sin reiniciar la API.
+- **AWS Academy Learner Lab:** la instancia se detiene al terminar cada sesión del laboratorio; al iniciarlo, la app, Caddy y el despliegue automático arrancan solos.
+
+El detalle de la configuración del servidor está en [`deploy/README.md`](deploy/README.md).
+
+**URL:** https://devutec.duckdns.org
 
 ---
 
