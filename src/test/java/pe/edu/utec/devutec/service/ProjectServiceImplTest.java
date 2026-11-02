@@ -17,10 +17,12 @@ import pe.edu.utec.devutec.dto.PageResponseDTO;
 import pe.edu.utec.devutec.dto.ProjectCreateDTO;
 import pe.edu.utec.devutec.dto.ProjectResponseDTO;
 import pe.edu.utec.devutec.dto.ProjectUpdateDTO;
+import pe.edu.utec.devutec.exceptions.ConflictException;
 import pe.edu.utec.devutec.exceptions.ForbiddenOperationException;
 import pe.edu.utec.devutec.exceptions.UnauthorizedException;
 import pe.edu.utec.devutec.model.Project;
 import pe.edu.utec.devutec.model.ProjectStatus;
+import pe.edu.utec.devutec.repository.ContractRepository;
 import pe.edu.utec.devutec.repository.ProjectRepository;
 import pe.edu.utec.devutec.repository.SkillRepository;
 
@@ -41,6 +43,9 @@ class ProjectServiceImplTest {
 
     @Mock
     private SkillRepository skillRepository;
+
+    @Mock
+    private ContractRepository contractRepository;
 
     @Mock
     private CurrentUserService currentUserService;
@@ -186,6 +191,81 @@ class ProjectServiceImplTest {
         // When + Then
         assertThrows(UnauthorizedException.class, () -> projectService.findMine(PageRequest.of(0, 10)));
         verify(projectRepository, never()).findByClientId(any(), any());
+    }
+
+    // TEST 9 - Un proyecto abierto y sin contratos se elimina (sus postulaciones caen en cascada)
+    @Test
+    void delete_abiertoSinContratos_deberiaEliminarlo() {
+        // Given
+        Project project = buildProject(1L, client.getId(), null);
+        mockFindForDelete(project, client);
+        when(contractRepository.existsByApplication_Project_Id(1L)).thenReturn(false);
+
+        // When
+        projectService.delete(1L);
+
+        // Then
+        verify(projectRepository).delete(project);
+    }
+
+    // TEST 10 - Un proyecto que no está abierto no se puede eliminar (409)
+    @Test
+    void delete_noAbierto_deberiaLanzarConflict() {
+        // Given
+        Project project = buildProject(1L, client.getId(), null);
+        project.setStatus(ProjectStatus.IN_PROGRESS);
+        mockFindForDelete(project, client);
+
+        // When + Then
+        ConflictException ex = assertThrows(ConflictException.class, () -> projectService.delete(1L));
+        assertTrue(ex.getMessage().contains("IN_PROGRESS"));
+        verify(projectRepository, never()).delete(any(Project.class));
+    }
+
+    // TEST 11 - Un proyecto abierto con un contrato cancelado no se puede eliminar (409)
+    @Test
+    void delete_abiertoConContrato_deberiaLanzarConflict() {
+        // Given
+        Project project = buildProject(1L, client.getId(), null);
+        mockFindForDelete(project, client);
+        when(contractRepository.existsByApplication_Project_Id(1L)).thenReturn(true);
+
+        // When + Then
+        assertThrows(ConflictException.class, () -> projectService.delete(1L));
+        verify(projectRepository, never()).delete(any(Project.class));
+    }
+
+    // TEST 12 - Un cliente que no es dueño no puede eliminar el proyecto (403) y no se revisan contratos
+    @Test
+    void delete_deOtroCliente_deberiaLanzarForbidden() {
+        // Given
+        Project project = buildProject(1L, 99L, null);
+        mockFindForDelete(project, client);
+
+        // When + Then
+        assertThrows(ForbiddenOperationException.class, () -> projectService.delete(1L));
+        verifyNoInteractions(contractRepository);
+        verify(projectRepository, never()).delete(any(Project.class));
+    }
+
+    // TEST 13 - Un ADMIN puede eliminar un proyecto abierto y sin contratos de otro cliente
+    @Test
+    void delete_admin_deberiaEliminarProyectoAjeno() {
+        // Given
+        Project project = buildProject(1L, 99L, null);
+        mockFindForDelete(project, buildUser(1L, Role.ADMIN));
+        when(contractRepository.existsByApplication_Project_Id(1L)).thenReturn(false);
+
+        // When
+        projectService.delete(1L);
+
+        // Then
+        verify(projectRepository).delete(project);
+    }
+
+    private void mockFindForDelete(Project project, User currentUser) {
+        when(projectRepository.findById(project.getId())).thenReturn(Optional.of(project));
+        when(currentUserService.getCurrentUser()).thenReturn(currentUser);
     }
 
     private void mockFindAndSave(Project project) {
