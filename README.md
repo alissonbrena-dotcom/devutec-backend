@@ -191,7 +191,25 @@ erDiagram
 | **Payment** | Pago en garantía asociado al contrato (1:1); se persiste en cascada al crear el contrato. |
 | **Review** | Reseña de un participante a otro; única por par (contrato, autor). |
 
-**Decisiones de diseño:** todas las relaciones usan `FetchType.LAZY` y las consultas que necesitan datos relacionados cargan solo lo necesario con `@EntityGraph`. La integridad se refuerza en la base de datos con claves únicas (`email`, `skill.name`, `(project_id, freelancer_id)`, `(contract_id, author_id)`), un `CHECK` para `rating` entre 1 y 5 y un índice en `reviews.reviewee_id` para el perfil público.
+**Decisiones de diseño:** las relaciones usan `FetchType.LAZY` (salvo el lado inverso `User.freelancerProfile`, explicado en las decisiones de cascade) y las consultas que necesitan datos relacionados cargan solo lo necesario con `@EntityGraph`. La integridad se refuerza en la base de datos con claves únicas (`email`, `skill.name`, `(project_id, freelancer_id)`, `(contract_id, author_id)`), un `CHECK` para `rating` entre 1 y 5 y un índice en `reviews.reviewee_id` para el perfil público.
+
+### Decisiones de cascade
+
+La cascada se usa solo donde una entidad **no tiene sentido sin su padre**:
+
+| Relación | Cascade | Por qué |
+|---|---|---|
+| `User` → `FreelancerProfile` | `ALL` + `orphanRemoval` (lado inverso, `mappedBy = "user"`) | El perfil no existe sin su usuario. Al registrar un freelancer se guarda solo el `User` y su perfil se guarda con él; ambos lados de la relación se mantienen sincronizados. |
+| `Project` → `Application` | `REMOVE` + `orphanRemoval` | Las postulaciones pertenecen al proyecto: al eliminarlo se eliminan con él. No incluye `PERSIST` porque cada postulación se crea desde su propio servicio. |
+| `Contract` → `Payment` | `PERSIST` + `MERGE` | Al aceptar una postulación, el contrato y su pago en garantía se guardan juntos y los cambios del contrato se propagan a su pago. |
+
+**Por qué `Payment` no tiene `REMOVE`:** un pago es un registro de dinero (retenido, liberado o reembolsado). Aunque se eliminara su contrato, el historial del pago debe conservarse para poder auditarlo.
+
+**Regla para eliminar un proyecto:** solo se permite si está `OPEN` **y** ninguna de sus postulaciones generó un contrato; si no, la API responde 409 con el motivo. La segunda condición es necesaria porque cancelar un contrato devuelve el proyecto a `OPEN`, pero el contrato cancelado (y su pago reembolsado) sigue existiendo. Así la cascada nunca intenta borrar postulaciones con contratos, pagos o reseñas asociados.
+
+**Sin cascada a propósito:** `Application` → `Project` / `FreelancerProfile`, `Review` → `Contract` / `User` y `Project` ↔ `Skill`. En estos casos el hijo apunta a una entidad que existe por su cuenta (o a un catálogo compartido, como las skills), y borrarla en cascada eliminaría datos de otros.
+
+**Impacto en la base de datos:** `mappedBy` y `cascade` no cambian el esquema (no agregan columnas ni tablas). El lado inverso `User.freelancerProfile` agrega una consulta pequeña a `freelancer_profiles` (por `user_id`, que es único) cada vez que se carga un usuario, porque Hibernate no puede cargarlo de forma diferida.
 
 ---
 
