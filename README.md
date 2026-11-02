@@ -13,6 +13,8 @@
 
 **API desplegada (AWS EC2 + RDS, HTTPS):** https://devutec.duckdns.org
 
+**Frontend web:** [nicoleyucra1/devutec-frontend](https://github.com/nicoleyucra1/devutec-frontend)
+
 ---
 
 ## Índice
@@ -70,7 +72,9 @@ El estudiante gana experiencia, ingresos y un historial verificable; el negocio 
 | Funcionalidad | Cómo contribuye a resolver el problema |
 |---|---|
 | **Registro y login con roles** (`CLIENT`, `FREELANCER`, `ADMIN`) | Cada usuario solo hace lo que le corresponde; el freelancer obtiene un perfil profesional. |
-| **Publicación de proyectos** y **búsqueda con filtros y paginación** | El cliente describe lo que necesita; el freelancer encuentra proyectos acordes a su perfil. |
+| **Publicación de proyectos** (con ubicación opcional) y **búsqueda con filtros y paginación** | El cliente describe lo que necesita; el freelancer encuentra proyectos acordes a su perfil. |
+| **Mis proyectos** y **datos de la sesión** | El cliente ve sus propios proyectos y la web o la app móvil obtienen los datos del usuario con sesión sin pedir ids. |
+| **Perfil del freelancer** editable y público | El freelancer muestra su universidad, ciclo (o si es egresado), tarifa, portafolio y GitHub; cualquier usuario con sesión lo ve junto a su calificación. |
 | **Postulaciones** con mensaje y precio | El cliente compara propuestas y acepta una; las demás se rechazan automáticamente. |
 | **Contrato con pago en garantía (escrow)** | El pago queda retenido (`HELD`) al aceptar, se libera (`RELEASED`) al confirmar la entrega y se reembolsa (`REFUNDED`) si se cancela. |
 | **Reseñas bidireccionales** y **calificación promedio** | Cada parte califica a la otra (1–5); el freelancer acumula reputación pública. |
@@ -221,8 +225,8 @@ Todos los errores se centralizan en un `@RestControllerAdvice` (`GlobalException
 
 - **Autenticación con JWT.** El login devuelve un *access token* (15 min) y un *refresh token* (7 días), firmados con HMAC. El token lleva los claims `userId`, `role` y `type`; un `JwtAuthenticationFilter` lo valida en cada petición y rechaza los refresh tokens usados como access. La clave se lee de la variable de entorno `JWT_SECRET`.
 - **Contraseñas cifradas con BCrypt**, con validación de fortaleza (mínimo 8 caracteres, letras y números). Nunca se devuelven en las respuestas: la API solo expone DTOs.
-- **Autorización por roles y por propiedad.** 15 endpoints usan `@PreAuthorize` según el rol; además, los servicios verifican con el usuario autenticado del `SecurityContext` que solo el dueño modifique su proyecto, que solo los participantes vean un contrato y que el cliente se tome del token y no del body. El registro como `ADMIN` está bloqueado.
-- **Sesiones sin estado** (`STATELESS`) y CORS limitado a los orígenes del frontend.
+- **Autorización por roles y por propiedad.** 18 endpoints usan `@PreAuthorize` según el rol; además, los servicios verifican con el usuario autenticado del `SecurityContext` que solo el dueño modifique su proyecto, que solo los participantes vean un contrato y que el cliente se tome del token y no del body. El registro como `ADMIN` está bloqueado.
+- **Sesiones sin estado** (`STATELESS`) y CORS limitado a los orígenes del frontend, configurables con la variable `CORS_ALLOWED_ORIGINS`.
 
 ### Prevención de vulnerabilidades
 
@@ -287,6 +291,7 @@ docker compose up -d          # PostgreSQL 16 en localhost:5432
 | `JWT_SECRET` | Clave de firma de los tokens | Solo para desarrollo; **obligatorio cambiarla en producción** |
 | `JWT_ACCESS_EXPIRATION_MS`, `JWT_REFRESH_EXPIRATION_MS` | Duración de los tokens | 15 min y 7 días |
 | `MAIL_USERNAME`, `MAIL_PASSWORD` | Credenciales SMTP de Mailtrap | Sin valor: la API funciona, pero no envía correos |
+| `CORS_ALLOWED_ORIGINS` | Orígenes del frontend permitidos por CORS, separados por comas (por ejemplo, el dominio de la web en Vercel) | `http://localhost:5173,http://localhost:3000` |
 
 ### Endpoints
 
@@ -295,12 +300,22 @@ Todos bajo `/api/v1`. Salvo los públicos, requieren el header `Authorization: B
 | Módulo | Endpoints | Acceso |
 |---|---|---|
 | Auth | `POST /auth/register`, `/auth/login`, `/auth/refresh` | Público |
+| Users | `GET /users/me` | Autenticado |
+| Freelancers | `GET`, `PUT /freelancers/me` · `GET /freelancers/{userId}` | FREELANCER · Autenticado |
 | Skills | `GET /skills`, `GET /skills/{id}` · `POST /skills` · `DELETE /skills/{id}` | Autenticado · CLIENT/ADMIN · ADMIN |
-| Projects | `GET /projects` (filtros y paginación), `GET /projects/{id}` · `POST /projects` · `PUT`, `DELETE /projects/{id}` | Autenticado · CLIENT · dueño o ADMIN |
+| Projects | `GET /projects` (filtros y paginación), `GET /projects/{id}` · `POST /projects`, `GET /projects/me` (paginado) · `PUT`, `DELETE /projects/{id}` | Autenticado · CLIENT · dueño o ADMIN |
 | Applications | `POST /applications`, `GET /applications/me`, `DELETE /applications/{id}` · `GET /applications?projectId=`, `PATCH /applications/{id}/accept`, `/reject` · `GET /applications/{id}` | FREELANCER · CLIENT dueño · participantes |
 | Contracts | `GET /contracts/me`, `GET /contracts/{id}` · `PATCH /contracts/{id}/deliver` · `/confirm`, `/cancel` | Participantes · FREELANCER · CLIENT |
 | Reviews | `POST`, `GET /contracts/{id}/reviews` · `GET /users/{id}/reviews` (paginado, `minRating`) | Participantes · Público |
 | Payments | `GET /payments`, `GET /payments/{id}` | ADMIN |
+
+**Detalles de los endpoints de la fase 2:**
+
+- `GET /users/me` devuelve `id`, `nombre`, `email` y `rol` del usuario con sesión (nunca la contraseña).
+- `GET /freelancers/{userId}` busca por **id de usuario** (el mismo de `/users/{id}/reviews`) y no expone el email; responde 404 si ese usuario no tiene perfil de freelancer.
+- `PUT /freelancers/me` solo cambia los campos enviados. Valida `ciclo` entre 1 y 10, `tarifaHora` mayor a cero, `portafolioUrl` como URL y `githubUsername` con el formato de GitHub. Un egresado (`egresado: true`) no tiene ciclo: marcarlo borra el ciclo, y enviar ambos responde 400.
+- `GET /projects/me` usa el mismo formato paginado que `GET /projects` (10 por página, los más recientes primero).
+- Los proyectos aceptan `location` opcional (por ejemplo, el distrito; máximo 100 caracteres) al crear y editar, y la devuelven en todas las respuestas.
 
 La documentación completa, con descripciones y ejemplos de cada respuesta, está en la colección [`postman_collection.json`](postman_collection.json). Ejecutando las carpetas en orden se recorre el flujo completo del negocio.
 
