@@ -10,6 +10,7 @@ import pe.edu.utec.devutec.dto.ProjectUpdateDTO;
 public interface ProjectService {
     ProjectResponseDTO create(ProjectCreateDTO dto);
     PageResponseDTO<ProjectResponseDTO> findAll(ProjectFilterDTO filters, Pageable pageable);
+    PageResponseDTO<ProjectResponseDTO> findMine(Pageable pageable);
     ProjectResponseDTO findById(Long id);
     ProjectResponseDTO update(Long id, ProjectUpdateDTO dto);
     void delete(Long id);

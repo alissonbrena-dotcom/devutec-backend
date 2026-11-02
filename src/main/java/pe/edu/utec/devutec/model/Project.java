@@ -35,6 +35,9 @@ public class Project {
 
     private LocalDate deadline;
 
+    @Column(length = 100)
+    private String location;
+
     @Column(name = "client_id")
     private Long clientId;
 
