@@ -11,7 +11,9 @@
 | Ariana Alejandra Isla Urbina | 202510309 | [@aisla9](https://github.com/aisla9), [@aaariana9](https://github.com/aaariana9) |
 | Nicole Valeria Yucra Castro | 202510210 | [@ny216](https://github.com/ny216), [@nicoleyucra1](https://github.com/nicoleyucra1) |
 
-**API desplegada (AWS EC2 + RDS):** `http://ec2-52-7-186-192.compute-1.amazonaws.com:8080`
+**API desplegada (AWS EC2 + RDS, HTTPS):** https://devutec.duckdns.org
+
+**Frontend web:** [nicoleyucra1/devutec-frontend](https://github.com/nicoleyucra1/devutec-frontend)
 
 ---
 
@@ -70,7 +72,9 @@ El estudiante gana experiencia, ingresos y un historial verificable; el negocio 
 | Funcionalidad | Cómo contribuye a resolver el problema |
 |---|---|
 | **Registro y login con roles** (`CLIENT`, `FREELANCER`, `ADMIN`) | Cada usuario solo hace lo que le corresponde; el freelancer obtiene un perfil profesional. |
-| **Publicación de proyectos** y **búsqueda con filtros y paginación** | El cliente describe lo que necesita; el freelancer encuentra proyectos acordes a su perfil. |
+| **Publicación de proyectos** (con ubicación opcional) y **búsqueda con filtros y paginación** | El cliente describe lo que necesita; el freelancer encuentra proyectos acordes a su perfil. |
+| **Mis proyectos** y **datos de la sesión** | El cliente ve sus propios proyectos y la web o la app móvil obtienen los datos del usuario con sesión sin pedir ids. |
+| **Perfil del freelancer** editable y público | El freelancer muestra su universidad, ciclo (o si es egresado), tarifa, portafolio y GitHub; cualquier usuario con sesión lo ve junto a su calificación. |
 | **Postulaciones** con mensaje y precio | El cliente compara propuestas y acepta una; las demás se rechazan automáticamente. |
 | **Contrato con pago en garantía (escrow)** | El pago queda retenido (`HELD`) al aceptar, se libera (`RELEASED`) al confirmar la entrega y se reembolsa (`REFUNDED`) si se cancela. |
 | **Reseñas bidireccionales** y **calificación promedio** | Cada parte califica a la otra (1–5); el freelancer acumula reputación pública. |
@@ -86,7 +90,7 @@ El estudiante gana experiencia, ingresos y un historial verificable; el negocio 
 | Mapeo y utilidades | ModelMapper, Lombok, SLF4J |
 | Correo | JavaMailSender con plantillas Thymeleaf y Mailtrap (sandbox SMTP) |
 | Pruebas | JUnit 5 y Mockito; colección de Postman ejecutada con Newman |
-| DevOps | Maven, GitHub Actions (CI), AWS EC2 + RDS con Elastic IP |
+| DevOps | Maven, GitHub Actions (CI), AWS EC2 + RDS con Elastic IP, Caddy (HTTPS con Let's Encrypt), DuckDNS, despliegue automático con systemd |
 
 ---
 
@@ -118,9 +122,11 @@ erDiagram
         Long id PK
         Long user_id FK, UK
         String universidad
-        Integer ciclo
+        Integer ciclo "1 a 10, null si es egresado"
+        Boolean egresado
         BigDecimal tarifaHora
         String portafolioUrl
+        String githubUsername
         BigDecimal calificacionPromedio
     }
     PROJECTS {
@@ -129,6 +135,7 @@ erDiagram
         String description
         BigDecimal budget
         LocalDate deadline
+        String location "opcional, máx. 100"
         Long client_id
         ProjectStatus status "OPEN | IN_PROGRESS | DONE"
         LocalDateTime createdAt
@@ -176,15 +183,33 @@ erDiagram
 | Entidad | Rol en el sistema |
 |---|---|
 | **User** | Cuenta de acceso con email único, contraseña cifrada y rol. |
-| **FreelancerProfile** | Datos profesionales del freelancer (1:1 con `User`), incluida su calificación promedio. |
-| **Project** | Trabajo publicado por un cliente, con presupuesto, plazo y estado. |
+| **FreelancerProfile** | Datos profesionales del freelancer (1:1 con `User`): universidad, ciclo o egresado, tarifa, portafolio, usuario de GitHub y calificación promedio. |
+| **Project** | Trabajo publicado por un cliente, con presupuesto, plazo, ubicación opcional y estado. |
 | **Skill** | Habilidad técnica; se relaciona N:M con los proyectos. |
 | **Application** | Postulación de un freelancer a un proyecto; única por par (proyecto, freelancer). |
 | **Contract** | Se crea al aceptar una postulación (1:1) y controla el ciclo de entrega. |
 | **Payment** | Pago en garantía asociado al contrato (1:1); se persiste en cascada al crear el contrato. |
 | **Review** | Reseña de un participante a otro; única por par (contrato, autor). |
 
-**Decisiones de diseño:** todas las relaciones usan `FetchType.LAZY` y las consultas que necesitan datos relacionados cargan solo lo necesario con `@EntityGraph`. La integridad se refuerza en la base de datos con claves únicas (`email`, `skill.name`, `(project_id, freelancer_id)`, `(contract_id, author_id)`), un `CHECK` para `rating` entre 1 y 5 y un índice en `reviews.reviewee_id` para el perfil público.
+**Decisiones de diseño:** las relaciones usan `FetchType.LAZY` (salvo el lado inverso `User.freelancerProfile`, explicado en las decisiones de cascade) y las consultas que necesitan datos relacionados cargan solo lo necesario con `@EntityGraph`. La integridad se refuerza en la base de datos con claves únicas (`email`, `skill.name`, `(project_id, freelancer_id)`, `(contract_id, author_id)`), un `CHECK` para `rating` entre 1 y 5 y un índice en `reviews.reviewee_id` para el perfil público.
+
+### Decisiones de cascade
+
+La cascada se usa solo donde una entidad **no tiene sentido sin su padre**:
+
+| Relación | Cascade | Por qué |
+|---|---|---|
+| `User` → `FreelancerProfile` | `ALL` + `orphanRemoval` (lado inverso, `mappedBy = "user"`) | El perfil no existe sin su usuario. Al registrar un freelancer se guarda solo el `User` y su perfil se guarda con él; ambos lados de la relación se mantienen sincronizados. |
+| `Project` → `Application` | `REMOVE` + `orphanRemoval` | Las postulaciones pertenecen al proyecto: al eliminarlo se eliminan con él. No incluye `PERSIST` porque cada postulación se crea desde su propio servicio. |
+| `Contract` → `Payment` | `PERSIST` + `MERGE` | Al aceptar una postulación, el contrato y su pago en garantía se guardan juntos y los cambios del contrato se propagan a su pago. |
+
+**Por qué `Payment` no tiene `REMOVE`:** un pago es un registro de dinero (retenido, liberado o reembolsado). Aunque se eliminara su contrato, el historial del pago debe conservarse para poder auditarlo.
+
+**Regla para eliminar un proyecto:** solo se permite si está `OPEN` **y** ninguna de sus postulaciones generó un contrato; si no, la API responde 409 con el motivo. La segunda condición es necesaria porque cancelar un contrato devuelve el proyecto a `OPEN`, pero el contrato cancelado (y su pago reembolsado) sigue existiendo. Así la cascada nunca intenta borrar postulaciones con contratos, pagos o reseñas asociados.
+
+**Sin cascada a propósito:** `Application` → `Project` / `FreelancerProfile`, `Review` → `Contract` / `User` y `Project` ↔ `Skill`. En estos casos el hijo apunta a una entidad que existe por su cuenta (o a un catálogo compartido, como las skills), y borrarla en cascada eliminaría datos de otros.
+
+**Impacto en la base de datos:** `mappedBy` y `cascade` no cambian el esquema (no agregan columnas ni tablas). El lado inverso `User.freelancerProfile` agrega una consulta pequeña a `freelancer_profiles` (por `user_id`, que es único) cada vez que se carga un usuario, porque Hibernate no puede cargarlo de forma diferida.
 
 ---
 
@@ -221,8 +246,8 @@ Todos los errores se centralizan en un `@RestControllerAdvice` (`GlobalException
 
 - **Autenticación con JWT.** El login devuelve un *access token* (15 min) y un *refresh token* (7 días), firmados con HMAC. El token lleva los claims `userId`, `role` y `type`; un `JwtAuthenticationFilter` lo valida en cada petición y rechaza los refresh tokens usados como access. La clave se lee de la variable de entorno `JWT_SECRET`.
 - **Contraseñas cifradas con BCrypt**, con validación de fortaleza (mínimo 8 caracteres, letras y números). Nunca se devuelven en las respuestas: la API solo expone DTOs.
-- **Autorización por roles y por propiedad.** 15 endpoints usan `@PreAuthorize` según el rol; además, los servicios verifican con el usuario autenticado del `SecurityContext` que solo el dueño modifique su proyecto, que solo los participantes vean un contrato y que el cliente se tome del token y no del body. El registro como `ADMIN` está bloqueado.
-- **Sesiones sin estado** (`STATELESS`) y CORS limitado a los orígenes del frontend.
+- **Autorización por roles y por propiedad.** 18 endpoints usan `@PreAuthorize` según el rol; además, los servicios verifican con el usuario autenticado del `SecurityContext` que solo el dueño modifique su proyecto, que solo los participantes vean un contrato y que el cliente se tome del token y no del body. El registro como `ADMIN` está bloqueado.
+- **Sesiones sin estado** (`STATELESS`) y CORS limitado a los orígenes del frontend, configurables con la variable `CORS_ALLOWED_ORIGINS`.
 
 ### Prevención de vulnerabilidades
 
@@ -233,7 +258,7 @@ Todos los errores se centralizan en un `@RestControllerAdvice` (`GlobalException
 | **CSRF** | Deshabilitado a propósito: la API no usa cookies de sesión, el token viaja en el header `Authorization`, así que un sitio externo no puede enviarlo por el usuario. |
 | **Enumeración de usuarios** | El login responde siempre "Email o contraseña incorrectos", sin revelar si el email existe. |
 
-**En producción (AWS):** solo el puerto 8080 está abierto a internet; el SSH acepta únicamente EC2 Instance Connect y RDS no es accesible desde fuera. Las credenciales nunca se suben al repositorio.
+**En producción (AWS):** solo los puertos 80 y 443 están abiertos a internet. Caddy atiende HTTPS con un certificado de Let's Encrypt que se renueva solo, redirige HTTP a HTTPS y reenvía las peticiones a la app, cuyo puerto 8080 ya no es accesible desde fuera. El SSH acepta únicamente EC2 Instance Connect y RDS no es accesible desde fuera. Las credenciales viven en un archivo de entorno del servidor y nunca se suben al repositorio.
 
 ---
 
@@ -259,7 +284,7 @@ Todos los listeners usan `@TransactionalEventListener`, por lo que **solo se eje
 
 **Organización de tareas.** El trabajo se dividió en **issues** por módulo, cada uno asignado a una integrante y etiquetado con un *label* (`auth`, `projects`, `contracts`, `payments`), con checklists de subtareas. Los 13 issues del proyecto se cerraron, varios automáticamente al unir el PR correspondiente (`Closes #12`).
 
-**Flujo de trabajo.** Cada funcionalidad se desarrolló en su propia rama (`feature/…`, `fix/…`, `docs/…`) y se integró a `main` mediante **pull request**: 26 PRs unidos, 14 con aprobación explícita. Las revisiones detectaron problemas reales antes del merge, como vulnerabilidades en el registro y pruebas faltantes.
+**Flujo de trabajo.** Cada funcionalidad se desarrolló en su propia rama (`feature/…`, `fix/…`, `docs/…`) y se integró a `main` mediante **pull request**: 36 PRs unidos, 20 con aprobación explícita. Las revisiones detectaron problemas reales antes del merge, como vulnerabilidades en el registro y pruebas faltantes. En la fase 2, el frontend web se trabaja en un repositorio separado ([devutec-frontend](https://github.com/nicoleyucra1/devutec-frontend)), para que cada repositorio se pruebe y despliegue de forma independiente.
 
 **GitHub Actions (CI).** El workflow `.github/workflows/ci.yml` se ejecuta en cada push y pull request a `main`: levanta un contenedor de PostgreSQL 16, instala Java 21 y ejecuta `./mvnw verify`, que compila el proyecto y corre toda la suite de pruebas. Un PR con el build en rojo no se integra, lo que mantiene `main` siempre funcional.
 
@@ -287,6 +312,7 @@ docker compose up -d          # PostgreSQL 16 en localhost:5432
 | `JWT_SECRET` | Clave de firma de los tokens | Solo para desarrollo; **obligatorio cambiarla en producción** |
 | `JWT_ACCESS_EXPIRATION_MS`, `JWT_REFRESH_EXPIRATION_MS` | Duración de los tokens | 15 min y 7 días |
 | `MAIL_USERNAME`, `MAIL_PASSWORD` | Credenciales SMTP de Mailtrap | Sin valor: la API funciona, pero no envía correos |
+| `CORS_ALLOWED_ORIGINS` | Orígenes del frontend permitidos por CORS, separados por comas (por ejemplo, el dominio de la web en Vercel) | `http://localhost:5173,http://localhost:3000` |
 
 ### Endpoints
 
@@ -295,20 +321,36 @@ Todos bajo `/api/v1`. Salvo los públicos, requieren el header `Authorization: B
 | Módulo | Endpoints | Acceso |
 |---|---|---|
 | Auth | `POST /auth/register`, `/auth/login`, `/auth/refresh` | Público |
+| Users | `GET /users/me` | Autenticado |
+| Freelancers | `GET`, `PUT /freelancers/me` · `GET /freelancers/{userId}` | FREELANCER · Autenticado |
 | Skills | `GET /skills`, `GET /skills/{id}` · `POST /skills` · `DELETE /skills/{id}` | Autenticado · CLIENT/ADMIN · ADMIN |
-| Projects | `GET /projects` (filtros y paginación), `GET /projects/{id}` · `POST /projects` · `PUT`, `DELETE /projects/{id}` | Autenticado · CLIENT · dueño o ADMIN |
+| Projects | `GET /projects` (filtros y paginación), `GET /projects/{id}` · `POST /projects`, `GET /projects/me` (paginado) · `PUT`, `DELETE /projects/{id}` | Autenticado · CLIENT · dueño o ADMIN |
 | Applications | `POST /applications`, `GET /applications/me`, `DELETE /applications/{id}` · `GET /applications?projectId=`, `PATCH /applications/{id}/accept`, `/reject` · `GET /applications/{id}` | FREELANCER · CLIENT dueño · participantes |
 | Contracts | `GET /contracts/me`, `GET /contracts/{id}` · `PATCH /contracts/{id}/deliver` · `/confirm`, `/cancel` | Participantes · FREELANCER · CLIENT |
 | Reviews | `POST`, `GET /contracts/{id}/reviews` · `GET /users/{id}/reviews` (paginado, `minRating`) | Participantes · Público |
 | Payments | `GET /payments`, `GET /payments/{id}` | ADMIN |
 
+**Detalles de los endpoints de la fase 2:**
+
+- `GET /users/me` devuelve `id`, `nombre`, `email` y `rol` del usuario con sesión (nunca la contraseña).
+- `GET /freelancers/{userId}` busca por **id de usuario** (el mismo de `/users/{id}/reviews`) y no expone el email; responde 404 si ese usuario no tiene perfil de freelancer.
+- `PUT /freelancers/me` solo cambia los campos enviados. Valida `ciclo` entre 1 y 10, `tarifaHora` mayor a cero, `portafolioUrl` como URL y `githubUsername` con el formato de GitHub. Un egresado (`egresado: true`) no tiene ciclo: marcarlo borra el ciclo, y enviar ambos responde 400.
+- `GET /projects/me` usa el mismo formato paginado que `GET /projects` (10 por página, los más recientes primero).
+- Los proyectos aceptan `location` opcional (por ejemplo, el distrito; máximo 100 caracteres) al crear y editar, y la devuelven en todas las respuestas.
+
 La documentación completa, con descripciones y ejemplos de cada respuesta, está en la colección [`postman_collection.json`](postman_collection.json). Ejecutando las carpetas en orden se recorre el flujo completo del negocio.
 
 ### Deploy
 
-La API está desplegada en **AWS**: la aplicación corre en una instancia **EC2** con **Elastic IP** y la base de datos en **Amazon RDS** (PostgreSQL). Las variables de entorno se configuran en el servidor, y los *security groups* solo exponen el puerto 8080.
+La API está desplegada en **AWS**: la aplicación corre en una instancia **EC2** con **Elastic IP** y la base de datos en **Amazon RDS** (PostgreSQL). Las variables de entorno se configuran en el servidor.
 
-**URL:** http://ec2-52-7-186-192.compute-1.amazonaws.com:8080
+- **HTTPS:** el dominio `devutec.duckdns.org` (DuckDNS) apunta a la Elastic IP y **Caddy** actúa como proxy inverso con certificado de Let's Encrypt. Los *security groups* solo exponen los puertos 80 y 443.
+- **Despliegue continuo:** un temporizador de systemd revisa `main` cada 5 minutos. Si hay cambios en el backend, descarga el código, compila, reinicia la app y verifica que responda; si la compilación falla, la versión anterior sigue funcionando. Los cambios que no tocan el backend (por ejemplo, documentación) se descargan sin reiniciar la API.
+- **AWS Academy Learner Lab:** la instancia se detiene al terminar cada sesión del laboratorio; al iniciarlo, la app, Caddy y el despliegue automático arrancan solos.
+
+El detalle de la configuración del servidor está en [`deploy/README.md`](deploy/README.md).
+
+**URL:** https://devutec.duckdns.org
 
 ---
 
@@ -316,7 +358,7 @@ La API está desplegada en **AWS**: la aplicación corre en una instancia **EC2*
 
 ### Logros del proyecto
 
-Se construyó un backend desplegado que resuelve el problema de confianza entre clientes y freelancers junior: el flujo publicar → postular → contratar → entregar → pagar → reseñar funciona de punta a punta en producción, con pago en garantía y reputación verificable, respaldado por JWT, roles, eventos asíncronos y 54 pruebas unitarias en CI.
+Se construyó un backend desplegado que resuelve el problema de confianza entre clientes y freelancers junior: el flujo publicar → postular → contratar → entregar → pagar → reseñar funciona de punta a punta en producción, con pago en garantía y reputación verificable, respaldado por JWT, roles, eventos asíncronos y 91 pruebas unitarias en CI. En la fase 2 la API pasó a HTTPS con despliegue continuo y sumó los endpoints que necesitan la web y la app móvil: sesión actual, perfil del freelancer y "Mis proyectos".
 
 ### Aprendizajes clave
 
