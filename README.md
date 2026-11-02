@@ -284,7 +284,7 @@ Todos los listeners usan `@TransactionalEventListener`, por lo que **solo se eje
 
 **Organización de tareas.** El trabajo se dividió en **issues** por módulo, cada uno asignado a una integrante y etiquetado con un *label* (`auth`, `projects`, `contracts`, `payments`), con checklists de subtareas. Los 13 issues del proyecto se cerraron, varios automáticamente al unir el PR correspondiente (`Closes #12`).
 
-**Flujo de trabajo.** Cada funcionalidad se desarrolló en su propia rama (`feature/…`, `fix/…`, `docs/…`) y se integró a `main` mediante **pull request**: 26 PRs unidos, 14 con aprobación explícita. Las revisiones detectaron problemas reales antes del merge, como vulnerabilidades en el registro y pruebas faltantes.
+**Flujo de trabajo.** Cada funcionalidad se desarrolló en su propia rama (`feature/…`, `fix/…`, `docs/…`) y se integró a `main` mediante **pull request**: 36 PRs unidos, 20 con aprobación explícita. Las revisiones detectaron problemas reales antes del merge, como vulnerabilidades en el registro y pruebas faltantes. En la fase 2, el frontend web se trabaja en un repositorio separado ([devutec-frontend](https://github.com/nicoleyucra1/devutec-frontend)), para que cada repositorio se pruebe y despliegue de forma independiente.
 
 **GitHub Actions (CI).** El workflow `.github/workflows/ci.yml` se ejecuta en cada push y pull request a `main`: levanta un contenedor de PostgreSQL 16, instala Java 21 y ejecuta `./mvnw verify`, que compila el proyecto y corre toda la suite de pruebas. Un PR con el build en rojo no se integra, lo que mantiene `main` siempre funcional.
 
@@ -358,7 +358,7 @@ El detalle de la configuración del servidor está en [`deploy/README.md`](deplo
 
 ### Logros del proyecto
 
-Se construyó un backend desplegado que resuelve el problema de confianza entre clientes y freelancers junior: el flujo publicar → postular → contratar → entregar → pagar → reseñar funciona de punta a punta en producción, con pago en garantía y reputación verificable, respaldado por JWT, roles, eventos asíncronos y 54 pruebas unitarias en CI.
+Se construyó un backend desplegado que resuelve el problema de confianza entre clientes y freelancers junior: el flujo publicar → postular → contratar → entregar → pagar → reseñar funciona de punta a punta en producción, con pago en garantía y reputación verificable, respaldado por JWT, roles, eventos asíncronos y 91 pruebas unitarias en CI. En la fase 2 la API pasó a HTTPS con despliegue continuo y sumó los endpoints que necesitan la web y la app móvil: sesión actual, perfil del freelancer y "Mis proyectos".
 
 ### Aprendizajes clave
 
