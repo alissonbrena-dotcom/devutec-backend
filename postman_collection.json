@@ -875,6 +875,490 @@
       ]
     },
     {
+      "name": "Users",
+      "description": "Datos del usuario con sesión.",
+      "item": [
+        {
+          "name": "Usuario con sesión",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"No expone la contraseña\", () => pm.expect(pm.response.json()).to.not.have.property(\"password\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "me"
+              ]
+            },
+            "description": "**Rol:** cualquier usuario autenticado\n\nDevuelve los datos del usuario con sesión (`id`, `nombre`, `email`, `rol`), tomados del token. Nunca incluye la contraseña. La web y la app móvil lo usan para saber quién inició sesión. Sin token → 401."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/users/me",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "users",
+                    "me"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"id\": 45,\n  \"nombre\": \"Pizzería Don Mario\",\n  \"email\": \"cliente@devutec.pe\",\n  \"rol\": \"CLIENT\"\n}"
+            },
+            {
+              "name": "401 Sin token",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/users/me",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "users",
+                    "me"
+                  ]
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Freelancers",
+      "description": "Perfil profesional del freelancer: editable por su dueño y visible para cualquier usuario autenticado.",
+      "item": [
+        {
+          "name": "Actualizar mi perfil de freelancer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Guarda el usuario de GitHub\", () => pm.expect(pm.response.json().githubUsername).to.eql(\"camila-rios\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/freelancers/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "freelancers",
+                "me"
+              ]
+            },
+            "description": "**Rol:** FREELANCER (otro rol → 403)\n\nActualización parcial: solo se modifican los campos enviados.\n\nValidaciones (→ 400): `ciclo` entre 1 y 10, `tarifaHora` > 0, `portafolioUrl` debe ser una URL válida y `githubUsername` debe tener el formato de GitHub (letras, números y guiones, máx. 39). Un egresado no tiene ciclo: `egresado: true` borra el ciclo, enviar un `ciclo` pone `egresado` en `false`, y enviar ambos a la vez responde 400.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"universidad\": \"UTEC\",\n  \"ciclo\": 6,\n  \"tarifaHora\": 35.5,\n  \"portafolioUrl\": \"https://camilarios.dev\",\n  \"githubUsername\": \"camila-rios\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{freelancerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/freelancers/me",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "freelancers",
+                    "me"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"universidad\": \"UTEC\",\n  \"ciclo\": 6,\n  \"tarifaHora\": 35.5,\n  \"portafolioUrl\": \"https://camilarios.dev\",\n  \"githubUsername\": \"camila-rios\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"userId\": 46,\n  \"nombre\": \"Camila Ríos\",\n  \"universidad\": \"UTEC\",\n  \"ciclo\": 6,\n  \"egresado\": false,\n  \"tarifaHora\": 35.50,\n  \"portafolioUrl\": \"https://camilarios.dev\",\n  \"githubUsername\": \"camila-rios\",\n  \"calificacionPromedio\": null\n}"
+            },
+            {
+              "name": "400 Egresado con ciclo",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/freelancers/me",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "freelancers",
+                    "me"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"universidad\": \"UTEC\",\n  \"ciclo\": 6,\n  \"tarifaHora\": 35.5,\n  \"portafolioUrl\": \"https://camilarios.dev\",\n  \"githubUsername\": \"camila-rios\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"timestamp\": \"2026-11-02T00:50:29.528737\",\n  \"status\": 400,\n  \"error\": \"Bad Request\",\n  \"message\": \"cicloValidoParaEgresado: Un egresado no puede indicar ciclo\",\n  \"path\": \"/api/v1/freelancers/me\"\n}"
+            },
+            {
+              "name": "400 Usuario de GitHub inválido",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/freelancers/me",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "freelancers",
+                    "me"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"universidad\": \"UTEC\",\n  \"ciclo\": 6,\n  \"tarifaHora\": 35.5,\n  \"portafolioUrl\": \"https://camilarios.dev\",\n  \"githubUsername\": \"camila-rios\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"timestamp\": \"2026-11-02T00:50:29.540369\",\n  \"status\": 400,\n  \"error\": \"Bad Request\",\n  \"message\": \"githubUsername: El usuario de GitHub solo puede tener letras, números y guiones (máximo 39 caracteres)\",\n  \"path\": \"/api/v1/freelancers/me\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Mi perfil de freelancer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/freelancers/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "freelancers",
+                "me"
+              ]
+            },
+            "description": "**Rol:** FREELANCER (otro rol → 403)\n\nPerfil profesional del freelancer con sesión. Se crea vacío al registrarse y se completa con *Actualizar mi perfil*.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{freelancerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/freelancers/me",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "freelancers",
+                    "me"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"userId\": 46,\n  \"nombre\": \"Camila Ríos\",\n  \"universidad\": \"UTEC\",\n  \"ciclo\": 6,\n  \"egresado\": false,\n  \"tarifaHora\": 35.50,\n  \"portafolioUrl\": \"https://camilarios.dev\",\n  \"githubUsername\": \"camila-rios\",\n  \"calificacionPromedio\": null\n}"
+            },
+            {
+              "name": "403 No es freelancer",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/freelancers/me",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "freelancers",
+                    "me"
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"timestamp\": \"2026-11-02T00:50:29.565206\",\n  \"status\": 403,\n  \"error\": \"Forbidden\",\n  \"message\": \"No tienes permiso para realizar esta acción\",\n  \"path\": \"/api/v1/freelancers/me\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Perfil público de un freelancer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Es el freelancer pedido\", () => pm.expect(String(pm.response.json().userId)).to.eql(pm.collectionVariables.get(\"freelancerId\")));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/freelancers/{{freelancerId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "freelancers",
+                "{{freelancerId}}"
+              ]
+            },
+            "description": "**Rol:** cualquier usuario autenticado\n\nPerfil público de un freelancer buscado por **id de usuario** (el mismo de *Reseñas recibidas por un usuario*), con su calificación promedio. No expone el email. Si el usuario no existe o no es freelancer → 404."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/freelancers/{{freelancerId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "freelancers",
+                    "{{freelancerId}}"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"userId\": 46,\n  \"nombre\": \"Camila Ríos\",\n  \"universidad\": \"UTEC\",\n  \"ciclo\": 6,\n  \"egresado\": false,\n  \"tarifaHora\": 35.50,\n  \"portafolioUrl\": \"https://camilarios.dev\",\n  \"githubUsername\": \"camila-rios\",\n  \"calificacionPromedio\": null\n}"
+            },
+            {
+              "name": "404 No es freelancer",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/freelancers/{{freelancerId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "freelancers",
+                    "{{freelancerId}}"
+                  ]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"timestamp\": \"2026-11-02T00:50:29.592801\",\n  \"status\": 404,\n  \"error\": \"Not Found\",\n  \"message\": \"Perfil de freelancer no encontrado para el usuario con id: 999999\",\n  \"path\": \"/api/v1/freelancers/999999\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Skills",
       "description": "Catálogo de habilidades técnicas que se asocian a los proyectos y sirven para filtrar el listado.",
       "item": [
@@ -1413,10 +1897,10 @@
                 "projects"
               ]
             },
-            "description": "**Rol:** CLIENT\n\nEl cliente publica un proyecto con sus requisitos (presupuesto, plazo, skills) y queda `OPEN` para recibir postulaciones.\n\nEl cliente se toma del **token**, no del body: aunque se envíe un `clientId`, se ignora. `title` obligatorio y `budget` > 0 (→ 400). Guarda el `id` en `projectId`.",
+            "description": "**Rol:** CLIENT\n\nEl cliente publica un proyecto con sus requisitos (presupuesto, plazo, skills y una ubicación opcional, por ejemplo el distrito) y queda `OPEN` para recibir postulaciones.\n\nEl cliente se toma del **token**, no del body: aunque se envíe un `clientId`, se ignora. `title` obligatorio, `budget` > 0 y `location` de máx. 100 caracteres (→ 400). Guarda el `id` en `projectId`.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Web para pizzería\",\n  \"description\": \"Landing con carta, pedidos en línea y reportes de ventas\",\n  \"budget\": 600,\n  \"deadline\": \"2026-11-30\",\n  \"skillIds\": [{{skillId}}]\n}",
+              "raw": "{\n  \"title\": \"Web para pizzería\",\n  \"description\": \"Landing con carta, pedidos en línea y reportes de ventas\",\n  \"budget\": 600,\n  \"deadline\": \"2026-11-30\",\n  \"location\": \"Barranco\",\n  \"skillIds\": [{{skillId}}]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1458,7 +1942,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"title\": \"Web para pizzería\",\n  \"description\": \"Landing con carta, pedidos en línea y reportes de ventas\",\n  \"budget\": 600,\n  \"deadline\": \"2026-11-30\",\n  \"skillIds\": [\n    4\n  ]\n}",
+                  "raw": "{\n  \"title\": \"Web para pizzería\",\n  \"description\": \"Landing con carta, pedidos en línea y reportes de ventas\",\n  \"budget\": 600,\n  \"deadline\": \"2026-11-30\",\n  \"location\": \"Barranco\",\n  \"skillIds\": [\n    4\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -1475,7 +1959,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"id\": 9,\n  \"title\": \"Web para pizzería\",\n  \"description\": \"Landing con carta, pedidos en línea y reportes de ventas\",\n  \"budget\": 600,\n  \"deadline\": \"2026-11-30\",\n  \"clientId\": 15,\n  \"status\": \"OPEN\",\n  \"skills\": [\n    {\n      \"id\": 4,\n      \"name\": \"Spring Boot\"\n    }\n  ],\n  \"createdAt\": \"2026-09-25T16:21:28.780223\"\n}"
+              "body": "{\n  \"id\": 9,\n  \"title\": \"Web para pizzería\",\n  \"description\": \"Landing con carta, pedidos en línea y reportes de ventas\",\n  \"budget\": 600,\n  \"deadline\": \"2026-11-30\",\n  \"location\": \"Barranco\",\n  \"clientId\": 15,\n  \"status\": \"OPEN\",\n  \"skills\": [\n    {\n      \"id\": 4,\n      \"name\": \"Spring Boot\"\n    }\n  ],\n  \"createdAt\": \"2026-09-25T16:21:28.780223\"\n}"
             },
             {
               "name": "403 Freelancer",
@@ -1500,7 +1984,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"title\": \"Web para pizzería\",\n  \"description\": \"Landing con carta, pedidos en línea y reportes de ventas\",\n  \"budget\": 600,\n  \"deadline\": \"2026-11-30\",\n  \"skillIds\": [\n    4\n  ]\n}",
+                  "raw": "{\n  \"title\": \"Web para pizzería\",\n  \"description\": \"Landing con carta, pedidos en línea y reportes de ventas\",\n  \"budget\": 600,\n  \"deadline\": \"2026-11-30\",\n  \"location\": \"Barranco\",\n  \"skillIds\": [\n    4\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -1687,7 +2171,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"content\": [\n    {\n      \"id\": 9,\n      \"title\": \"Web para pizzería\",\n      \"description\": \"Landing con carta, pedidos en línea y reportes de ventas\",\n      \"budget\": 600.0,\n      \"deadline\": \"2026-11-30\",\n      \"clientId\": 15,\n      \"status\": \"OPEN\",\n      \"skills\": [\n        {\n          \"id\": 4,\n          \"name\": \"Spring Boot\"\n        }\n      ],\n      \"createdAt\": \"2026-09-25T16:21:28.780223\"\n    }\n  ],\n  \"page\": 0,\n  \"size\": 10,\n  \"totalElements\": 1,\n  \"totalPages\": 1,\n  \"last\": true\n}"
+              "body": "{\n  \"content\": [\n    {\n      \"id\": 9,\n      \"title\": \"Web para pizzería\",\n      \"description\": \"Landing con carta, pedidos en línea y reportes de ventas\",\n      \"budget\": 600.0,\n      \"deadline\": \"2026-11-30\",\n      \"location\": \"Barranco\",\n      \"clientId\": 15,\n      \"status\": \"OPEN\",\n      \"skills\": [\n        {\n          \"id\": 4,\n          \"name\": \"Spring Boot\"\n        }\n      ],\n      \"createdAt\": \"2026-09-25T16:21:28.780223\"\n    }\n  ],\n  \"page\": 0,\n  \"size\": 10,\n  \"totalElements\": 1,\n  \"totalPages\": 1,\n  \"last\": true\n}"
             }
           ],
           "event": [
@@ -1699,6 +2183,141 @@
                   "pm.test(\"Status 200\", () => pm.response.to.have.status(200));"
                 ]
               }
+            }
+          ]
+        },
+        {
+          "name": "Mis proyectos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Solo proyectos del cliente\", () => {",
+                  "  const clientId = pm.collectionVariables.get(\"clientId\");",
+                  "  pm.response.json().content.forEach(p => pm.expect(String(p.clientId)).to.eql(clientId));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/me?page=0&size=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "me"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "**Rol:** CLIENT (otro rol → 403)\n\nProyectos publicados por el cliente con sesión, con el mismo formato paginado que *Listar proyectos* (por defecto 10 por página, los más recientes primero). Acepta `page`, `size` y `sort`.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clientToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/projects/me?page=0&size=10",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "projects",
+                    "me"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "10"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"content\": [\n    {\n      \"id\": 38,\n      \"title\": \"App de reservas\",\n      \"description\": null,\n      \"budget\": 400.00,\n      \"deadline\": null,\n      \"location\": \"Miraflores\",\n      \"clientId\": 45,\n      \"status\": \"OPEN\",\n      \"skills\": [],\n      \"createdAt\": \"2026-11-02T00:50:29.628812\"\n    },\n    {\n      \"id\": 37,\n      \"title\": \"Web para pizzería\",\n      \"description\": \"Landing con carta, pedidos en línea y reportes de ventas\",\n      \"budget\": 600.00,\n      \"deadline\": \"2026-12-15\",\n      \"location\": \"Barranco\",\n      \"clientId\": 45,\n      \"status\": \"OPEN\",\n      \"skills\": [],\n      \"createdAt\": \"2026-11-02T00:50:29.606298\"\n    }\n  ],\n  \"page\": 0,\n  \"size\": 10,\n  \"totalElements\": 2,\n  \"totalPages\": 1,\n  \"last\": true\n}"
+            },
+            {
+              "name": "403 No es cliente",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/projects/me?page=0&size=10",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "projects",
+                    "me"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "10"
+                    }
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"timestamp\": \"2026-11-02T00:50:29.665411\",\n  \"status\": 403,\n  \"error\": \"Forbidden\",\n  \"message\": \"No tienes permiso para realizar esta acción\",\n  \"path\": \"/api/v1/projects/me\"\n}"
             }
           ]
         },
@@ -1749,7 +2368,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"id\": 9,\n  \"title\": \"Web para pizzería\",\n  \"description\": \"Landing con carta, pedidos en línea y reportes de ventas\",\n  \"budget\": 600.0,\n  \"deadline\": \"2026-11-30\",\n  \"clientId\": 15,\n  \"status\": \"OPEN\",\n  \"skills\": [\n    {\n      \"id\": 4,\n      \"name\": \"Spring Boot\"\n    }\n  ],\n  \"createdAt\": \"2026-09-25T16:21:28.780223\"\n}"
+              "body": "{\n  \"id\": 9,\n  \"title\": \"Web para pizzería\",\n  \"description\": \"Landing con carta, pedidos en línea y reportes de ventas\",\n  \"budget\": 600.0,\n  \"deadline\": \"2026-11-30\",\n  \"location\": \"Barranco\",\n  \"clientId\": 15,\n  \"status\": \"OPEN\",\n  \"skills\": [\n    {\n      \"id\": 4,\n      \"name\": \"Spring Boot\"\n    }\n  ],\n  \"createdAt\": \"2026-09-25T16:21:28.780223\"\n}"
             },
             {
               "name": "404 No existe",
@@ -1815,10 +2434,10 @@
                 "{{projectId}}"
               ]
             },
-            "description": "**Rol:** el CLIENT dueño del proyecto o un ADMIN (otro usuario → 403)\n\nActualización parcial: solo se modifican los campos enviados.",
+            "description": "**Rol:** el CLIENT dueño del proyecto o un ADMIN (otro usuario → 403)\n\nActualización parcial: solo se modifican los campos enviados. Si no se envía `location`, se mantiene la anterior.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"budget\": 650,\n  \"deadline\": \"2026-12-15\"\n}",
+              "raw": "{\n  \"budget\": 650,\n  \"deadline\": \"2026-12-15\",\n  \"location\": \"San Isidro\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1878,7 +2497,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"id\": 9,\n  \"title\": \"Web para pizzería\",\n  \"description\": \"Landing con carta, pedidos en línea y reportes de ventas\",\n  \"budget\": 650,\n  \"deadline\": \"2026-12-15\",\n  \"clientId\": 15,\n  \"status\": \"OPEN\",\n  \"skills\": [\n    {\n      \"id\": 4,\n      \"name\": \"Spring Boot\"\n    }\n  ],\n  \"createdAt\": \"2026-09-25T16:21:28.780223\"\n}"
+              "body": "{\n  \"id\": 9,\n  \"title\": \"Web para pizzería\",\n  \"description\": \"Landing con carta, pedidos en línea y reportes de ventas\",\n  \"budget\": 650,\n  \"deadline\": \"2026-12-15\",\n  \"location\": \"San Isidro\",\n  \"clientId\": 15,\n  \"status\": \"OPEN\",\n  \"skills\": [\n    {\n      \"id\": 4,\n      \"name\": \"Spring Boot\"\n    }\n  ],\n  \"createdAt\": \"2026-09-25T16:21:28.780223\"\n}"
             },
             {
               "name": "403 No es el dueño",
@@ -1953,7 +2572,7 @@
                 "{{tempProjectId}}"
               ]
             },
-            "description": "**Rol:** el CLIENT dueño del proyecto o un ADMIN\n\nEl *pre-request script* crea un proyecto temporal para no borrar `projectId`, que usa el resto del flujo. Responde 204 sin cuerpo. Si el proyecto ya tiene postulaciones → 409 (integridad de datos).",
+            "description": "**Rol:** el CLIENT dueño del proyecto o un ADMIN\n\nEl *pre-request script* crea un proyecto temporal para no borrar `projectId`, que usa el resto del flujo. Responde 204 sin cuerpo. Solo se puede eliminar un proyecto `OPEN` cuyas postulaciones no hayan generado un contrato; sus postulaciones se eliminan en cascada. Si no está `OPEN` o tiene un contrato (aunque esté cancelado) → 409.",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -1989,6 +2608,64 @@
               "_postman_previewlanguage": "json",
               "header": [],
               "body": ""
+            },
+            {
+              "name": "409 No está abierto",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/projects/{{projectId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "projects",
+                    "{{projectId}}"
+                  ]
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"timestamp\": \"2026-11-02T00:50:29.745188\",\n  \"status\": 409,\n  \"error\": \"Conflict\",\n  \"message\": \"Solo se puede eliminar un proyecto abierto (estado actual: IN_PROGRESS)\",\n  \"path\": \"/api/v1/projects/37\"\n}"
+            },
+            {
+              "name": "409 Tiene contratos",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/projects/{{projectId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "projects",
+                    "{{projectId}}"
+                  ]
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"timestamp\": \"2026-11-02T00:50:29.800829\",\n  \"status\": 409,\n  \"error\": \"Conflict\",\n  \"message\": \"No se puede eliminar un proyecto que tiene contratos asociados\",\n  \"path\": \"/api/v1/projects/37\"\n}"
             }
           ],
           "event": [
