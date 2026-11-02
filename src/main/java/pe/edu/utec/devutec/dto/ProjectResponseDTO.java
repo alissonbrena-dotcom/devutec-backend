@@ -21,6 +21,7 @@ public class ProjectResponseDTO {
     private String description;
     private BigDecimal budget;
     private LocalDate deadline;
+    private String location;
     private Long clientId;
     private String status;
     private Set<SkillResponseDTO> skills;

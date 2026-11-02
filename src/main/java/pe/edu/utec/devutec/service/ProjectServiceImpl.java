@@ -38,6 +38,7 @@ public class ProjectServiceImpl implements ProjectService {
         project.setDescription(dto.getDescription());
         project.setBudget(dto.getBudget());
         project.setDeadline(dto.getDeadline());
+        project.setLocation(dto.getLocation());
         project.setClientId(client.getId());
         project.setStatus(ProjectStatus.OPEN);
         project.setCreatedAt(LocalDateTime.now());
@@ -69,6 +70,7 @@ public class ProjectServiceImpl implements ProjectService {
         if (dto.getDescription() != null) project.setDescription(dto.getDescription());
         if (dto.getBudget() != null) project.setBudget(dto.getBudget());
         if (dto.getDeadline() != null) project.setDeadline(dto.getDeadline());
+        if (dto.getLocation() != null) project.setLocation(dto.getLocation());
         if (dto.getSkillIds() != null) project.setSkills(resolveSkills(dto.getSkillIds()));
 
         return toResponseDTO(projectRepository.save(project));
@@ -113,6 +115,7 @@ public class ProjectServiceImpl implements ProjectService {
                 project.getDescription(),
                 project.getBudget(),
                 project.getDeadline(),
+                project.getLocation(),
                 project.getClientId(),
                 project.getStatus().name(),
                 skillDTOs,

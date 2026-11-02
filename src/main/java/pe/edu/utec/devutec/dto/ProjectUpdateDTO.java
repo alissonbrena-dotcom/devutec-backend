@@ -27,5 +27,8 @@ public class ProjectUpdateDTO {
 
     private LocalDate deadline;
 
+    @Size(max = 100, message = "La ubicación no puede tener más de 100 caracteres")
+    private String location;
+
     private Set<Long> skillIds;
 }

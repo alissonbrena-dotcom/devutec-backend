@@ -3,6 +3,7 @@ package pe.edu.utec.devutec.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -28,6 +29,9 @@ public class ProjectCreateDTO {
     private BigDecimal budget;
 
     private LocalDate deadline;
+
+    @Size(max = 100, message = "La ubicación no puede tener más de 100 caracteres")
+    private String location;
 
     private Set<Long> skillIds;
 }
