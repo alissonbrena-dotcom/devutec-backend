@@ -57,6 +57,15 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
+    public PageResponseDTO<ProjectResponseDTO> findMine(Pageable pageable) {
+        Long clientId = currentUserService.getCurrentUser().getId();
+        Page<ProjectResponseDTO> page = projectRepository
+                .findByClientId(clientId, pageable)
+                .map(this::toResponseDTO);
+        return PageResponseDTO.from(page);
+    }
+
+    @Override
     public ProjectResponseDTO findById(Long id) {
         return toResponseDTO(findEntityById(id));
     }

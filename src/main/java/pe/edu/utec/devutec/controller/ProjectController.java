@@ -32,6 +32,13 @@ public class ProjectController {
         return ResponseEntity.ok(projectService.findAll(filters, pageable));
     }
 
+    @GetMapping("/me")
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<PageResponseDTO<ProjectResponseDTO>> findMine(
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        return ResponseEntity.ok(projectService.findMine(pageable));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ProjectResponseDTO> findById(@PathVariable Long id) {
         return ResponseEntity.ok(projectService.findById(id));
