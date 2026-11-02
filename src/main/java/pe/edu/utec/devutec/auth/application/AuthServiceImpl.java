@@ -19,14 +19,12 @@ import pe.edu.utec.devutec.exceptions.DuplicateResourceException;
 import pe.edu.utec.devutec.exceptions.ForbiddenOperationException;
 import pe.edu.utec.devutec.exceptions.UnauthorizedException;
 import pe.edu.utec.devutec.model.FreelancerProfile;
-import pe.edu.utec.devutec.repository.FreelancerProfileRepository;
 
 @Service
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
     private final UserRepository userRepository;
-    private final FreelancerProfileRepository freelancerProfileRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
@@ -42,11 +40,12 @@ public class AuthServiceImpl implements AuthService {
         user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setRol(request.getRol());
-        User saved = userRepository.save(user);
-
-        if (saved.getRol() == Role.FREELANCER) {
-            createFreelancerProfile(saved);
+        if (user.getRol() == Role.FREELANCER) {
+            user.setFreelancerProfile(new FreelancerProfile());
         }
+
+        // El perfil del freelancer se guarda en cascada junto con el usuario
+        User saved = userRepository.save(user);
         return buildResponse(saved);
     }
 
@@ -92,12 +91,6 @@ public class AuthServiceImpl implements AuthService {
         if (role == Role.ADMIN) {
             throw new ForbiddenOperationException("No se puede registrar un usuario con rol ADMIN");
         }
-    }
-
-    private void createFreelancerProfile(User user) {
-        FreelancerProfile profile = new FreelancerProfile();
-        profile.setUser(user);
-        freelancerProfileRepository.save(profile);
     }
 
     private AuthResponse buildResponse(User user) {

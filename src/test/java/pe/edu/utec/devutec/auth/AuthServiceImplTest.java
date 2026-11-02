@@ -2,6 +2,7 @@ package pe.edu.utec.devutec.auth;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -17,12 +18,10 @@ import pe.edu.utec.devutec.auth.infrastructure.UserRepository;
 import pe.edu.utec.devutec.exceptions.DuplicateResourceException;
 import pe.edu.utec.devutec.exceptions.ForbiddenOperationException;
 import pe.edu.utec.devutec.exceptions.UnauthorizedException;
-import pe.edu.utec.devutec.model.FreelancerProfile;
-import pe.edu.utec.devutec.repository.FreelancerProfileRepository;
 
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
@@ -31,7 +30,6 @@ import static org.mockito.Mockito.*;
 class AuthServiceImplTest {
 
     @Mock private UserRepository userRepository;
-    @Mock private FreelancerProfileRepository freelancerProfileRepository;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private JwtService jwtService;
     @Mock private AuthenticationManager authenticationManager;
@@ -49,14 +47,18 @@ class AuthServiceImplTest {
     }
 
     @Test
-    void register_freelancer_creaSuPerfil() {
+    void register_freelancer_guardaSuPerfilEnCascadaConElUsuario() {
         when(userRepository.existsByEmail("free@test.com")).thenReturn(false);
         when(passwordEncoder.encode("password123")).thenReturn("hash");
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         authService.register(request(Role.FREELANCER));
 
-        verify(freelancerProfileRepository, times(1)).save(any(FreelancerProfile.class));
+        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository, times(1)).save(captor.capture());
+        User saved = captor.getValue();
+        assertNotNull(saved.getFreelancerProfile());
+        assertSame(saved, saved.getFreelancerProfile().getUser());
     }
 
     @Test
@@ -67,7 +69,9 @@ class AuthServiceImplTest {
 
         authService.register(request(Role.CLIENT));
 
-        verify(freelancerProfileRepository, never()).save(any());
+        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository, times(1)).save(captor.capture());
+        assertNull(captor.getValue().getFreelancerProfile());
     }
 
     @Test
