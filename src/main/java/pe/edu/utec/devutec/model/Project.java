@@ -5,11 +5,14 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import pe.edu.utec.devutec.model.application.Application;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 @Entity
@@ -58,4 +61,8 @@ public class Project {
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    // Al eliminar un proyecto se eliminan sus postulaciones; ProjectServiceImpl solo lo permite si está OPEN y sin contratos
+    @OneToMany(mappedBy = "project", cascade = CascadeType.REMOVE, orphanRemoval = true)
+    private List<Application> applications = new ArrayList<>();
 }

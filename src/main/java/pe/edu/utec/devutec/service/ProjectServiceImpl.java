@@ -4,14 +4,17 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import pe.edu.utec.devutec.auth.domain.Role;
 import pe.edu.utec.devutec.auth.domain.User;
 import pe.edu.utec.devutec.dto.*;
+import pe.edu.utec.devutec.exceptions.ConflictException;
 import pe.edu.utec.devutec.exceptions.ForbiddenOperationException;
 import pe.edu.utec.devutec.exceptions.ResourceNotFoundException;
 import pe.edu.utec.devutec.model.Project;
 import pe.edu.utec.devutec.model.ProjectStatus;
 import pe.edu.utec.devutec.model.Skill;
+import pe.edu.utec.devutec.repository.ContractRepository;
 import pe.edu.utec.devutec.repository.ProjectRepository;
 import pe.edu.utec.devutec.repository.ProjectSpecifications;
 import pe.edu.utec.devutec.repository.SkillRepository;
@@ -27,6 +30,7 @@ public class ProjectServiceImpl implements ProjectService {
 
     private final ProjectRepository projectRepository;
     private final SkillRepository skillRepository;
+    private final ContractRepository contractRepository;
     private final CurrentUserService currentUserService;
 
     @Override
@@ -86,9 +90,12 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
+    @Transactional
     public void delete(Long id) {
         Project project = findEntityById(id);
         ensureCanModify(project);
+        ensureCanBeDeleted(project);
+        // Las postulaciones del proyecto se eliminan en cascada (Project.applications)
         projectRepository.delete(project);
     }
 
@@ -103,6 +110,16 @@ public class ProjectServiceImpl implements ProjectService {
         boolean isAdmin = user.getRol() == Role.ADMIN;
         if (!isOwner && !isAdmin) {
             throw new ForbiddenOperationException("Solo el cliente que publicó el proyecto puede modificarlo");
+        }
+    }
+
+    // Un proyecto cancelado vuelve a OPEN pero conserva su contrato cancelado, por eso se revisan ambas condiciones
+    private void ensureCanBeDeleted(Project project) {
+        if (project.getStatus() != ProjectStatus.OPEN) {
+            throw new ConflictException("Solo se puede eliminar un proyecto abierto (estado actual: " + project.getStatus() + ")");
+        }
+        if (contractRepository.existsByApplication_Project_Id(project.getId())) {
+            throw new ConflictException("No se puede eliminar un proyecto que tiene contratos asociados");
         }
     }
 

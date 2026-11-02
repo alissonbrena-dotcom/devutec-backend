@@ -25,7 +25,7 @@ public class Contract {
     @JoinColumn(name = "application_id", nullable = false, unique = true)
     private Application application;
 
-    @OneToOne(fetch = FetchType.LAZY, optional = false, cascade = CascadeType.PERSIST)
+    @OneToOne(fetch = FetchType.LAZY, optional = false, cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     @JoinColumn(name = "payment_id", nullable = false, unique = true)
     private Payment payment;
 

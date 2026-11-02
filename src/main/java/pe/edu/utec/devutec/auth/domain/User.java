@@ -8,6 +8,7 @@ import lombok.AllArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
+import pe.edu.utec.devutec.model.FreelancerProfile;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
@@ -45,6 +46,18 @@ public class User implements UserDetails {
 
     @Column(name="fecha_registro", nullable = false, updatable = false)
     private LocalDateTime fechaRegistro;
+
+    // Lado inverso: la FK user_id vive en freelancer_profiles, así que no agrega columnas a users
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private FreelancerProfile freelancerProfile;
+
+    // Mantiene sincronizados ambos lados de la relación
+    public void setFreelancerProfile(FreelancerProfile freelancerProfile) {
+        this.freelancerProfile = freelancerProfile;
+        if (freelancerProfile != null) {
+            freelancerProfile.setUser(this);
+        }
+    }
 
     @PrePersist
     protected void onCreate() {

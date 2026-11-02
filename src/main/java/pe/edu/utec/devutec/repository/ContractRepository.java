@@ -12,6 +12,7 @@ public interface ContractRepository extends JpaRepository<Contract, Long> {
     List<Contract> findByApplication_Freelancer_User_Id(Long userId);
 
     List<Contract> findByApplication_Project_ClientId(Long clientId);
+    boolean existsByApplication_Project_Id(Long projectId);
 
     @EntityGraph(attributePaths = {"application.project", "application.freelancer.user"})
     Optional<Contract> findByPayment_Id(Long paymentId);
