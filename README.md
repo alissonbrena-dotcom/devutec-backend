@@ -122,9 +122,11 @@ erDiagram
         Long id PK
         Long user_id FK, UK
         String universidad
-        Integer ciclo
+        Integer ciclo "1 a 10, null si es egresado"
+        Boolean egresado
         BigDecimal tarifaHora
         String portafolioUrl
+        String githubUsername
         BigDecimal calificacionPromedio
     }
     PROJECTS {
@@ -133,6 +135,7 @@ erDiagram
         String description
         BigDecimal budget
         LocalDate deadline
+        String location "opcional, máx. 100"
         Long client_id
         ProjectStatus status "OPEN | IN_PROGRESS | DONE"
         LocalDateTime createdAt
@@ -180,8 +183,8 @@ erDiagram
 | Entidad | Rol en el sistema |
 |---|---|
 | **User** | Cuenta de acceso con email único, contraseña cifrada y rol. |
-| **FreelancerProfile** | Datos profesionales del freelancer (1:1 con `User`), incluida su calificación promedio. |
-| **Project** | Trabajo publicado por un cliente, con presupuesto, plazo y estado. |
+| **FreelancerProfile** | Datos profesionales del freelancer (1:1 con `User`): universidad, ciclo o egresado, tarifa, portafolio, usuario de GitHub y calificación promedio. |
+| **Project** | Trabajo publicado por un cliente, con presupuesto, plazo, ubicación opcional y estado. |
 | **Skill** | Habilidad técnica; se relaciona N:M con los proyectos. |
 | **Application** | Postulación de un freelancer a un proyecto; única por par (proyecto, freelancer). |
 | **Contract** | Se crea al aceptar una postulación (1:1) y controla el ciclo de entrega. |
