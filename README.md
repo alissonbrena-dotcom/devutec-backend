@@ -11,9 +11,13 @@
 | Ariana Alejandra Isla Urbina | 202510309 | [@aisla9](https://github.com/aisla9), [@aaariana9](https://github.com/aaariana9) |
 | Nicole Valeria Yucra Castro | 202510210 | [@ny216](https://github.com/ny216), [@nicoleyucra1](https://github.com/nicoleyucra1) |
 
-**API desplegada (AWS EC2 + RDS, HTTPS):** https://devutec.duckdns.org
+**Repositorios y despliegues:**
 
-**Frontend web:** [nicoleyucra1/devutec-frontend](https://github.com/nicoleyucra1/devutec-frontend)
+| Parte | Repositorio | En vivo |
+|---|---|---|
+| API (Spring Boot) | este repositorio | https://devutec.duckdns.org/api/v1 (AWS EC2 + RDS, HTTPS) |
+| Web (React + Vite) | [nicoleyucra1/devutec-frontend](https://github.com/nicoleyucra1/devutec-frontend) | https://devutec.vercel.app (Vercel) |
+| App móvil (React Native + Expo) | [nicoleyucra1/devutec-frontend-mobile](https://github.com/nicoleyucra1/devutec-frontend-mobile) | Expo Go y build de Android con EAS |
 
 ---
 
