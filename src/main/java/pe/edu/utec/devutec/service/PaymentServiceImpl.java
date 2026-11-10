@@ -9,8 +9,10 @@ import pe.edu.utec.devutec.dto.PaymentResponseDTO;
 import pe.edu.utec.devutec.events.PaymentReleasedEvent;
 import pe.edu.utec.devutec.exceptions.InvalidPaymentStateException;
 import pe.edu.utec.devutec.exceptions.ResourceNotFoundException;
+import pe.edu.utec.devutec.mapper.ContractMapper;
 import pe.edu.utec.devutec.model.Payment;
 import pe.edu.utec.devutec.model.PaymentStatus;
+import pe.edu.utec.devutec.repository.ContractRepository;
 import pe.edu.utec.devutec.repository.PaymentRepository;
 
 import java.util.List;
@@ -22,6 +24,8 @@ public class PaymentServiceImpl implements PaymentService {
     private final PaymentRepository repository;
     private final ApplicationEventPublisher publisher;
     private final ModelMapper modelMapper;
+    private final ContractRepository contractRepository;
+    private final ContractMapper contractMapper;
 
     @Override
     @Transactional(readOnly = true)
@@ -71,7 +75,17 @@ public class PaymentServiceImpl implements PaymentService {
         }
     }
 
+    // Cada pago pertenece a un contrato; se agregan sus datos para que el admin sepa de qué trabajo es
     private PaymentResponseDTO toResponse(Payment payment) {
-        return modelMapper.map(payment, PaymentResponseDTO.class);
+        PaymentResponseDTO response = modelMapper.map(payment, PaymentResponseDTO.class);
+        contractRepository.findByPayment_Id(payment.getId())
+                .map(contractMapper::toResponse)
+                .ifPresent(contract -> {
+                    response.setContractId(contract.getId());
+                    response.setProjectTitle(contract.getProjectTitle());
+                    response.setClientName(contract.getClientName());
+                    response.setFreelancerName(contract.getFreelancerName());
+                });
+        return response;
     }
 }
