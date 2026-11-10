@@ -14,4 +14,8 @@ public class PaymentResponseDTO {
     private BigDecimal amount;
     private PaymentStatus status;
     private LocalDateTime createdAt;
+    private Long contractId;
+    private String projectTitle;
+    private String clientName;
+    private String freelancerName;
 }
