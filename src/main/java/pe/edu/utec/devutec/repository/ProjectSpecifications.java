@@ -11,6 +11,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 public final class ProjectSpecifications {
 
@@ -28,9 +29,10 @@ public final class ProjectSpecifications {
             if (filters.getStatus() != null) {
                 predicates.add(cb.equal(root.get("status"), filters.getStatus()));
             }
-            if (filters.getSkillId() != null) {
+            Set<Long> skillIds = filters.allSkillIds();
+            if (!skillIds.isEmpty()) {
                 Join<Project, Skill> skills = root.join("skills");
-                predicates.add(cb.equal(skills.get("id"), filters.getSkillId()));
+                predicates.add(skills.get("id").in(skillIds));
                 if (query != null) {
                     query.distinct(true);
                 }
