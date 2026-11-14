@@ -9,6 +9,7 @@ import pe.edu.utec.devutec.model.application.Application;
 import pe.edu.utec.devutec.repository.ContractRepository;
 import pe.edu.utec.devutec.service.EmailService;
 
+import java.math.RoundingMode;
 import java.util.Map;
 
 @Component
@@ -17,6 +18,7 @@ public class PaymentReleasedNotifier {
 
     private final EmailService emailService;
     private final ContractRepository contractRepository;
+    private final EmailLinks links;
 
     @Async
     @TransactionalEventListener
@@ -26,13 +28,15 @@ public class PaymentReleasedNotifier {
             User freelancer = application.getFreelancer().getUser();
             emailService.sendHtmlEmail(
                     freelancer.getEmail(),
-                    "¡Tu pago ha sido liberado!",
+                    "Tu pago de S/ " + event.getAmount().setScale(2, RoundingMode.HALF_UP).toPlainString() + " fue liberado",
                     "payment-released",
                     Map.of(
                             "freelancerName", freelancer.getNombre(),
                             "projectTitle", application.getProject().getTitle(),
                             "amount", event.getAmount(),
-                            "paymentId", event.getPaymentId()
+                            "paymentId", event.getPaymentId(),
+                            "appUrl", links.base(),
+                            "actionUrl", links.to("/contracts/" + contract.getId())
                     )
             );
         });

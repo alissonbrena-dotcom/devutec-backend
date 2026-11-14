@@ -15,6 +15,7 @@ public class ContractNotifier {
 
     private final EmailService emailService;
     private final UserRepository userRepository;
+    private final EmailLinks links;
 
     @Async
     @TransactionalEventListener
@@ -22,12 +23,14 @@ public class ContractNotifier {
         userRepository.findById(event.getClientId()).ifPresent(client ->
                 emailService.sendHtmlEmail(
                         client.getEmail(),
-                        "Tu proyecto fue entregado",
+                        event.getFreelancerName() + " entregó «" + event.getProjectTitle() + "»",
                         "contract-delivered",
                         Map.of(
                                 "clientName", client.getNombre(),
                                 "freelancerName", event.getFreelancerName(),
-                                "projectTitle", event.getProjectTitle()
+                                "projectTitle", event.getProjectTitle(),
+                                "appUrl", links.base(),
+                                "actionUrl", links.to("/contracts/" + event.getContractId())
                         )
                 )
         );
