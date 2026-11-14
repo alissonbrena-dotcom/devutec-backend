@@ -193,7 +193,89 @@ class CheckoutServiceTest {
         verify(contractMapper).toResponse(contract);
     }
 
-    // TEST 9 - Conversión a céntimos
+    // TEST 8b - Si el freelancer ya entregó, el cliente todavía puede pagar (para luego confirmar)
+    @Test
+    void startCheckout_contratoEntregado_deberiaPermitirPagar() {
+        contract.setStatus(ContractStatus.DELIVERED);
+        when(contractRepository.findById(5L)).thenReturn(Optional.of(contract));
+        when(currentUserService.getCurrentUser()).thenReturn(client);
+        when(stripeGateway.createCheckoutSession(any()))
+                .thenReturn(new StripeCheckoutSession("cs_test_2", "https://checkout.stripe.com/y", "unpaid", null, "5"));
+
+        assertEquals("cs_test_2", checkoutService.startCheckout(5L).sessionId());
+    }
+
+    // TEST 9 - Un monto menor al mínimo de Stripe se rechaza con un mensaje claro
+    @Test
+    void startCheckout_montoMenorAlMinimo_deberiaLanzarExcepcion() {
+        contract.getPayment().setAmount(new BigDecimal("1.50"));
+        when(contractRepository.findById(5L)).thenReturn(Optional.of(contract));
+        when(currentUserService.getCurrentUser()).thenReturn(client);
+
+        InvalidOperationException ex = assertThrows(InvalidOperationException.class, () -> checkoutService.startCheckout(5L));
+        assertTrue(ex.getMessage().contains("S/ 2.00"));
+        verifyNoInteractions(stripeGateway);
+    }
+
+    // TEST 10 - El nombre del producto en Stripe usa la marca DEVUTEC
+    @Test
+    void startCheckout_deberiaUsarLaMarcaDevutec() {
+        when(contractRepository.findById(5L)).thenReturn(Optional.of(contract));
+        when(currentUserService.getCurrentUser()).thenReturn(client);
+        when(stripeGateway.createCheckoutSession(any()))
+                .thenReturn(new StripeCheckoutSession("cs_test_1", "https://checkout.stripe.com/x", "unpaid", null, "5"));
+
+        checkoutService.startCheckout(5L);
+
+        ArgumentCaptor<StripeGateway.CheckoutRequest> captor = ArgumentCaptor.forClass(StripeGateway.CheckoutRequest.class);
+        verify(stripeGateway).createCheckoutSession(captor.capture());
+        assertEquals("DEVUTEC - Web para restaurante", captor.getValue().productName());
+    }
+
+    // TEST 11 - Con el interruptor apagado, se puede confirmar sin haber pagado (como hasta ahora)
+    @Test
+    void ensurePaidBeforeRelease_interruptorApagado_noDeberiaExigirPago() {
+        ReflectionTestUtils.setField(checkoutService, "requirePayment", false);
+
+        assertDoesNotThrow(() -> checkoutService.ensurePaidBeforeRelease(contract));
+    }
+
+    // TEST 12 - Con el interruptor prendido, no se libera un contrato sin pagar
+    @Test
+    void ensurePaidBeforeRelease_interruptorPrendidoSinPagar_deberiaLanzarExcepcion() {
+        ReflectionTestUtils.setField(checkoutService, "requirePayment", true);
+
+        assertThrows(InvalidOperationException.class, () -> checkoutService.ensurePaidBeforeRelease(contract));
+    }
+
+    // TEST 13 - Con el interruptor prendido y el contrato pagado, se puede liberar
+    @Test
+    void ensurePaidBeforeRelease_interruptorPrendidoYPagado_noDeberiaLanzar() {
+        ReflectionTestUtils.setField(checkoutService, "requirePayment", true);
+        contract.getPayment().setStripeReference("pi_test_1");
+
+        assertDoesNotThrow(() -> checkoutService.ensurePaidBeforeRelease(contract));
+    }
+
+    // TEST 14 - Al cancelar un contrato pagado con tarjeta, se pide el reembolso a Stripe
+    @Test
+    void refundIfPaid_pagadoConTarjeta_deberiaPedirReembolso() {
+        contract.getPayment().setStripeReference("pi_test_1");
+
+        checkoutService.refundIfPaid(contract);
+
+        verify(stripeGateway).refund("pi_test_1");
+    }
+
+    // TEST 15 - Si no se pagó con tarjeta, no hay nada que devolver en Stripe
+    @Test
+    void refundIfPaid_sinPagoConTarjeta_noDeberiaLlamarAStripe() {
+        checkoutService.refundIfPaid(contract);
+
+        verifyNoInteractions(stripeGateway);
+    }
+
+    // TEST 16 - Conversión a céntimos
     @Test
     void toCents_deberiaMultiplicarPorCien() {
         assertEquals(120000L, CheckoutService.toCents(new BigDecimal("1200")));

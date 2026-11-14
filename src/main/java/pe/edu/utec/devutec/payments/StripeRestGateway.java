@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -11,6 +12,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import pe.edu.utec.devutec.exceptions.ApiException;
 
+import java.time.Duration;
 import java.util.Map;
 
 // Llama a la API REST de Stripe directamente (https://docs.stripe.com/api/checkout/sessions).
@@ -20,13 +22,22 @@ import java.util.Map;
 public class StripeRestGateway implements StripeGateway {
 
     private static final String STRIPE_API = "https://api.stripe.com/v1";
+    // Si Stripe no responde a tiempo se corta la llamada, en vez de dejar la petición colgada
+    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
+    private static final Duration READ_TIMEOUT = Duration.ofSeconds(20);
 
     private final String secretKey;
     private final RestClient restClient;
 
     public StripeRestGateway(@Value("${stripe.secret-key:}") String secretKey) {
         this.secretKey = secretKey;
-        this.restClient = RestClient.builder().baseUrl(STRIPE_API).build();
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(CONNECT_TIMEOUT);
+        requestFactory.setReadTimeout(READ_TIMEOUT);
+        this.restClient = RestClient.builder()
+                .baseUrl(STRIPE_API)
+                .requestFactory(requestFactory)
+                .build();
     }
 
     @Override
@@ -59,6 +70,22 @@ public class StripeRestGateway implements StripeGateway {
                 .header("Authorization", "Bearer " + requireKey())
                 .retrieve()
                 .body(Map.class)));
+    }
+
+    @Override
+    public void refund(String paymentIntentId) {
+        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+        form.add("payment_intent", paymentIntentId);
+        call(() -> {
+            restClient.post()
+                    .uri("/refunds")
+                    .header("Authorization", "Bearer " + requireKey())
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .body(form)
+                    .retrieve()
+                    .toBodilessEntity();
+            return null;
+        });
     }
 
     private String requireKey() {

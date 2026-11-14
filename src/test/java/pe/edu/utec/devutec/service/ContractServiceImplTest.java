@@ -24,6 +24,7 @@ import pe.edu.utec.devutec.model.application.AppStatus;
 import pe.edu.utec.devutec.model.application.Application;
 import pe.edu.utec.devutec.model.contract.Contract;
 import pe.edu.utec.devutec.model.contract.ContractStatus;
+import pe.edu.utec.devutec.payments.CheckoutService;
 import pe.edu.utec.devutec.repository.ContractRepository;
 
 import java.math.BigDecimal;
@@ -52,6 +53,9 @@ class ContractServiceImplTest {
 
     @Mock
     private ApplicationEventPublisher eventPublisher;
+
+    @Mock
+    private CheckoutService checkoutService;
 
     @InjectMocks
     private ContractServiceImpl contractService;
@@ -156,7 +160,24 @@ class ContractServiceImplTest {
         // Then
         assertEquals(ContractStatus.CONFIRMED, contract.getStatus());
         assertEquals(ProjectStatus.DONE, project.getStatus());
+        verify(checkoutService).ensurePaidBeforeRelease(contract);
         verify(paymentService).releasePayment(50L);
+    }
+
+    // TEST 5b - Si falta el pago con tarjeta (interruptor prendido), no se confirma ni se libera
+    @Test
+    void confirm_sinPagoConTarjeta_deberiaLanzarSinLiberarPago() {
+        // Given
+        Contract contract = createContract(ContractStatus.DELIVERED);
+        when(contractRepository.findById(1L)).thenReturn(Optional.of(contract));
+        when(currentUserService.getCurrentUser()).thenReturn(client);
+        doThrow(new InvalidOperationException("El cliente todavía no pagó este contrato con tarjeta"))
+                .when(checkoutService).ensurePaidBeforeRelease(contract);
+
+        // When / Then
+        assertThrows(InvalidOperationException.class, () -> contractService.confirm(1L));
+        assertEquals(ContractStatus.DELIVERED, contract.getStatus());
+        verify(paymentService, never()).releasePayment(anyLong());
     }
 
     // TEST 6 - No se puede confirmar si el freelancer aún no entregó
@@ -186,6 +207,7 @@ class ContractServiceImplTest {
         // Then
         assertEquals(ContractStatus.CANCELLED, contract.getStatus());
         assertEquals(ProjectStatus.OPEN, project.getStatus());
+        verify(checkoutService).refundIfPaid(contract);
         verify(paymentService).refundPayment(50L);
     }
 
