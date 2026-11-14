@@ -10,6 +10,7 @@ import pe.edu.utec.devutec.dto.ApplicationRequestDTO;
 import pe.edu.utec.devutec.dto.ApplicationResponseDTO;
 import pe.edu.utec.devutec.events.ApplicationAcceptedEvent;
 import pe.edu.utec.devutec.events.ApplicationCreatedEvent;
+import pe.edu.utec.devutec.events.ApplicationRejectedEvent;
 import pe.edu.utec.devutec.exceptions.DuplicateResourceException;
 import pe.edu.utec.devutec.exceptions.ForbiddenOperationException;
 import pe.edu.utec.devutec.exceptions.InvalidOperationException;
@@ -110,6 +111,7 @@ public class ApplicationServiceImpl implements ApplicationService {
         ensureIsPending(application);
 
         application.setStatus(AppStatus.REJECTED);
+        publishRejected(application);
         return applicationMapper.toResponse(application);
     }
 
@@ -141,7 +143,17 @@ public class ApplicationServiceImpl implements ApplicationService {
     private void rejectOtherPendingApplications(Application accepted) {
         applicationRepository.findByProjectIdAndStatus(accepted.getProject().getId(), AppStatus.PENDING).stream()
                 .filter(other -> !other.getId().equals(accepted.getId()))
-                .forEach(other -> other.setStatus(AppStatus.REJECTED));
+                .forEach(other -> {
+                    other.setStatus(AppStatus.REJECTED);
+                    publishRejected(other);
+                });
+    }
+
+    // Avisa por correo al freelancer que su postulación no fue elegida
+    private void publishRejected(Application application) {
+        User freelancerUser = application.getFreelancer().getUser();
+        eventPublisher.publishEvent(new ApplicationRejectedEvent(
+                this, freelancerUser.getEmail(), freelancerUser.getNombre(), application.getProject().getTitle()));
     }
 
     private void ensureProjectIsOpen(Project project) {

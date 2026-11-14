@@ -32,4 +32,22 @@ public class ContractNotifier {
                 )
         );
     }
+
+    @Async
+    @TransactionalEventListener
+    public void onContractCreated(ContractCreatedEvent event) {
+        userRepository.findById(event.getClientId()).ifPresent(client ->
+                emailService.sendHtmlEmail(
+                        client.getEmail(),
+                        "Tu contrato está en marcha",
+                        "contract-created",
+                        Map.of(
+                                "clientName", client.getNombre(),
+                                "freelancerName", event.getFreelancerName(),
+                                "projectTitle", event.getProjectTitle(),
+                                "amount", event.getAmount()
+                        )
+                )
+        );
+    }
 }

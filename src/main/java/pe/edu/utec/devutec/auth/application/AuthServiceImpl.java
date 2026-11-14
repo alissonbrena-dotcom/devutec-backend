@@ -2,6 +2,7 @@ package pe.edu.utec.devutec.auth.application;
 
 import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -15,6 +16,7 @@ import pe.edu.utec.devutec.auth.dto.RefreshTokenRequest;
 import pe.edu.utec.devutec.auth.dto.RegisterRequest;
 import pe.edu.utec.devutec.auth.infrastructure.JwtService;
 import pe.edu.utec.devutec.auth.infrastructure.UserRepository;
+import pe.edu.utec.devutec.events.UserRegisteredEvent;
 import pe.edu.utec.devutec.exceptions.DuplicateResourceException;
 import pe.edu.utec.devutec.exceptions.ForbiddenOperationException;
 import pe.edu.utec.devutec.exceptions.UnauthorizedException;
@@ -28,6 +30,7 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -46,6 +49,8 @@ public class AuthServiceImpl implements AuthService {
 
         // El perfil del freelancer se guarda en cascada junto con el usuario
         User saved = userRepository.save(user);
+        eventPublisher.publishEvent(new UserRegisteredEvent(
+                this, saved.getEmail(), saved.getNombre(), saved.getRol().name()));
         return buildResponse(saved);
     }
 
