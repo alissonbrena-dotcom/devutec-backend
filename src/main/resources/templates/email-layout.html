@@ -1,0 +1,90 @@
+<!doctype html>
+<!--
+  Molde de todos los correos de DevUTEC (diseño de Claude Design).
+  Reglas de correo: solo tablas para el layout, estilos en línea, imágenes PNG con URL absoluta y fuentes de respaldo
+  (Geist → Helvetica/Arial, Instrument Serif → Georgia), porque Gmail y Outlook quitan <style>, flex y grid.
+  Las imágenes viven en la web: ${appUrl}/email/*.png
+-->
+<html lang="es" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org"
+      th:fragment="layout(subject, preheader, image, imageAlt, content)">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
+<title th:text="${subject}">DevUTEC</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;600&amp;family=Instrument+Serif:ital@1&amp;display=swap" rel="stylesheet">
+</head>
+<body style="margin:0;padding:0;background:#f5f3ee;-webkit-text-size-adjust:100%">
+<!-- Texto que se ve junto al asunto en la bandeja de entrada -->
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;font-size:1px;line-height:1px"><span th:text="${preheader}">Resumen</span>&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f5f3ee" style="border-collapse:collapse;background:#f5f3ee"><tr><td align="center" style="padding:32px 16px 40px">
+<!--[if mso]><table role="presentation" width="600" align="center" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;width:100%;max-width:600px;margin:0 auto"><tr><td>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse">
+<tr><td style="padding:0 4px 20px"><img th:src="${appUrl + '/email/logo-devutec.png'}" src="https://devutec.vercel.app/email/logo-devutec.png" width="130" height="30" alt="DevUTEC" style="display:block;border:0;outline:none;width:130px;height:30px"></td></tr>
+<tr><td>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;background:#ffffff;border:1px solid #e4e0d8;border-radius:20px"><tr><td bgcolor="#ffffff" style="padding:40px 28px 36px;background:#ffffff;border-radius:20px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse">
+<tr><td style="text-align:center"><img th:src="${appUrl + '/email/' + image}" th:alt="${imageAlt}" src="https://devutec.vercel.app/email/cuyi-saluda.png" width="120" height="120" alt="Cuyi" style="display:block;margin:0 auto;border:0;outline:none;width:120px;height:120px"></td></tr>
+<tr><td style="height:24px;line-height:24px;font-size:0">&nbsp;</td></tr>
+<th:block th:replace="${content}"></th:block>
+<tr><td style="height:20px;line-height:20px;font-size:0">&nbsp;</td></tr>
+<tr><td><p style="margin:0;font-family:Geist, Helvetica, Arial, sans-serif;font-size:12px;line-height:18px;color:#6f6d67;text-align:center">¿El botón no funciona? Copia este enlace en tu navegador:<br><a th:href="${actionUrl}" th:text="${actionUrl}" href="#" style="color:#1f6f4a;text-decoration:underline;word-break:break-all">enlace</a></p></td></tr>
+</table>
+</td></tr></table>
+</td></tr>
+<tr><td style="padding:24px 12px 0"><p style="margin:0;font-family:Geist, Helvetica, Arial, sans-serif;font-size:12px;line-height:18px;color:#6f6d67;text-align:center">Este es un correo automático de DevUTEC. No respondas a este mensaje.</p><p style="margin:6px 0 0;font-family:Geist, Helvetica, Arial, sans-serif;font-size:12px;line-height:18px;color:#9e9b94;text-align:center">Recibes este correo porque tienes una cuenta en DevUTEC.<br>© 2026 DevUTEC · Lima, Perú</p></td></tr>
+</table>
+</td></tr></table>
+<!--[if mso]></td></tr></table><![endif]-->
+</td></tr></table>
+</body>
+</html>
+
+<!-- ===== Piezas que usan los correos ===== -->
+
+<!-- Título con la última palabra en cursiva verde: "Tu pago fue *liberado.*" -->
+<th:block th:fragment="mailTitle(text, emphasis)">
+<tr><td><h1 style="margin:0;font-family:Geist, Helvetica, Arial, sans-serif;font-size:30px;line-height:36px;font-weight:600;letter-spacing:-.03em;color:#0e0e0c;text-align:center"><th:block th:text="${text + ' '}">Título</th:block><span th:text="${emphasis}" style="font-family:'Instrument Serif', Georgia, serif;font-style:italic;font-weight:400;color:#1f6f4a;font-size:1.12em;letter-spacing:-.01em">destacado.</span></h1></td></tr>
+<tr><td style="height:14px;line-height:14px;font-size:0">&nbsp;</td></tr>
+</th:block>
+
+<!-- Separador vertical -->
+<th:block th:fragment="mailSpace(px)">
+<tr><td th:style="${'height:' + px + 'px;line-height:' + px + 'px;font-size:0'}" style="height:28px;line-height:28px;font-size:0">&nbsp;</td></tr>
+</th:block>
+
+<!-- Fila de la tabla de detalles. first=true para la primera (sin borde arriba) -->
+<tr th:fragment="mailDetail(label, value, first)">
+<td th:style="${(first ? '' : 'border-top:1px solid #e4e0d8;') + 'padding:14px 18px;font-family:Geist, Helvetica, Arial, sans-serif;font-size:11px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:#6f6d67;text-align:left'}" th:text="${label}">Etiqueta</td>
+<td th:style="${(first ? '' : 'border-top:1px solid #e4e0d8;') + 'padding:14px 18px;font-family:Geist, Helvetica, Arial, sans-serif;font-size:14px;line-height:20px;font-weight:600;color:#0e0e0c;text-align:right'}" th:text="${value}">Valor</td>
+</tr>
+
+<!-- Botón principal (un <a>, no un <button>) -->
+<th:block th:fragment="mailButton(label)">
+<tr><td style="height:32px;line-height:32px;font-size:0">&nbsp;</td></tr>
+<tr><td><table role="presentation" align="center" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;margin:0 auto"><tr><td bgcolor="#0e0e0c" style="background:#0e0e0c;border-radius:11px;text-align:center"><a th:href="${actionUrl}" th:text="${label}" href="#" style="display:inline-block;padding:15px 30px;font-family:Geist, Helvetica, Arial, sans-serif;font-size:15px;line-height:20px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:11px">Acción</a></td></tr></table></td></tr>
+</th:block>
+
+<!-- Píldora verde de garantía -->
+<th:block th:fragment="mailEscrowPill(strong, text)">
+<div style="height:20px;line-height:20px;font-size:0">&nbsp;</div>
+<table role="presentation" align="center" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;margin:0 auto"><tr><td bgcolor="#e7efe9" style="background:#e7efe9;border-radius:999px;padding:8px 16px 8px 8px"><table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse"><tr><td style="vertical-align:middle;padding:0 10px 0 0;width:22px"><img th:src="${appUrl + '/email/icono-garantia.png'}" src="https://devutec.vercel.app/email/icono-garantia.png" width="22" height="22" alt="" style="display:block;border:0;outline:none;width:22px;height:22px"></td><td style="vertical-align:middle;font-family:Geist, Helvetica, Arial, sans-serif;font-size:13px;line-height:18px;color:#1f6f4a;text-align:left"><strong th:text="${strong}" style="font-weight:600">Garantía.</strong> <th:block th:text="${text}">Detalle.</th:block></td></tr></table></td></tr></table>
+</th:block>
+
+<!-- Los 3 pasos del pago en garantía. done = cuántos están completos (1: entregado es el actual; 3: todo listo) -->
+<th:block th:fragment="mailSteps(done)">
+<div style="height:24px;line-height:24px;font-size:0">&nbsp;</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse"><tr>
+<td th:each="step, i : ${#strings.arraySplit('Retenido,Entregado,Liberado', ',')}" width="33%" style="width:33%;text-align:center;vertical-align:top;padding:0 4px">
+<table role="presentation" align="center" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;margin:0 auto"><tr>
+<td th:if="${i.count <= done}" bgcolor="#1f6f4a" style="width:26px;height:26px;background:#1f6f4a;border:1px solid #1f6f4a;border-radius:50%;text-align:center;vertical-align:middle;font-family:Geist, Helvetica, Arial, sans-serif;font-size:12px;line-height:26px;font-weight:600;color:#ffffff">&#10003;</td>
+<td th:if="${i.count == done + 1}" th:text="${i.count}" bgcolor="#d7f25c" style="width:26px;height:26px;background:#d7f25c;border:1px solid #0e0e0c;border-radius:50%;text-align:center;vertical-align:middle;font-family:Geist, Helvetica, Arial, sans-serif;font-size:12px;line-height:26px;font-weight:600;color:#0e0e0c">2</td>
+<td th:if="${i.count > done + 1}" th:text="${i.count}" bgcolor="#f5f3ee" style="width:26px;height:26px;background:#f5f3ee;border:1px solid #e4e0d8;border-radius:50%;text-align:center;vertical-align:middle;font-family:Geist, Helvetica, Arial, sans-serif;font-size:12px;line-height:26px;font-weight:600;color:#6f6d67">3</td>
+</tr></table>
+<p th:text="${step}" th:style="${'margin:8px 0 0;font-family:Geist, Helvetica, Arial, sans-serif;font-size:12px;line-height:16px;color:' + (i.count == done + 1 ? '#0e0e0c;font-weight:600' : '#6f6d67;font-weight:400')}" style="margin:8px 0 0;font-size:12px">Paso</p>
+</td>
+</tr></table>
+</th:block>
