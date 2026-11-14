@@ -1,27 +1,18 @@
-<!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="UTF-8">
-</head>
-<body style="margin:0; padding:0; background-color:#f4f4f7; font-family:Arial, sans-serif;">
-<div style="max-width:600px; margin:40px auto; background:#ffffff; border-radius:12px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.08);">
-
-    <div style="background-color:#2563eb; padding:32px; text-align:center;">
-        <h1 style="color:#ffffff; margin:0; font-size:24px;">📩 ¡Tienes una nueva postulación!</h1>
-    </div>
-
-    <div style="padding:32px; color:#333333; line-height:1.6;">
-        <p style="font-size:16px;">Hola <span th:text="${clientName}">cliente</span>,</p>
-        <p style="font-size:16px;">
-            <strong th:text="${freelancerName}">Un freelancer</strong> postuló a tu proyecto
-            <strong th:text="${projectTitle}">proyecto</strong>.
-        </p>
-        <p style="font-size:16px;">Ingresa a DevUTEC para revisar su propuesta.</p>
-    </div>
-
-    <div style="background-color:#f4f4f7; padding:20px; text-align:center; color:#999; font-size:12px;">
-        <p style="margin:0;">Este es un correo automático de DevUTEC, no responder.</p>
-    </div>
-</div>
+<!doctype html>
+<!-- Al cliente cuando un freelancer postula a su proyecto. Variables: clientName, freelancerName, projectTitle, appUrl, actionUrl -->
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{email-layout :: layout(${freelancerName + ' postuló a «' + projectTitle + '»'}, 'Revisa su propuesta y decide si la contratas.', 'cuyi-saluda.png', 'Cuyi, la mascota de DevUTEC, saludando', ~{::content})}">
+<body>
+<th:block th:fragment="content">
+<th:block th:replace="~{email-layout :: mailTitle('Tienes una nueva', 'postulación.')}"></th:block>
+<tr><td><p style="margin:0;font-family:Geist, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#6f6d67;text-align:center">Hola, <th:block th:text="${clientName}">Pizzería Don Mario</th:block>. <strong th:text="${freelancerName}" style="color:#0e0e0c;font-weight:600">Camila Ríos</strong> quiere trabajar en tu proyecto. Revisa su perfil y su propuesta antes de decidir.</p></td></tr>
+<th:block th:replace="~{email-layout :: mailSpace(28)}"></th:block>
+<tr><td><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;border:1px solid #e4e0d8;border-radius:14px">
+<tr th:replace="~{email-layout :: mailDetail('Proyecto', ${projectTitle}, true)}"></tr>
+<tr th:replace="~{email-layout :: mailDetail('Postulante', ${freelancerName}, false)}"></tr>
+<tr><td style="border-top:1px solid #e4e0d8;padding:14px 18px;font-family:Geist, Helvetica, Arial, sans-serif;font-size:11px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:#6f6d67;text-align:left">Estado</td><td style="border-top:1px solid #e4e0d8;padding:14px 18px;font-family:Geist, Helvetica, Arial, sans-serif;font-size:14px;line-height:20px;font-weight:600;color:#b7791f;text-align:right">Por revisar</td></tr>
+</table></td></tr>
+<th:block th:replace="~{email-layout :: mailButton('Ver postulantes')}"></th:block>
+</th:block>
 </body>
 </html>
