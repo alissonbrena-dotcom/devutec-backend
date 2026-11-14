@@ -331,6 +331,7 @@ Todos bajo `/api/v1`. Salvo los públicos, requieren el header `Authorization: B
 | Projects | `GET /projects` (filtros y paginación), `GET /projects/{id}` · `POST /projects`, `GET /projects/me` (paginado) · `PUT`, `DELETE /projects/{id}` | Autenticado · CLIENT · dueño o ADMIN |
 | Applications | `POST /applications`, `GET /applications/me`, `DELETE /applications/{id}` · `GET /applications?projectId=`, `PATCH /applications/{id}/accept`, `/reject` · `GET /applications/{id}` | FREELANCER · CLIENT dueño · participantes |
 | Contracts | `GET /contracts/me`, `GET /contracts/{id}` · `PATCH /contracts/{id}/deliver` · `/confirm`, `/cancel` | Participantes · FREELANCER · CLIENT |
+| Pago con tarjeta | `POST /contracts/{id}/checkout`, `POST /contracts/{id}/checkout/confirm` | CLIENT del contrato |
 | Reviews | `POST`, `GET /contracts/{id}/reviews` · `GET /users/{id}/reviews` (paginado, `minRating`) | Participantes · Público |
 | Payments | `GET /payments`, `GET /payments/{id}` | ADMIN |
 
@@ -341,6 +342,7 @@ Todos bajo `/api/v1`. Salvo los públicos, requieren el header `Authorization: B
 - `PUT /freelancers/me` solo cambia los campos enviados. Valida `ciclo` entre 1 y 10, `tarifaHora` mayor a cero, `portafolioUrl` como URL y `githubUsername` con el formato de GitHub. Un egresado (`egresado: true`) no tiene ciclo: marcarlo borra el ciclo, y enviar ambos responde 400.
 - `GET /projects/me` usa el mismo formato paginado que `GET /projects` (10 por página, los más recientes primero).
 - Los proyectos aceptan `location` opcional (por ejemplo, el distrito; máximo 100 caracteres) al crear y editar, y la devuelven en todas las respuestas.
+- **Pago con tarjeta (Stripe, modo prueba).** `POST /contracts/{id}/checkout` crea una página de pago de Stripe Checkout por el monto del contrato (en soles) y devuelve `sessionId` y `checkoutUrl`. Al pagar, Stripe vuelve a `/contracts/{id}?pago=ok&session_id=...` del frontend, que llama a `POST /contracts/{id}/checkout/confirm` con `{ "sessionId": "..." }`. El backend le pregunta a Stripe si la sesión está pagada y es de ese contrato, y recién ahí guarda la referencia del pago; los contratos devuelven `paidWithCard: true`. El pago sigue retenido (`HELD`) hasta que el cliente confirma la entrega. Para probar se usa la tarjeta `4242 4242 4242 4242`, cualquier fecha futura y cualquier CVC. La clave secreta (`STRIPE_SECRET_KEY`) vive solo en el servidor; sin ella, estas rutas responden 503. El monto mínimo es S/ 2.00 (límite de Stripe). Si se cancela un contrato pagado con tarjeta, se pide el reembolso a Stripe. Con `STRIPE_REQUIRE_PAYMENT=true`, el cliente tiene que pagar con tarjeta antes de poder confirmar la entrega; queda apagado hasta que la web y la app tengan el botón de pagar. Las llamadas a Stripe se cortan si no responden en 20 segundos.
 
 La documentación completa, con descripciones y ejemplos de cada respuesta, está en la colección [`postman_collection.json`](postman_collection.json). Ejecutando las carpetas en orden se recorre el flujo completo del negocio.
 

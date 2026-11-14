@@ -29,7 +29,8 @@ public class ContractMapper {
                 application.getProject().getClientId(),
                 application.getFreelancer().getUser().getId(),
                 clientName(application.getProject().getClientId()),
-                application.getProject().getDeadline()
+                application.getProject().getDeadline(),
+                contract.getPayment().getStripeReference() != null
         );
     }
 
