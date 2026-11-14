@@ -21,6 +21,9 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import java.time.LocalDateTime;
 
 @Slf4j
@@ -97,6 +100,18 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponseDTO> handleDataIntegrity(DataIntegrityViolationException ex, HttpServletRequest request) {
         log.warn("Violación de integridad de datos en {}: {}", request.getRequestURI(), ex.getMostSpecificCause().getMessage());
         return build(HttpStatus.CONFLICT, "La operación entra en conflicto con datos existentes", request);
+    }
+
+    // Foto de perfil de más de 5 MB (límite de spring.servlet.multipart.max-file-size)
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorResponseDTO> handleUploadTooLarge(MaxUploadSizeExceededException ex, HttpServletRequest request) {
+        return build(HttpStatus.CONTENT_TOO_LARGE, "La foto puede pesar como máximo 5 MB", request);
+    }
+
+    // Subida sin el campo "file" o con un formulario multipart mal armado
+    @ExceptionHandler({MissingServletRequestPartException.class, MultipartException.class})
+    public ResponseEntity<ErrorResponseDTO> handleBadUpload(Exception ex, HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, "Adjunta la imagen en el campo \"file\" (JPG o PNG)", request);
     }
 
     @ExceptionHandler(Exception.class)

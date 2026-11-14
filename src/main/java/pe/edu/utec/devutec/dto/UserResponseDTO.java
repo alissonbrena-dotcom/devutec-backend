@@ -14,4 +14,6 @@ public class UserResponseDTO {
     private String nombre;
     private String email;
     private String rol;
+    // Ruta de la foto de perfil (/api/v1/users/{id}/avatar?v=...) o null si no tiene
+    private String avatarUrl;
 }

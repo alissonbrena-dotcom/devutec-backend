@@ -47,6 +47,11 @@ public class User implements UserDetails {
     @Column(name="fecha_registro", nullable = false, updatable = false)
     private LocalDateTime fechaRegistro;
 
+    // Cuándo subió su foto de perfil por última vez; null si no tiene. La imagen vive en user_avatars,
+    // así no se carga cada vez que se lee el usuario. La fecha también sirve para que la URL cambie con cada foto nueva.
+    @Column(name = "avatar_updated_at")
+    private LocalDateTime avatarUpdatedAt;
+
     // Lado inverso: la FK user_id vive en freelancer_profiles, así que no agrega columnas a users
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private FreelancerProfile freelancerProfile;
