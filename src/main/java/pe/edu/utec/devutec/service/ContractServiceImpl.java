@@ -18,6 +18,7 @@ import pe.edu.utec.devutec.model.ProjectStatus;
 import pe.edu.utec.devutec.model.application.Application;
 import pe.edu.utec.devutec.model.contract.Contract;
 import pe.edu.utec.devutec.model.contract.ContractStatus;
+import pe.edu.utec.devutec.payments.CheckoutService;
 import pe.edu.utec.devutec.repository.ContractRepository;
 
 import java.time.LocalDateTime;
@@ -32,6 +33,7 @@ public class ContractServiceImpl implements ContractService {
     private final CurrentUserService currentUserService;
     private final ContractMapper contractMapper;
     private final ApplicationEventPublisher eventPublisher;
+    private final CheckoutService checkoutService;
 
     @Override
     @Transactional
@@ -90,6 +92,7 @@ public class ContractServiceImpl implements ContractService {
         Contract contract = findContract(id);
         ensureIsClient(contract);
         ensureStatus(contract, ContractStatus.DELIVERED);
+        checkoutService.ensurePaidBeforeRelease(contract);
 
         contract.setStatus(ContractStatus.CONFIRMED);
         contract.getApplication().getProject().setStatus(ProjectStatus.DONE);
@@ -103,6 +106,7 @@ public class ContractServiceImpl implements ContractService {
         Contract contract = findContract(id);
         ensureIsClient(contract);
         ensureStatus(contract, ContractStatus.IN_PROGRESS);
+        checkoutService.refundIfPaid(contract);
 
         contract.setStatus(ContractStatus.CANCELLED);
         contract.getApplication().getProject().setStatus(ProjectStatus.OPEN);

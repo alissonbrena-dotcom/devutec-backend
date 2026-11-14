@@ -9,6 +9,9 @@ public interface StripeGateway {
     // Pregunta a Stripe cómo va una sesión (si ya se pagó)
     StripeCheckoutSession getCheckoutSession(String sessionId);
 
+    // Devuelve al cliente todo lo que pagó con ese PaymentIntent (pi_...)
+    void refund(String paymentIntentId);
+
     record CheckoutRequest(
             String contractId,
             String productName,
