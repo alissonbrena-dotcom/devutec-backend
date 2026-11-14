@@ -193,6 +193,18 @@ class CheckoutServiceTest {
         verify(contractMapper).toResponse(contract);
     }
 
+    // TEST 8b - Si el freelancer ya entregó, el cliente todavía puede pagar (para luego confirmar)
+    @Test
+    void startCheckout_contratoEntregado_deberiaPermitirPagar() {
+        contract.setStatus(ContractStatus.DELIVERED);
+        when(contractRepository.findById(5L)).thenReturn(Optional.of(contract));
+        when(currentUserService.getCurrentUser()).thenReturn(client);
+        when(stripeGateway.createCheckoutSession(any()))
+                .thenReturn(new StripeCheckoutSession("cs_test_2", "https://checkout.stripe.com/y", "unpaid", null, "5"));
+
+        assertEquals("cs_test_2", checkoutService.startCheckout(5L).sessionId());
+    }
+
     // TEST 9 - Un monto menor al mínimo de Stripe se rechaza con un mensaje claro
     @Test
     void startCheckout_montoMenorAlMinimo_deberiaLanzarExcepcion() {

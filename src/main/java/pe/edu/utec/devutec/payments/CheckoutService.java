@@ -101,8 +101,11 @@ public class CheckoutService {
         if (payment.getStripeReference() != null) {
             throw new InvalidOperationException("Este contrato ya fue pagado con tarjeta");
         }
-        if (contract.getStatus() != ContractStatus.IN_PROGRESS || payment.getStatus() != PaymentStatus.HELD) {
-            throw new InvalidOperationException("Solo se puede pagar un contrato en curso con el pago retenido");
+        // También se puede pagar si el freelancer ya entregó: así, con el interruptor prendido, el cliente
+        // que todavía no pagó puede hacerlo y luego confirmar
+        boolean openContract = contract.getStatus() == ContractStatus.IN_PROGRESS || contract.getStatus() == ContractStatus.DELIVERED;
+        if (!openContract || payment.getStatus() != PaymentStatus.HELD) {
+            throw new InvalidOperationException("Solo se puede pagar un contrato en curso o entregado, con el pago retenido");
         }
         if (payment.getAmount().compareTo(MINIMUM_AMOUNT) < 0) {
             throw new InvalidOperationException("El monto mínimo para pagar con tarjeta es S/ " + MINIMUM_AMOUNT);
