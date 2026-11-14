@@ -27,4 +27,6 @@ public class ContractResponseDTO {
     private Long freelancerUserId;
     private String clientName;
     private LocalDate deadline;
+    // true cuando el cliente ya pagó el contrato con tarjeta (Stripe, modo prueba)
+    private boolean paidWithCard;
 }
