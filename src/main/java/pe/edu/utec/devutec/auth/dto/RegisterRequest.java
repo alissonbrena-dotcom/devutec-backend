@@ -22,7 +22,8 @@ public class RegisterRequest {
 
     @NotBlank(message = "La contraseña es obligatoria")
     @Size(min = 8, max = 100, message = "La contraseña debe tener entre 8 y 100 caracteres")
-    @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d).+$", message = "La contraseña debe contener al menos una letra y un número")
+    // Contraseña fuerte: al menos una mayúscula, una minúscula, un número y un símbolo (cualquier carácter que no sea letra, número ni espacio)
+    @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^A-Za-z0-9\\s]).+$", message = "La contraseña debe tener al menos una mayúscula, una minúscula, un número y un símbolo")
     private String password;
 
     @NotNull(message = "El rol es obligatorio")
