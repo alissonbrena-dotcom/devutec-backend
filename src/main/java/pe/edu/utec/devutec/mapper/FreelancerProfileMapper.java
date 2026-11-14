@@ -17,7 +17,8 @@ public class FreelancerProfileMapper {
                 profile.getTarifaHora(),
                 profile.getPortafolioUrl(),
                 profile.getGithubUsername(),
-                profile.getCalificacionPromedio()
+                profile.getCalificacionPromedio(),
+                AvatarUrls.of(profile.getUser())
         );
     }
 }

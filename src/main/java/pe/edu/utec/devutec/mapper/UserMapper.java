@@ -12,7 +12,8 @@ public class UserMapper {
                 user.getId(),
                 user.getNombre(),
                 user.getEmail(),
-                user.getRol().name()
+                user.getRol().name(),
+                AvatarUrls.of(user)
         );
     }
 }
