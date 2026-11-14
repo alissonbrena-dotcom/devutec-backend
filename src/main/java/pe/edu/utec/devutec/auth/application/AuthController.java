@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import pe.edu.utec.devutec.auth.dto.AuthResponse;
+import pe.edu.utec.devutec.auth.dto.GoogleLoginRequest;
 import pe.edu.utec.devutec.auth.dto.LoginRequest;
 import pe.edu.utec.devutec.auth.dto.RefreshTokenRequest;
 import pe.edu.utec.devutec.auth.dto.RegisterRequest;
@@ -25,6 +26,12 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         return ResponseEntity.ok(authService.login(request));
+    }
+
+    // Inicia sesión con Google; si la cuenta es nueva, la crea con el rol que se envíe
+    @PostMapping("/google")
+    public ResponseEntity<AuthResponse> google(@Valid @RequestBody GoogleLoginRequest request) {
+        return ResponseEntity.ok(authService.loginWithGoogle(request));
     }
 
     @PostMapping("/refresh")
