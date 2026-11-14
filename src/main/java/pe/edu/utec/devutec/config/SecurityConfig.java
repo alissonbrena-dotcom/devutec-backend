@@ -80,6 +80,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/refresh").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/users/*/reviews").permitAll()
+                        // Fotos de perfil: las pide una etiqueta <img>, que no manda el token
+                        .requestMatchers(HttpMethod.GET, "/api/v1/users/*/avatar").permitAll()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
