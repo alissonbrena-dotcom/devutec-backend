@@ -46,7 +46,7 @@ class AuthServiceImplTest {
         RegisterRequest request = new RegisterRequest();
         request.setNombre("Free Uno");
         request.setEmail("free@test.com");
-        request.setPassword("password123");
+        request.setPassword("Password123!");
         request.setRol(role);
         return request;
     }
@@ -54,7 +54,7 @@ class AuthServiceImplTest {
     @Test
     void register_freelancer_guardaSuPerfilEnCascadaConElUsuario() {
         when(userRepository.existsByEmail("free@test.com")).thenReturn(false);
-        when(passwordEncoder.encode("password123")).thenReturn("hash");
+        when(passwordEncoder.encode("Password123!")).thenReturn("hash");
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         authService.register(request(Role.FREELANCER));
@@ -69,7 +69,7 @@ class AuthServiceImplTest {
     @Test
     void register_cliente_noCreaPerfilDeFreelancer() {
         when(userRepository.existsByEmail("free@test.com")).thenReturn(false);
-        when(passwordEncoder.encode("password123")).thenReturn("hash");
+        when(passwordEncoder.encode("Password123!")).thenReturn("hash");
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         authService.register(request(Role.CLIENT));

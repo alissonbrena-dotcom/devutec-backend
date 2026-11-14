@@ -62,7 +62,7 @@
     },
     {
       "key": "clientPassword",
-      "value": "Cliente123",
+      "value": "Cliente123!",
       "type": "string"
     },
     {
@@ -72,7 +72,7 @@
     },
     {
       "key": "freelancerPassword",
-      "value": "Freelancer123",
+      "value": "Freelancer123!",
       "type": "string"
     },
     {
@@ -148,7 +148,7 @@
                 "register"
               ]
             },
-            "description": "**Público.** Crea una cuenta de cliente (emprendedor o negocio que publica proyectos) y devuelve los tokens.\n\n**Validaciones:** `email` válido y único (→ 409); `password` de 8 a 100 caracteres con al menos una letra y un número (→ 400); `rol` solo `CLIENT` o `FREELANCER`: registrarse como `ADMIN` está bloqueado (→ 403).\n\nLa contraseña se guarda cifrada con BCrypt. El *pre-request script* genera un email único en `clientEmail` para poder ejecutar la colección varias veces.",
+            "description": "**Público.** Crea una cuenta de cliente (emprendedor o negocio que publica proyectos) y devuelve los tokens.\n\n**Validaciones:** `email` válido y único (→ 409); `password` de 8 a 100 caracteres con al menos una mayúscula, una minúscula, un número y un símbolo (→ 400); `rol` solo `CLIENT` o `FREELANCER`: registrarse como `ADMIN` está bloqueado (→ 403).\n\nLa contraseña se guarda cifrada con BCrypt. El *pre-request script* genera un email único en `clientEmail` para poder ejecutar la colección varias veces.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"nombre\": \"Café Aula 3\",\n  \"email\": \"{{clientEmail}}\",\n  \"password\": \"{{clientPassword}}\",\n  \"rol\": \"CLIENT\"\n}",
@@ -187,7 +187,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"nombre\": \"Café Aula 3\",\n  \"email\": \"cafe@devutec.pe\",\n  \"password\": \"Cliente123\",\n  \"rol\": \"CLIENT\"\n}",
+                  "raw": "{\n  \"nombre\": \"Café Aula 3\",\n  \"email\": \"cafe@devutec.pe\",\n  \"password\": \"Cliente123!\",\n  \"rol\": \"CLIENT\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -230,7 +230,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"nombre\": \"Café Aula 3\",\n  \"email\": \"cafe@devutec.pe\",\n  \"password\": \"Cliente123\",\n  \"rol\": \"CLIENT\"\n}",
+                  "raw": "{\n  \"nombre\": \"Café Aula 3\",\n  \"email\": \"cafe@devutec.pe\",\n  \"password\": \"Cliente123!\",\n  \"rol\": \"CLIENT\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -290,7 +290,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"timestamp\": \"2026-09-25T16:21:28.131381\",\n  \"status\": 400,\n  \"error\": \"Bad Request\",\n  \"message\": \"password: La contraseña debe contener al menos una letra y un número\",\n  \"path\": \"/api/v1/auth/register\"\n}"
+              "body": "{\n  \"timestamp\": \"2026-09-25T16:21:28.131381\",\n  \"status\": 400,\n  \"error\": \"Bad Request\",\n  \"message\": \"password: La contraseña debe tener al menos una mayúscula, una minúscula, un número y un símbolo\",\n  \"path\": \"/api/v1/auth/register\"\n}"
             },
             {
               "name": "403 Registro como ADMIN",
@@ -316,7 +316,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"nombre\": \"Admin DevUTEC\",\n  \"email\": \"x@devutec.pe\",\n  \"password\": \"Admin12345\",\n  \"rol\": \"ADMIN\"\n}",
+                  "raw": "{\n  \"nombre\": \"Admin DevUTEC\",\n  \"email\": \"x@devutec.pe\",\n  \"password\": \"Admin12345!\",\n  \"rol\": \"ADMIN\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -418,7 +418,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"nombre\": \"Camila Ríos\",\n  \"email\": \"camila@devutec.pe\",\n  \"password\": \"Freelancer123\",\n  \"rol\": \"FREELANCER\"\n}",
+                  "raw": "{\n  \"nombre\": \"Camila Ríos\",\n  \"email\": \"camila@devutec.pe\",\n  \"password\": \"Freelancer123!\",\n  \"rol\": \"FREELANCER\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -520,7 +520,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"email\": \"camila@devutec.pe\",\n  \"password\": \"Freelancer123\"\n}",
+                  "raw": "{\n  \"email\": \"camila@devutec.pe\",\n  \"password\": \"Freelancer123!\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -622,7 +622,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"email\": \"cafe@devutec.pe\",\n  \"password\": \"Cliente123\"\n}",
+                  "raw": "{\n  \"email\": \"cafe@devutec.pe\",\n  \"password\": \"Cliente123!\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"

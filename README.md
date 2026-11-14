@@ -261,6 +261,7 @@ Todos los errores se centralizan en un `@RestControllerAdvice` (`GlobalException
 | **XSS** | La API solo responde JSON y valida las entradas con Bean Validation; las plantillas de correo usan `th:text`, que escapa el HTML. |
 | **CSRF** | Deshabilitado a propósito: la API no usa cookies de sesión, el token viaja en el header `Authorization`, así que un sitio externo no puede enviarlo por el usuario. |
 | **Enumeración de usuarios** | El login responde siempre "Email o contraseña incorrectos", sin revelar si el email existe. |
+| **Contraseñas débiles** | Al registrarse, la contraseña debe tener de 8 a 100 caracteres con al menos una mayúscula, una minúscula, un número y un símbolo; la web y la app muestran las mismas reglas mientras se escribe. Se guarda cifrada con BCrypt. |
 
 **En producción (AWS):** solo los puertos 80 y 443 están abiertos a internet. Caddy atiende HTTPS con un certificado de Let's Encrypt que se renueva solo, redirige HTTP a HTTPS y reenvía las peticiones a la app, cuyo puerto 8080 ya no es accesible desde fuera. El SSH acepta únicamente EC2 Instance Connect y RDS no es accesible desde fuera. Las credenciales viven en un archivo de entorno del servidor y nunca se suben al repositorio.
 
