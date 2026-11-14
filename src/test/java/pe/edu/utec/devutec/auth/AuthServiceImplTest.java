@@ -11,12 +11,16 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import pe.edu.utec.devutec.auth.application.AuthServiceImpl;
 import pe.edu.utec.devutec.auth.domain.Role;
 import pe.edu.utec.devutec.auth.domain.User;
+import pe.edu.utec.devutec.auth.dto.GoogleLoginRequest;
 import pe.edu.utec.devutec.auth.dto.RefreshTokenRequest;
 import pe.edu.utec.devutec.auth.dto.RegisterRequest;
+import pe.edu.utec.devutec.auth.infrastructure.GoogleAccount;
+import pe.edu.utec.devutec.auth.infrastructure.GoogleTokenVerifier;
 import pe.edu.utec.devutec.auth.infrastructure.JwtService;
 import pe.edu.utec.devutec.auth.infrastructure.UserRepository;
 import pe.edu.utec.devutec.exceptions.DuplicateResourceException;
 import pe.edu.utec.devutec.exceptions.ForbiddenOperationException;
+import pe.edu.utec.devutec.exceptions.GoogleSignupRequiredException;
 import pe.edu.utec.devutec.exceptions.UnauthorizedException;
 
 import java.util.Optional;
@@ -33,6 +37,7 @@ class AuthServiceImplTest {
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private JwtService jwtService;
     @Mock private AuthenticationManager authenticationManager;
+    @Mock private GoogleTokenVerifier googleTokenVerifier;
 
     @InjectMocks
     private AuthServiceImpl authService;
@@ -102,5 +107,59 @@ class AuthServiceImplTest {
         refreshRequest.setRefreshToken("token");
 
         assertThrows(UnauthorizedException.class, () -> authService.refresh(refreshRequest));
+    }
+
+    private GoogleLoginRequest google(Role role) {
+        GoogleLoginRequest request = new GoogleLoginRequest();
+        request.setIdToken("token-de-google");
+        request.setRol(role);
+        return request;
+    }
+
+    @Test
+    void loginWithGoogle_cuentaExistente_entraSinCrearOtra() {
+        User existing = new User();
+        existing.setEmail("ana@gmail.com");
+        existing.setRol(Role.CLIENT);
+        when(googleTokenVerifier.verify("token-de-google")).thenReturn(new GoogleAccount("ana@gmail.com", "Ana"));
+        when(userRepository.findByEmail("ana@gmail.com")).thenReturn(Optional.of(existing));
+
+        var response = authService.loginWithGoogle(google(null));
+
+        assertEquals("CLIENT", response.getRol());
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void loginWithGoogle_cuentaNuevaSinRol_pideElegirRol() {
+        when(googleTokenVerifier.verify("token-de-google")).thenReturn(new GoogleAccount("ana@gmail.com", "Ana"));
+        when(userRepository.findByEmail("ana@gmail.com")).thenReturn(Optional.empty());
+
+        assertThrows(GoogleSignupRequiredException.class, () -> authService.loginWithGoogle(google(null)));
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void loginWithGoogle_cuentaNuevaFreelancer_creaUsuarioConPerfil() {
+        when(googleTokenVerifier.verify("token-de-google")).thenReturn(new GoogleAccount("ana@gmail.com", "Ana"));
+        when(userRepository.findByEmail("ana@gmail.com")).thenReturn(Optional.empty());
+        when(passwordEncoder.encode(anyString())).thenReturn("hash");
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var response = authService.loginWithGoogle(google(Role.FREELANCER));
+
+        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(captor.capture());
+        assertEquals("Ana", captor.getValue().getNombre());
+        assertNotNull(captor.getValue().getFreelancerProfile());
+        assertEquals("FREELANCER", response.getRol());
+    }
+
+    @Test
+    void loginWithGoogle_cuentaNuevaAdmin_rechaza() {
+        when(googleTokenVerifier.verify("token-de-google")).thenReturn(new GoogleAccount("ana@gmail.com", "Ana"));
+        when(userRepository.findByEmail("ana@gmail.com")).thenReturn(Optional.empty());
+
+        assertThrows(ForbiddenOperationException.class, () -> authService.loginWithGoogle(google(Role.ADMIN)));
     }
 }
