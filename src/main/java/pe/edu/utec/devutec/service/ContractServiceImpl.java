@@ -80,7 +80,8 @@ public class ContractServiceImpl implements ContractService {
                 this,
                 application.getProject().getClientId(),
                 application.getProject().getTitle(),
-                application.getFreelancer().getUser().getNombre()));
+                application.getFreelancer().getUser().getNombre(),
+                contract.getId()));
         return contractMapper.toResponse(contract);
     }
 
