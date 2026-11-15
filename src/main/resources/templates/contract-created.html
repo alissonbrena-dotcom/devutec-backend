@@ -1,0 +1,21 @@
+<!doctype html>
+<!-- Al cliente cuando acepta una postulación y se crea el contrato con su pago en garantía.
+     Variables: clientName, freelancerName, projectTitle, amount (BigDecimal), appUrl, actionUrl -->
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{email-layout :: layout(${'Tu contrato con ' + freelancerName + ' está en marcha'}, ${'S/ ' + #numbers.formatDecimal(amount, 1, 'COMMA', 2, 'POINT') + ' quedaron retenidos en garantía.'}, 'cuyi-celebra.png', 'Cuyi, la mascota de DevUTEC, celebrando', ~{::content})}">
+<body>
+<th:block th:fragment="content">
+    <th:block th:replace="~{email-layout :: mailTitle('Tu contrato está', 'en marcha.')}"></th:block>
+    <tr><td><p style="margin:0;font-family:Geist, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#6f6d67;text-align:center">Hola, <th:block th:text="${clientName}">Pizzería Don Mario</th:block>. Aceptaste a <strong th:text="${freelancerName}" style="color:#0e0e0c;font-weight:600">Camila Ríos</strong> para <strong th:text="${projectTitle}" style="color:#0e0e0c;font-weight:600">Web para pizzería</strong>. Ya puede empezar a trabajar.</p></td></tr>
+    <th:block th:replace="~{email-layout :: mailSpace(28)}"></th:block>
+    <tr><td th:with="money=${#numbers.formatDecimal(amount, 1, 'COMMA', 2, 'POINT')}">
+        <p style="margin:0;font-family:Geist, Helvetica, Arial, sans-serif;font-size:56px;line-height:60px;font-weight:600;letter-spacing:-.05em;color:#0e0e0c;text-align:center">S/&nbsp;<th:block th:text="${#strings.substringBefore(money, '.')}">600</th:block><span th:text="${'.' + #strings.substringAfter(money, '.')}" style="color:#9e9b94">.00</span></p>
+        <p style="margin:6px 0 0;font-family:Geist, Helvetica, Arial, sans-serif;font-size:13px;line-height:18px;color:#6f6d67;text-align:center">retenidos en garantía</p>
+        <th:block th:replace="~{email-layout :: mailSteps(1)}"></th:block>
+        <div style="height:4px;line-height:4px;font-size:0">&nbsp;</div>
+        <th:block th:replace="~{email-layout :: mailEscrowPill('Tu dinero está protegido.', 'Solo se libera cuando confirmes la entrega.')}"></th:block>
+    </td></tr>
+    <th:block th:replace="~{email-layout :: mailButton('Ver el contrato')}"></th:block>
+</th:block>
+</body>
+</html>

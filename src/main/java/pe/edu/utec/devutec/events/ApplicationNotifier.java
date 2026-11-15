@@ -51,4 +51,20 @@ public class ApplicationNotifier {
                 )
         );
     }
+
+    @Async
+    @TransactionalEventListener
+    public void onApplicationRejected(ApplicationRejectedEvent event) {
+        emailService.sendHtmlEmail(
+                event.getFreelancerEmail(),
+                "Novedades sobre tu postulación a «" + event.getProjectTitle() + "»",
+                "application-rejected",
+                Map.of(
+                        "freelancerName", event.getFreelancerName(),
+                        "projectTitle", event.getProjectTitle(),
+                        "appUrl", links.base(),
+                        "actionUrl", links.to("/projects")
+                )
+        );
+    }
 }

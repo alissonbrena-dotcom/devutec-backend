@@ -7,6 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 import pe.edu.utec.devutec.auth.domain.Role;
 import pe.edu.utec.devutec.auth.domain.User;
 import pe.edu.utec.devutec.dto.ContractResponseDTO;
+import pe.edu.utec.devutec.events.ContractCreatedEvent;
 import pe.edu.utec.devutec.events.ContractDeliveredEvent;
 import pe.edu.utec.devutec.exceptions.ForbiddenOperationException;
 import pe.edu.utec.devutec.exceptions.InvalidOperationException;
@@ -44,7 +45,13 @@ public class ContractServiceImpl implements ContractService {
         Contract contract = new Contract();
         contract.setApplication(application);
         contract.setPayment(payment);
+        // save asigna el id al mismo objeto, así que contract.getId() ya sirve para el link del correo
         contractRepository.save(contract);
+
+        Project project = application.getProject();
+        eventPublisher.publishEvent(new ContractCreatedEvent(
+                this, project.getClientId(), application.getFreelancer().getUser().getNombre(),
+                project.getTitle(), payment.getAmount(), contract.getId()));
     }
 
     @Override

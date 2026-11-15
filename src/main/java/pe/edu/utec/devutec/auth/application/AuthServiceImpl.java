@@ -2,6 +2,7 @@ package pe.edu.utec.devutec.auth.application;
 
 import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -18,6 +19,7 @@ import pe.edu.utec.devutec.auth.infrastructure.GoogleAccount;
 import pe.edu.utec.devutec.auth.infrastructure.GoogleTokenVerifier;
 import pe.edu.utec.devutec.auth.infrastructure.JwtService;
 import pe.edu.utec.devutec.auth.infrastructure.UserRepository;
+import pe.edu.utec.devutec.events.UserRegisteredEvent;
 import pe.edu.utec.devutec.exceptions.DuplicateResourceException;
 import pe.edu.utec.devutec.exceptions.ForbiddenOperationException;
 import pe.edu.utec.devutec.exceptions.GoogleSignupRequiredException;
@@ -35,6 +37,7 @@ public class AuthServiceImpl implements AuthService {
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
     private final GoogleTokenVerifier googleTokenVerifier;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -110,7 +113,11 @@ public class AuthServiceImpl implements AuthService {
             user.setFreelancerProfile(new FreelancerProfile());
         }
         // El perfil del freelancer se guarda en cascada junto con el usuario
-        return userRepository.save(user);
+        User saved = userRepository.save(user);
+        // Correo de bienvenida, tanto si se registró con contraseña como con Google
+        eventPublisher.publishEvent(new UserRegisteredEvent(
+                this, saved.getEmail(), saved.getNombre(), saved.getRol().name()));
+        return saved;
     }
 
     private void ensureEmailIsAvailable(String email) {
