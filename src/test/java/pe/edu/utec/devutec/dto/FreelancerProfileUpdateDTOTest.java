@@ -34,7 +34,8 @@ class FreelancerProfileUpdateDTOTest {
     void dto_conDatosValidos_noDeberiaTenerErrores() {
         // Given
         FreelancerProfileUpdateDTO dto = new FreelancerProfileUpdateDTO(
-                "UTEC", 6, false, new BigDecimal("35.50"), "https://camila.dev", "camila-rios");
+                "UTEC", 6, false, new BigDecimal("35.50"), "https://camila.dev", "camila-rios",
+                "Desarrollo productos web con React y Spring Boot.");
 
         // When + Then
         assertTrue(validator.validate(dto).isEmpty());
@@ -119,5 +120,18 @@ class FreelancerProfileUpdateDTOTest {
         Set<ConstraintViolation<FreelancerProfileUpdateDTO>> violations = validator.validate(dto);
         assertTrue(violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals(field)),
                 "Se esperaba un error en " + field + " pero hubo: " + violations);
+    }
+
+    // TEST 9 - La presentación no puede pasar de 500 caracteres
+    @Test
+    void presentacion_demasiadoLarga_deberiaTenerError() {
+        // Given
+        FreelancerProfileUpdateDTO dto = new FreelancerProfileUpdateDTO();
+        dto.setPresentacion("a".repeat(501));
+
+        // When + Then
+        assertFalse(validator.validate(dto).isEmpty());
+        dto.setPresentacion("a".repeat(500));
+        assertTrue(validator.validate(dto).isEmpty());
     }
 }

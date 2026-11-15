@@ -33,6 +33,11 @@ public class FreelancerProfileServiceImpl implements FreelancerProfileService {
         if (dto.getTarifaHora() != null) profile.setTarifaHora(dto.getTarifaHora());
         if (dto.getPortafolioUrl() != null) profile.setPortafolioUrl(dto.getPortafolioUrl());
         if (dto.getGithubUsername() != null) profile.setGithubUsername(dto.getGithubUsername());
+        // Una presentación vacía (o solo espacios) la borra
+        if (dto.getPresentacion() != null) {
+            String presentacion = dto.getPresentacion().strip();
+            profile.setPresentacion(presentacion.isEmpty() ? null : presentacion);
+        }
         updateCicloYEgresado(profile, dto);
 
         return freelancerProfileMapper.toResponse(freelancerProfileRepository.save(profile));

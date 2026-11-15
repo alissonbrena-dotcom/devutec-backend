@@ -41,6 +41,9 @@ public class FreelancerProfileUpdateDTO {
             message = "El usuario de GitHub solo puede tener letras, números y guiones (máximo 39 caracteres)")
     private String githubUsername;
 
+    @Size(max = 500, message = "La presentación no puede tener más de 500 caracteres")
+    private String presentacion;
+
     @JsonIgnore
     @AssertTrue(message = "Un egresado no puede indicar ciclo")
     public boolean isCicloValidoParaEgresado() {
