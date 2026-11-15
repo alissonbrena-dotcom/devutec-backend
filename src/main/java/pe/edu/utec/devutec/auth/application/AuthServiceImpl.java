@@ -26,6 +26,7 @@ import pe.edu.utec.devutec.exceptions.GoogleSignupRequiredException;
 import pe.edu.utec.devutec.exceptions.UnauthorizedException;
 import pe.edu.utec.devutec.model.FreelancerProfile;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Service
@@ -109,6 +110,7 @@ public class AuthServiceImpl implements AuthService {
         user.setEmail(email);
         user.setPassword(passwordEncoder.encode(rawPassword));
         user.setRol(rol);
+        user.setTermsAcceptedAt(LocalDateTime.now());
         if (rol == Role.FREELANCER) {
             user.setFreelancerProfile(new FreelancerProfile());
         }

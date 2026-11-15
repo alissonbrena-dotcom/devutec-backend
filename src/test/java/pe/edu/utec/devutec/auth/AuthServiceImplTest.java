@@ -50,6 +50,7 @@ class AuthServiceImplTest {
         request.setEmail("free@test.com");
         request.setPassword("Password123!");
         request.setRol(role);
+        request.setAcceptedTerms(true);
         return request;
     }
 
@@ -163,5 +164,32 @@ class AuthServiceImplTest {
         when(userRepository.findByEmail("ana@gmail.com")).thenReturn(Optional.empty());
 
         assertThrows(ForbiddenOperationException.class, () -> authService.loginWithGoogle(google(Role.ADMIN)));
+    }
+
+    @Test
+    void register_guardaLaFechaEnQueAceptoLosTerminos() {
+        when(userRepository.existsByEmail("free@test.com")).thenReturn(false);
+        when(passwordEncoder.encode("Password123!")).thenReturn("hash");
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        authService.register(request(Role.CLIENT));
+
+        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(captor.capture());
+        assertNotNull(captor.getValue().getTermsAcceptedAt());
+    }
+
+    @Test
+    void loginWithGoogle_cuentaNueva_guardaLaFechaDeLosTerminos() {
+        when(googleTokenVerifier.verify("token-de-google")).thenReturn(new GoogleAccount("ana@gmail.com", "Ana"));
+        when(userRepository.findByEmail("ana@gmail.com")).thenReturn(Optional.empty());
+        when(passwordEncoder.encode(anyString())).thenReturn("hash");
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        authService.loginWithGoogle(google(Role.CLIENT));
+
+        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(captor.capture());
+        assertNotNull(captor.getValue().getTermsAcceptedAt());
     }
 }
