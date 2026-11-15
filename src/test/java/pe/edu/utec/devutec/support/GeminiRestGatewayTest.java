@@ -13,7 +13,7 @@ class GeminiRestGatewayTest {
 
     @Test
     void reply_sinClave_respondeServicioNoDisponible() {
-        GeminiRestGateway gateway = new GeminiRestGateway("", "gemini-2.5-flash");
+        GeminiRestGateway gateway = new GeminiRestGateway("", "gemini-3.5-flash-lite");
 
         ApiException error = assertThrows(ApiException.class,
                 () -> gateway.reply("reglas", List.of(new ChatTurnDTO("user", "hola"))));
