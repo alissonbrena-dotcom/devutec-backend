@@ -11,6 +11,15 @@
 | Ariana Alejandra Isla Urbina | 202510309 | [@aisla9](https://github.com/aisla9), [@aaariana9](https://github.com/aaariana9) |
 | Nicole Valeria Yucra Castro | 202510210 | [@ny216](https://github.com/ny216), [@nicoleyucra1](https://github.com/nicoleyucra1) |
 
+**Participación:** todas las integrantes cumplieron sus responsabilidades y aportaron activamente en el backend, la web y la app móvil.
+
+| Integrante | Principales aportes | Participación |
+|---|---|---|
+| **Alisson Luciana Breña Dávila** | **Backend:** módulo de Proyectos y Skills (CRUD, filtros, paginación), contraseñas fuertes, pagos con Stripe en modo prueba. **Web y mobile:** módulo de Proyectos (explorar, detalle, publicar, editar, mis proyectos; distrito por GPS en la app), pago con tarjeta y regreso a la app, PropTypes. **Deploy e infraestructura:** AWS EC2 + RDS, HTTPS con Caddy y DuckDNS, despliegue continuo, Vercel, builds de EAS (APK) y variables de entorno del servidor. | 100 % |
+| **Camila Gomez Arias** | **Backend:** módulos de Postulaciones y Contratos (pago en garantía al aceptar), eventos y correos asíncronos, manejo de errores, GitHub Actions, colección de Postman, fecha de aceptación de términos. **Web:** kit de componentes con Tailwind (Button, Input, Card, Modal, Pagination…), postulaciones, contratos y reseñas, términos y privacidad. **Mobile:** postulaciones y contratos con confirmación biométrica. | 100 % |
+| **Ariana Alejandra Isla Urbina** | **Backend:** perfil del freelancer, usuario actual, foto de perfil, celular, CORS por variable de entorno, cascadas, plantillas de correo y documentación del README. **Web:** rediseño según el mockup (explorar, detalle, formulario, postulantes, mis postulaciones, mis proyectos, contratos, resumen del cliente, pagos del admin), pantallas de error y de carga, foto de perfil y WhatsApp. **Mobile:** escáner QR con cámara, perfil público del freelancer, repos de GitHub, foto de perfil, biometría y WhatsApp. | 100 % |
+| **Nicole Valeria Yucra Castro** | **Backend:** autenticación con JWT y Spring Security, inicio de sesión con Google, asistente de ayuda con IA (Gemini). **Web:** base del proyecto (Vite, cliente axios, renovación del token, rutas protegidas y carga diferida), login y registro, toasts, error boundary, reintentos, Google y chat de Cuyi. **Mobile:** sistema de diseño con modo claro y oscuro, animaciones, bienvenida, login y registro, aviso sin conexión, Google y ayuda con Cuyi. | 100 % |
+
 **Repositorios y despliegues:**
 
 | Parte | Repositorio | En vivo |
