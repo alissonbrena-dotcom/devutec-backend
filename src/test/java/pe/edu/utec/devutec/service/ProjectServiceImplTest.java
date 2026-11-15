@@ -11,9 +11,12 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import pe.edu.utec.devutec.auth.domain.Role;
 import pe.edu.utec.devutec.auth.domain.User;
+import pe.edu.utec.devutec.auth.infrastructure.UserRepository;
 import pe.edu.utec.devutec.dto.PageResponseDTO;
+import pe.edu.utec.devutec.dto.ProjectFilterDTO;
 import pe.edu.utec.devutec.dto.ProjectCreateDTO;
 import pe.edu.utec.devutec.dto.ProjectResponseDTO;
 import pe.edu.utec.devutec.dto.ProjectUpdateDTO;
@@ -29,6 +32,7 @@ import pe.edu.utec.devutec.repository.SkillRepository;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -49,6 +53,9 @@ class ProjectServiceImplTest {
 
     @Mock
     private CurrentUserService currentUserService;
+
+    @Mock
+    private UserRepository userRepository;
 
     @InjectMocks
     private ProjectServiceImpl projectService;
@@ -261,6 +268,45 @@ class ProjectServiceImplTest {
 
         // Then
         verify(projectRepository).delete(project);
+    }
+
+    // TEST 14 - El detalle del proyecto trae el nombre del cliente y desde cuándo está registrado
+    @Test
+    void findById_deberiaIncluirNombreYFechaDeRegistroDelCliente() {
+        // Given
+        LocalDateTime registro = LocalDateTime.of(2026, 3, 10, 9, 0);
+        client.setFechaRegistro(registro);
+        when(projectRepository.findById(1L)).thenReturn(Optional.of(buildProject(1L, client.getId(), "Barranco")));
+        when(userRepository.findById(client.getId())).thenReturn(Optional.of(client));
+
+        // When
+        ProjectResponseDTO response = projectService.findById(1L);
+
+        // Then
+        assertEquals("Café Aula 3", response.getClientName());
+        assertEquals(registro, response.getClientSince());
+    }
+
+    // TEST 15 - Explorar busca a todos los clientes de la página en una sola consulta
+    @Test
+    @SuppressWarnings("unchecked")
+    void findAll_deberiaTraerLosClientesEnUnaSolaConsulta() {
+        // Given
+        Pageable pageable = PageRequest.of(0, 10);
+        User otroCliente = buildUser(20L, Role.CLIENT);
+        otroCliente.setNombre("Pizzería Don Mario");
+        Page<Project> page = new PageImpl<>(
+                List.of(buildProject(1L, 10L, null), buildProject(2L, 20L, null), buildProject(3L, 10L, null)), pageable, 3);
+        when(projectRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(page);
+        when(userRepository.findAllById(Set.of(10L, 20L))).thenReturn(List.of(client, otroCliente));
+
+        // When
+        PageResponseDTO<ProjectResponseDTO> response = projectService.findAll(new ProjectFilterDTO(), pageable);
+
+        // Then
+        assertEquals(List.of("Café Aula 3", "Pizzería Don Mario", "Café Aula 3"),
+                response.getContent().stream().map(ProjectResponseDTO::getClientName).toList());
+        verify(userRepository, times(1)).findAllById(any());
     }
 
     private void mockFindForDelete(Project project, User currentUser) {
