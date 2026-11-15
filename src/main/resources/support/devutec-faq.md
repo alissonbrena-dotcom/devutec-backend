@@ -25,13 +25,13 @@ DEVUTEC conecta a negocios y personas (clientes) con estudiantes y egresados de 
 ## Postular (freelancer)
 - El freelancer busca proyectos en Explorar (puede filtrar por estado, presupuesto, fecha y varias habilidades) y postula con un mensaje y un precio propuesto.
 - Solo se puede postular a proyectos abiertos y una sola vez por proyecto.
-- La postulación se puede modificar mientras esté pendiente.
+- Mientras siga pendiente, el freelancer puede retirar su postulación. No se puede editar: si quiere cambiar algo, la retira y vuelve a postular.
 
 ## Contratos y pago en garantía
 - Estados del contrato: En progreso → Entregado → Confirmado. También puede quedar Cancelado.
 - El cliente paga con tarjeta desde el detalle del contrato (botón "Pagar con tarjeta", con Stripe). En esta versión de prueba se usa la tarjeta 4242 4242 4242 4242, cualquier fecha futura y cualquier CVC.
 - El pago queda retenido en garantía: el freelancer no lo recibe hasta que el cliente confirma la entrega.
-- El freelancer marca el trabajo como entregado. Después el cliente confirma la entrega y se libera el pago. Para confirmar, el contrato tiene que estar pagado.
+- El freelancer marca el trabajo como entregado. Después el cliente confirma la entrega y se libera el pago. Si al confirmar la app avisa que falta el pago, el cliente primero tiene que pagar el contrato con tarjeta.
 - El cliente puede cancelar un contrato solo mientras está en progreso (antes de la entrega). Si ya había pagado, se le devuelve el dinero y el proyecto vuelve a quedar abierto.
 - Desde el contrato se puede escribir por WhatsApp a la otra persona si ambos agregaron su celular.
 
