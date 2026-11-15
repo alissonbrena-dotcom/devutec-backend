@@ -57,6 +57,9 @@ public class User implements UserDetails {
     @Column(length = 9)
     private String celular;
 
+    @Column(name = "terms_accepted_at")
+    private LocalDateTime termsAcceptedAt;
+
     // Lado inverso: la FK user_id vive en freelancer_profiles, así que no agrega columnas a users
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private FreelancerProfile freelancerProfile;

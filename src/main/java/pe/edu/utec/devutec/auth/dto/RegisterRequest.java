@@ -1,6 +1,7 @@
 package pe.edu.utec.devutec.auth.dto;
 
 import pe.edu.utec.devutec.auth.domain.Role;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -28,5 +29,10 @@ public class RegisterRequest {
 
     @NotNull(message = "El rol es obligatorio")
     private Role rol;
+
+    // La casilla "Acepto los Términos y condiciones y la Política de privacidad" del registro
+    @NotNull(message = "Debes aceptar los Términos y condiciones y la Política de privacidad")
+    @AssertTrue(message = "Debes aceptar los Términos y condiciones y la Política de privacidad")
+    private Boolean acceptedTerms;
 
 }

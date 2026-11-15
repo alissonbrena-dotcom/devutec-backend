@@ -7,6 +7,7 @@ import jakarta.validation.ValidatorFactory;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import pe.edu.utec.devutec.auth.domain.Role;
 import pe.edu.utec.devutec.auth.dto.RegisterRequest;
@@ -39,6 +40,7 @@ class RegisterRequestTest {
         request.setEmail("cafe@devutec.pe");
         request.setPassword(password);
         request.setRol(Role.CLIENT);
+        request.setAcceptedTerms(true);
         return request;
     }
 
@@ -60,5 +62,27 @@ class RegisterRequestTest {
     @ValueSource(strings = {"Cliente123", "cliente123!", "CLIENTE123!", "Cliente!!!", "Cl1!", "12345678"})
     void password_debil_deberiaTenerError(String password) {
         assertFalse(passwordErrors(password).isEmpty(), password);
+    }
+
+    // TEST 3 - Sin marcar la casilla de términos (o sin mandarla) no se puede registrar
+    @ParameterizedTest
+    @NullSource
+    @ValueSource(booleans = {false})
+    void acceptedTerms_sinAceptar_deberiaTenerError(Boolean acceptedTerms) {
+        RegisterRequest request = request("Cliente123!");
+        request.setAcceptedTerms(acceptedTerms);
+
+        Set<ConstraintViolation<RegisterRequest>> violations = new HashSet<>(validator.validate(request));
+        violations.removeIf(v -> !v.getPropertyPath().toString().equals("acceptedTerms"));
+        assertFalse(violations.isEmpty());
+    }
+
+    // TEST 4 - Con la casilla marcada no hay error
+    @ParameterizedTest
+    @ValueSource(booleans = {true})
+    void acceptedTerms_aceptado_noDeberiaTenerError(Boolean acceptedTerms) {
+        RegisterRequest request = request("Cliente123!");
+        request.setAcceptedTerms(acceptedTerms);
+        assertTrue(validator.validate(request).isEmpty());
     }
 }
