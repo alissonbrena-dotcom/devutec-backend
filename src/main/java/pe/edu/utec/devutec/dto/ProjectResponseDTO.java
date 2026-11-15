@@ -26,4 +26,7 @@ public class ProjectResponseDTO {
     private String status;
     private Set<SkillResponseDTO> skills;
     private LocalDateTime createdAt;
+    // Nombre del negocio y fecha de registro del cliente, para la tarjeta "Cliente" del detalle del proyecto
+    private String clientName;
+    private LocalDateTime clientSince;
 }

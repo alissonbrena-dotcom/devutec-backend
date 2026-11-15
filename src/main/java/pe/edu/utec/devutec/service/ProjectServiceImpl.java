@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pe.edu.utec.devutec.auth.domain.Role;
 import pe.edu.utec.devutec.auth.domain.User;
+import pe.edu.utec.devutec.auth.infrastructure.UserRepository;
 import pe.edu.utec.devutec.dto.*;
 import pe.edu.utec.devutec.exceptions.ConflictException;
 import pe.edu.utec.devutec.exceptions.ForbiddenOperationException;
@@ -21,7 +22,10 @@ import pe.edu.utec.devutec.repository.SkillRepository;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -32,6 +36,7 @@ public class ProjectServiceImpl implements ProjectService {
     private final SkillRepository skillRepository;
     private final ContractRepository contractRepository;
     private final CurrentUserService currentUserService;
+    private final UserRepository userRepository;
 
     @Override
     public ProjectResponseDTO create(ProjectCreateDTO dto) {
@@ -49,29 +54,29 @@ public class ProjectServiceImpl implements ProjectService {
         project.setSkills(resolveSkills(dto.getSkillIds()));
 
         Project saved = projectRepository.save(project);
-        return toResponseDTO(saved);
+        return toResponseDTO(saved, client);
     }
 
     @Override
     public PageResponseDTO<ProjectResponseDTO> findAll(ProjectFilterDTO filters, Pageable pageable) {
-        Page<ProjectResponseDTO> page = projectRepository
-                .findAll(ProjectSpecifications.withFilters(filters), pageable)
-                .map(this::toResponseDTO);
-        return PageResponseDTO.from(page);
+        Page<Project> projects = projectRepository.findAll(ProjectSpecifications.withFilters(filters), pageable);
+        Map<Long, User> clients = clientsOf(projects.getContent());
+        return PageResponseDTO.from(projects.map(project -> toResponseDTO(project, clients.get(project.getClientId()))));
     }
 
     @Override
     public PageResponseDTO<ProjectResponseDTO> findMine(Pageable pageable) {
-        Long clientId = currentUserService.getCurrentUser().getId();
+        User client = currentUserService.getCurrentUser();
         Page<ProjectResponseDTO> page = projectRepository
-                .findByClientId(clientId, pageable)
-                .map(this::toResponseDTO);
+                .findByClientId(client.getId(), pageable)
+                .map(project -> toResponseDTO(project, client));
         return PageResponseDTO.from(page);
     }
 
     @Override
     public ProjectResponseDTO findById(Long id) {
-        return toResponseDTO(findEntityById(id));
+        Project project = findEntityById(id);
+        return toResponseDTO(project, findClient(project));
     }
 
     @Override
@@ -86,7 +91,7 @@ public class ProjectServiceImpl implements ProjectService {
         if (dto.getLocation() != null) project.setLocation(dto.getLocation());
         if (dto.getSkillIds() != null) project.setSkills(resolveSkills(dto.getSkillIds()));
 
-        return toResponseDTO(projectRepository.save(project));
+        return toResponseDTO(projectRepository.save(project), findClient(project));
     }
 
     @Override
@@ -130,7 +135,25 @@ public class ProjectServiceImpl implements ProjectService {
         return new HashSet<>(skillRepository.findAllById(skillIds));
     }
 
-    private ProjectResponseDTO toResponseDTO(Project project) {
+    private User findClient(Project project) {
+        return project.getClientId() == null ? null : userRepository.findById(project.getClientId()).orElse(null);
+    }
+
+    // Clientes de una página de proyectos en una sola consulta (en vez de una por proyecto)
+    private Map<Long, User> clientsOf(List<Project> projects) {
+        Set<Long> clientIds = projects.stream()
+                .map(Project::getClientId)
+                .filter(id -> id != null)
+                .collect(Collectors.toSet());
+        if (clientIds.isEmpty()) {
+            return Map.of();
+        }
+        return userRepository.findAllById(clientIds).stream()
+                .collect(Collectors.toMap(User::getId, Function.identity()));
+    }
+
+    // client puede ser null si la cuenta ya no existe: el proyecto se muestra igual, sin nombre
+    private ProjectResponseDTO toResponseDTO(Project project, User client) {
         Set<SkillResponseDTO> skillDTOs = project.getSkills().stream()
                 .map(skill -> new SkillResponseDTO(skill.getId(), skill.getName()))
                 .collect(Collectors.toSet());
@@ -145,7 +168,9 @@ public class ProjectServiceImpl implements ProjectService {
                 project.getClientId(),
                 project.getStatus().name(),
                 skillDTOs,
-                project.getCreatedAt()
+                project.getCreatedAt(),
+                client != null ? client.getNombre() : null,
+                client != null ? client.getFechaRegistro() : null
         );
     }
 }
