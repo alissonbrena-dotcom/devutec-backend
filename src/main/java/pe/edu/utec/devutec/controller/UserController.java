@@ -1,5 +1,6 @@
 package pe.edu.utec.devutec.controller;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
@@ -8,11 +9,13 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import pe.edu.utec.devutec.dto.PhoneUpdateDTO;
 import pe.edu.utec.devutec.dto.UserResponseDTO;
 import pe.edu.utec.devutec.service.AvatarService;
 import pe.edu.utec.devutec.service.UserService;
@@ -37,6 +40,18 @@ public class UserController {
     @PutMapping(value = "/me/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<UserResponseDTO> uploadAvatar(@RequestPart("file") MultipartFile file) {
         return ResponseEntity.ok(avatarService.upload(file));
+    }
+
+    // Celular para WhatsApp: {"celular": "987 654 321"}. Se guardan solo los 9 dígitos y solo lo ve
+    // la otra persona de un contrato.
+    @PutMapping("/me/phone")
+    public ResponseEntity<UserResponseDTO> updatePhone(@Valid @RequestBody PhoneUpdateDTO request) {
+        return ResponseEntity.ok(userService.updatePhone(request.celular()));
+    }
+
+    @DeleteMapping("/me/phone")
+    public ResponseEntity<UserResponseDTO> deletePhone() {
+        return ResponseEntity.ok(userService.deletePhone());
     }
 
     @DeleteMapping("/me/avatar")

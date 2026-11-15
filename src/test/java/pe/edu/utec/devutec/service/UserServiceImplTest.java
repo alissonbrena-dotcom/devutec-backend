@@ -8,11 +8,17 @@ import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import pe.edu.utec.devutec.auth.domain.Role;
 import pe.edu.utec.devutec.auth.domain.User;
+import pe.edu.utec.devutec.auth.infrastructure.UserRepository;
 import pe.edu.utec.devutec.dto.UserResponseDTO;
+import pe.edu.utec.devutec.exceptions.ApiException;
 import pe.edu.utec.devutec.exceptions.UnauthorizedException;
 import pe.edu.utec.devutec.mapper.UserMapper;
 
 import static org.junit.jupiter.api.Assertions.*;
+import java.util.Optional;
+
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -20,6 +26,9 @@ class UserServiceImplTest {
 
     @Mock
     private CurrentUserService currentUserService;
+
+    @Mock
+    private UserRepository userRepository;
 
     @Spy
     private UserMapper userMapper = new UserMapper();
@@ -66,6 +75,40 @@ class UserServiceImplTest {
 
         // When + Then
         assertThrows(UnauthorizedException.class, () -> userService.getCurrentUser());
+    }
+
+    // TEST - El celular se guarda limpio (solo los 9 dígitos) y vuelve en la respuesta
+    @Test
+    void updatePhone_formatoConEspacios_deberiaGuardarLos9Digitos() {
+        User camila = buildUser(20L, "Camila Ríos", "camila@test.com", Role.FREELANCER);
+        when(currentUserService.getCurrentUser()).thenReturn(camila);
+        when(userRepository.findById(20L)).thenReturn(Optional.of(camila));
+
+        UserResponseDTO response = userService.updatePhone("+51 987 654 321");
+
+        assertEquals("987654321", camila.getCelular());
+        assertEquals("987654321", response.getCelular());
+    }
+
+    // TEST - Un celular inválido no cambia nada
+    @Test
+    void updatePhone_invalido_noDeberiaGuardarNada() {
+        assertThrows(ApiException.class, () -> userService.updatePhone("12345"));
+        verify(userRepository, never()).findById(20L);
+    }
+
+    // TEST - Quitar el celular lo deja en null
+    @Test
+    void deletePhone_conCelular_deberiaDejarloEnNull() {
+        User cliente = buildUser(10L, "Café Aula 3", "cliente@test.com", Role.CLIENT);
+        cliente.setCelular("987654321");
+        when(currentUserService.getCurrentUser()).thenReturn(cliente);
+        when(userRepository.findById(10L)).thenReturn(Optional.of(cliente));
+
+        UserResponseDTO response = userService.deletePhone();
+
+        assertNull(cliente.getCelular());
+        assertNull(response.getCelular());
     }
 
     private static User buildUser(Long id, String nombre, String email, Role rol) {

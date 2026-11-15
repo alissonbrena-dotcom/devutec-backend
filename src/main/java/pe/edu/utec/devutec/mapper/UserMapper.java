@@ -13,7 +13,8 @@ public class UserMapper {
                 user.getNombre(),
                 user.getEmail(),
                 user.getRol().name(),
-                AvatarUrls.of(user)
+                AvatarUrls.of(user),
+                user.getCelular()
         );
     }
 }
