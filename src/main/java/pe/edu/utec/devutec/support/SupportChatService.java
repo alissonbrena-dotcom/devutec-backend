@@ -75,7 +75,17 @@ public class SupportChatService {
         turns.add(new ChatTurnDTO("user", request.message().trim()));
 
         String instructions = RULES.formatted(user.getRol().name(), knowledge);
-        return new ChatResponseDTO(aiGateway.reply(instructions, turns), remaining);
+        try {
+            return new ChatResponseDTO(aiGateway.reply(instructions, turns), remaining);
+        } catch (RuntimeException e) {
+            // Si la IA no respondió, esa pregunta no cuenta para el límite del día
+            giveBackOneQuestion(user.getId());
+            throw e;
+        }
+    }
+
+    private void giveBackOneQuestion(Long userId) {
+        usage.merge(userId + ":" + LocalDate.now(clock), -1, Integer::sum);
     }
 
     // Suma una pregunta al día de hoy y devuelve cuántas quedan; si ya no quedan, responde 429

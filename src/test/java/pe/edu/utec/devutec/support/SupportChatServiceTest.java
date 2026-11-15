@@ -84,4 +84,23 @@ class SupportChatServiceTest {
         ApiException error = assertThrows(ApiException.class, () -> service.ask(new ChatRequestDTO("tres", null)));
         assertEquals(HttpStatus.TOO_MANY_REQUESTS, error.getStatus());
     }
+
+    @Test
+    void ask_siLaIaFalla_noDescuentaLaPregunta() {
+        // IA que falla las dos primeras veces y después responde
+        int[] calls = {0};
+        AiGateway flaky = (instructions, turns) -> {
+            if (++calls[0] <= 2) throw new ApiException(HttpStatus.BAD_GATEWAY, "falló");
+            return "ok";
+        };
+        SupportChatService service = new SupportChatService(flaky, currentUser, 1, clock, "INFO");
+
+        assertThrows(ApiException.class, () -> service.ask(new ChatRequestDTO("uno", null)));
+        assertThrows(ApiException.class, () -> service.ask(new ChatRequestDTO("dos", null)));
+
+        // Con límite 1, si las fallidas contaran ya sería 429; como no cuentan, esta sí responde
+        ChatResponseDTO response = service.ask(new ChatRequestDTO("tres", null));
+        assertEquals("ok", response.reply());
+        assertEquals(0, response.remaining());
+    }
 }
