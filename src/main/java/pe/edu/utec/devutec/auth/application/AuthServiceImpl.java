@@ -11,16 +11,22 @@ import org.springframework.transaction.annotation.Transactional;
 import pe.edu.utec.devutec.auth.domain.Role;
 import pe.edu.utec.devutec.auth.domain.User;
 import pe.edu.utec.devutec.auth.dto.AuthResponse;
+import pe.edu.utec.devutec.auth.dto.GoogleLoginRequest;
 import pe.edu.utec.devutec.auth.dto.LoginRequest;
 import pe.edu.utec.devutec.auth.dto.RefreshTokenRequest;
 import pe.edu.utec.devutec.auth.dto.RegisterRequest;
+import pe.edu.utec.devutec.auth.infrastructure.GoogleAccount;
+import pe.edu.utec.devutec.auth.infrastructure.GoogleTokenVerifier;
 import pe.edu.utec.devutec.auth.infrastructure.JwtService;
 import pe.edu.utec.devutec.auth.infrastructure.UserRepository;
 import pe.edu.utec.devutec.events.UserRegisteredEvent;
 import pe.edu.utec.devutec.exceptions.DuplicateResourceException;
 import pe.edu.utec.devutec.exceptions.ForbiddenOperationException;
+import pe.edu.utec.devutec.exceptions.GoogleSignupRequiredException;
 import pe.edu.utec.devutec.exceptions.UnauthorizedException;
 import pe.edu.utec.devutec.model.FreelancerProfile;
+
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -30,6 +36,7 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
+    private final GoogleTokenVerifier googleTokenVerifier;
     private final ApplicationEventPublisher eventPublisher;
 
     @Override
@@ -38,19 +45,29 @@ public class AuthServiceImpl implements AuthService {
         ensureEmailIsAvailable(request.getEmail());
         ensureRoleCanRegister(request.getRol());
 
-        User user = new User();
-        user.setNombre(request.getNombre());
-        user.setEmail(request.getEmail());
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
-        user.setRol(request.getRol());
-        if (user.getRol() == Role.FREELANCER) {
-            user.setFreelancerProfile(new FreelancerProfile());
+        User saved = createUser(request.getNombre(), request.getEmail(), request.getPassword(), request.getRol());
+        return buildResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public AuthResponse loginWithGoogle(GoogleLoginRequest request) {
+        GoogleAccount account = googleTokenVerifier.verify(request.getIdToken());
+
+        // Si el correo ya está registrado (con contraseña o con Google), entra a esa misma cuenta
+        User existing = userRepository.findByEmail(account.email()).orElse(null);
+        if (existing != null) {
+            return buildResponse(existing);
         }
 
-        // El perfil del freelancer se guarda en cascada junto con el usuario
-        User saved = userRepository.save(user);
-        eventPublisher.publishEvent(new UserRegisteredEvent(
-                this, saved.getEmail(), saved.getNombre(), saved.getRol().name()));
+        // Cuenta nueva: hace falta saber si es cliente o freelancer
+        if (request.getRol() == null) {
+            throw new GoogleSignupRequiredException();
+        }
+        ensureRoleCanRegister(request.getRol());
+
+        // Quien entra con Google no usa contraseña; se guarda una aleatoria que nadie conoce
+        User saved = createUser(account.nombre(), account.email(), UUID.randomUUID().toString(), request.getRol());
         return buildResponse(saved);
     }
 
@@ -84,6 +101,23 @@ public class AuthServiceImpl implements AuthService {
         } catch (JwtException | IllegalArgumentException e) {
             throw new UnauthorizedException("Refresh token inválido o expirado");
         }
+    }
+
+    private User createUser(String nombre, String email, String rawPassword, Role rol) {
+        User user = new User();
+        user.setNombre(nombre);
+        user.setEmail(email);
+        user.setPassword(passwordEncoder.encode(rawPassword));
+        user.setRol(rol);
+        if (rol == Role.FREELANCER) {
+            user.setFreelancerProfile(new FreelancerProfile());
+        }
+        // El perfil del freelancer se guarda en cascada junto con el usuario
+        User saved = userRepository.save(user);
+        // Correo de bienvenida, tanto si se registró con contraseña como con Google
+        eventPublisher.publishEvent(new UserRegisteredEvent(
+                this, saved.getEmail(), saved.getNombre(), saved.getRol().name()));
+        return saved;
     }
 
     private void ensureEmailIsAvailable(String email) {

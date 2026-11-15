@@ -19,6 +19,7 @@ import pe.edu.utec.devutec.model.ProjectStatus;
 import pe.edu.utec.devutec.model.application.Application;
 import pe.edu.utec.devutec.model.contract.Contract;
 import pe.edu.utec.devutec.model.contract.ContractStatus;
+import pe.edu.utec.devutec.payments.CheckoutService;
 import pe.edu.utec.devutec.repository.ContractRepository;
 
 import java.time.LocalDateTime;
@@ -33,6 +34,7 @@ public class ContractServiceImpl implements ContractService {
     private final CurrentUserService currentUserService;
     private final ContractMapper contractMapper;
     private final ApplicationEventPublisher eventPublisher;
+    private final CheckoutService checkoutService;
 
     @Override
     @Transactional
@@ -43,12 +45,13 @@ public class ContractServiceImpl implements ContractService {
         Contract contract = new Contract();
         contract.setApplication(application);
         contract.setPayment(payment);
+        // save asigna el id al mismo objeto, así que contract.getId() ya sirve para el link del correo
         contractRepository.save(contract);
 
         Project project = application.getProject();
         eventPublisher.publishEvent(new ContractCreatedEvent(
                 this, project.getClientId(), application.getFreelancer().getUser().getNombre(),
-                project.getTitle(), payment.getAmount()));
+                project.getTitle(), payment.getAmount(), contract.getId()));
     }
 
     @Override
@@ -86,7 +89,8 @@ public class ContractServiceImpl implements ContractService {
                 this,
                 application.getProject().getClientId(),
                 application.getProject().getTitle(),
-                application.getFreelancer().getUser().getNombre()));
+                application.getFreelancer().getUser().getNombre(),
+                contract.getId()));
         return contractMapper.toResponse(contract);
     }
 
@@ -96,6 +100,7 @@ public class ContractServiceImpl implements ContractService {
         Contract contract = findContract(id);
         ensureIsClient(contract);
         ensureStatus(contract, ContractStatus.DELIVERED);
+        checkoutService.ensurePaidBeforeRelease(contract);
 
         contract.setStatus(ContractStatus.CONFIRMED);
         contract.getApplication().getProject().setStatus(ProjectStatus.DONE);
@@ -109,6 +114,7 @@ public class ContractServiceImpl implements ContractService {
         Contract contract = findContract(id);
         ensureIsClient(contract);
         ensureStatus(contract, ContractStatus.IN_PROGRESS);
+        checkoutService.refundIfPaid(contract);
 
         contract.setStatus(ContractStatus.CANCELLED);
         contract.getApplication().getProject().setStatus(ProjectStatus.OPEN);

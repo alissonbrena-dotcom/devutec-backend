@@ -11,9 +11,11 @@ import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
-public class ApplicationNotifier{
+public class ApplicationNotifier {
+
     private final EmailService emailService;
     private final UserRepository userRepository;
+    private final EmailLinks links;
 
     @Async
     @TransactionalEventListener
@@ -21,12 +23,14 @@ public class ApplicationNotifier{
         userRepository.findById(event.getClientId()).ifPresent(client ->
                 emailService.sendHtmlEmail(
                         client.getEmail(),
-                        "Nueva postulación a tu proyecto",
+                        event.getFreelancerName() + " postuló a «" + event.getProjectTitle() + "»",
                         "application-received",
                         Map.of(
                                 "clientName", client.getNombre(),
                                 "freelancerName", event.getFreelancerName(),
-                                "projectTitle", event.getProjectTitle()
+                                "projectTitle", event.getProjectTitle(),
+                                "appUrl", links.base(),
+                                "actionUrl", links.to("/projects/" + event.getProjectId() + "/applications")
                         )
                 )
         );
@@ -37,11 +41,13 @@ public class ApplicationNotifier{
     public void onApplicationAccepted(ApplicationAcceptedEvent event) {
         emailService.sendHtmlEmail(
                 event.getFreelancerEmail(),
-                "¡Tu postulación fue aceptada!",
+                "Te contrataron para «" + event.getProjectTitle() + "»",
                 "application-accepted",
                 Map.of(
                         "freelancerName", event.getFreelancerName(),
-                        "projectTitle", event.getProjectTitle()
+                        "projectTitle", event.getProjectTitle(),
+                        "appUrl", links.base(),
+                        "actionUrl", links.to("/contracts")
                 )
         );
     }
@@ -51,11 +57,13 @@ public class ApplicationNotifier{
     public void onApplicationRejected(ApplicationRejectedEvent event) {
         emailService.sendHtmlEmail(
                 event.getFreelancerEmail(),
-                "Novedades sobre tu postulación",
+                "Novedades sobre tu postulación a «" + event.getProjectTitle() + "»",
                 "application-rejected",
                 Map.of(
                         "freelancerName", event.getFreelancerName(),
-                        "projectTitle", event.getProjectTitle()
+                        "projectTitle", event.getProjectTitle(),
+                        "appUrl", links.base(),
+                        "actionUrl", links.to("/projects")
                 )
         );
     }

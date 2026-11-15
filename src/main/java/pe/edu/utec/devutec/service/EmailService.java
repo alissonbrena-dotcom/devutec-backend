@@ -25,20 +25,15 @@ public class EmailService {
     private final JavaMailSender mailSender;
     private final TemplateEngine templateEngine;
 
-    // Quién aparece como remitente. Con Gmail debe ser la misma cuenta que envía.
+    // Quién aparece como remitente. Con Gmail tiene que ser la misma cuenta que envía
     @Value("${app.mail.from:no-reply@devutec.com}")
     private String from = "no-reply@devutec.com";
-
-    // Dirección de la web, para el botón "Ir a DevUTEC" de los correos
-    @Value("${app.web-url:https://devutec.vercel.app}")
-    private String webUrl = "https://devutec.vercel.app";
 
     @Async
     public void sendHtmlEmail(String to, String subject, String templateName, Map<String, Object> variables) {
         try {
             Context context = new Context();
             context.setVariables(variables);
-            context.setVariable("webUrl", webUrl);
             String htmlContent = templateEngine.process(templateName, context);
 
             MimeMessage message = mailSender.createMimeMessage();

@@ -1,24 +1,21 @@
-<!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="UTF-8">
-</head>
-<body style="margin:0; padding:0; background-color:#f5f3ee; font-family:Arial, sans-serif;">
-<div style="max-width:600px; margin:32px auto; background-color:#ffffff; border:1px solid #e4e0d8; border-radius:12px; overflow:hidden;">
-    <div th:replace="~{fragments/email :: header}"></div>
-
-    <div style="padding:32px; color:#0e0e0c; line-height:1.6; font-size:15px;">
-        <p style="margin:0; color:#6f6d67; font-size:11px; font-weight:bold; letter-spacing:1.5px;">POSTULACIÓN</p>
-        <h1 style="margin:8px 0 20px; font-family:Georgia, serif; font-style:italic; font-weight:normal; font-size:28px;">Esta vez no fue.</h1>
-
-        <p>Hola <strong th:text="${freelancerName}">freelancer</strong>,</p>
-        <p>El cliente de <strong th:text="${projectTitle}">el proyecto</strong> eligió otra propuesta, así que tu postulación quedó como rechazada.</p>
-        <p>No te desanimes: hay más proyectos abiertos esperando a alguien como tú.</p>
-
-        <div th:replace="~{fragments/email :: button('Buscar proyectos')}"></div>
-    </div>
-
-    <div th:replace="~{fragments/email :: footer}"></div>
-</div>
+<!doctype html>
+<!-- Al cliente cuando acepta una postulación y se crea el contrato con su pago en garantía.
+     Variables: clientName, freelancerName, projectTitle, amount (BigDecimal), appUrl, actionUrl -->
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{email-layout :: layout(${'Tu contrato con ' + freelancerName + ' está en marcha'}, ${'S/ ' + #numbers.formatDecimal(amount, 1, 'COMMA', 2, 'POINT') + ' quedaron retenidos en garantía.'}, 'cuyi-celebra.png', 'Cuyi, la mascota de DevUTEC, celebrando', ~{::content})}">
+<body>
+<th:block th:fragment="content">
+    <th:block th:replace="~{email-layout :: mailTitle('Tu contrato está', 'en marcha.')}"></th:block>
+    <tr><td><p style="margin:0;font-family:Geist, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#6f6d67;text-align:center">Hola, <th:block th:text="${clientName}">Pizzería Don Mario</th:block>. Aceptaste a <strong th:text="${freelancerName}" style="color:#0e0e0c;font-weight:600">Camila Ríos</strong> para <strong th:text="${projectTitle}" style="color:#0e0e0c;font-weight:600">Web para pizzería</strong>. Ya puede empezar a trabajar.</p></td></tr>
+    <th:block th:replace="~{email-layout :: mailSpace(28)}"></th:block>
+    <tr><td th:with="money=${#numbers.formatDecimal(amount, 1, 'COMMA', 2, 'POINT')}">
+        <p style="margin:0;font-family:Geist, Helvetica, Arial, sans-serif;font-size:56px;line-height:60px;font-weight:600;letter-spacing:-.05em;color:#0e0e0c;text-align:center">S/&nbsp;<th:block th:text="${#strings.substringBefore(money, '.')}">600</th:block><span th:text="${'.' + #strings.substringAfter(money, '.')}" style="color:#9e9b94">.00</span></p>
+        <p style="margin:6px 0 0;font-family:Geist, Helvetica, Arial, sans-serif;font-size:13px;line-height:18px;color:#6f6d67;text-align:center">retenidos en garantía</p>
+        <th:block th:replace="~{email-layout :: mailSteps(1)}"></th:block>
+        <div style="height:4px;line-height:4px;font-size:0">&nbsp;</div>
+        <th:block th:replace="~{email-layout :: mailEscrowPill('Tu dinero está protegido.', 'Solo se libera cuando confirmes la entrega.')}"></th:block>
+    </td></tr>
+    <th:block th:replace="~{email-layout :: mailButton('Ver el contrato')}"></th:block>
+</th:block>
 </body>
 </html>

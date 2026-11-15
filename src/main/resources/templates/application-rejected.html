@@ -1,24 +1,15 @@
-<!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="UTF-8">
-</head>
-<body style="margin:0; padding:0; background-color:#f5f3ee; font-family:Arial, sans-serif;">
-<div style="max-width:600px; margin:32px auto; background-color:#ffffff; border:1px solid #e4e0d8; border-radius:12px; overflow:hidden;">
-    <div th:replace="~{fragments/email :: header}"></div>
-
-    <div style="padding:32px; color:#0e0e0c; line-height:1.6; font-size:15px;">
-        <p style="margin:0; color:#6f6d67; font-size:11px; font-weight:bold; letter-spacing:1.5px;">POSTULACIÓN</p>
-        <h1 style="margin:8px 0 20px; font-family:Georgia, serif; font-style:italic; font-weight:normal; font-size:28px;">Esta vez no fue.</h1>
-
-        <p>Hola <strong th:text="${freelancerName}">freelancer</strong>,</p>
-        <p>El cliente de <strong th:text="${projectTitle}">el proyecto</strong> eligió otra propuesta, así que tu postulación quedó como rechazada.</p>
-        <p>No te desanimes: hay más proyectos abiertos esperando a alguien como tú.</p>
-
-        <div th:replace="~{fragments/email :: button('Buscar proyectos')}"></div>
-    </div>
-
-    <div th:replace="~{fragments/email :: footer}"></div>
-</div>
+<!doctype html>
+<!-- Al freelancer cuando su postulación queda rechazada (el cliente la rechazó o eligió otra).
+     Variables: freelancerName, projectTitle, appUrl, actionUrl -->
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{email-layout :: layout(${'Novedades sobre tu postulación a «' + projectTitle + '»'}, 'El cliente eligió otra propuesta. Hay más proyectos esperándote.', 'cuyi-escribe.png', 'Cuyi, la mascota de DevUTEC, escribiendo', ~{::content})}">
+<body>
+<th:block th:fragment="content">
+    <th:block th:replace="~{email-layout :: mailTitle('Esta vez', 'no fue.')}"></th:block>
+    <tr><td><p style="margin:0;font-family:Geist, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#6f6d67;text-align:center">Hola, <th:block th:text="${freelancerName}">Camila Ríos</th:block>. El cliente de <strong th:text="${projectTitle}" style="color:#0e0e0c;font-weight:600">Web para pizzería</strong> eligió otra propuesta, así que tu postulación quedó como rechazada.</p></td></tr>
+    <th:block th:replace="~{email-layout :: mailSpace(16)}"></th:block>
+    <tr><td><p style="margin:0;font-family:Geist, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#6f6d67;text-align:center">No te desanimes: hay más proyectos abiertos esperando a alguien como tú.</p></td></tr>
+    <th:block th:replace="~{email-layout :: mailButton('Buscar proyectos')}"></th:block>
+</th:block>
 </body>
 </html>

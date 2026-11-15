@@ -21,4 +21,6 @@ public class FreelancerProfileResponseDTO {
     private String portafolioUrl;
     private String githubUsername;
     private BigDecimal calificacionPromedio;
+    // Ruta de la foto de perfil o null si no tiene
+    private String avatarUrl;
 }

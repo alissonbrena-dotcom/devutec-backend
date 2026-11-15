@@ -1,27 +1,19 @@
-<!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="UTF-8">
-</head>
-<body style="margin:0; padding:0; background-color:#f4f4f7; font-family:Arial, sans-serif;">
-<div style="max-width:600px; margin:40px auto; background:#ffffff; border-radius:12px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.08);">
-
-    <div style="background-color:#16a34a; padding:32px; text-align:center;">
-        <h1 style="color:#ffffff; margin:0; font-size:24px;">🎉 ¡Tu postulación fue aceptada!</h1>
-    </div>
-
-    <div style="padding:32px; color:#333333; line-height:1.6;">
-        <p style="font-size:16px;">Hola <span th:text="${freelancerName}">freelancer</span>,</p>
-        <p style="font-size:16px;">
-            El cliente aceptó tu propuesta para el proyecto
-            <strong th:text="${projectTitle}">proyecto</strong>.
-        </p>
-        <p style="font-size:16px;">Ingresa a DevUTEC para ver los detalles del contrato. ¡Éxitos! 🚀</p>
-    </div>
-
-    <div style="background-color:#f4f4f7; padding:20px; text-align:center; color:#999; font-size:12px;">
-        <p style="margin:0;">Este es un correo automático de DevUTEC, no responder.</p>
-    </div>
-</div>
+<!doctype html>
+<!-- Al freelancer cuando el cliente acepta su postulación. Variables: freelancerName, projectTitle, appUrl, actionUrl -->
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{email-layout :: layout(${'Te contrataron para «' + projectTitle + '»'}, 'El pago ya está retenido en garantía. Puedes empezar.', 'cuyi-celebra.png', 'Cuyi, la mascota de DevUTEC, celebrando', ~{::content})}">
+<body>
+<th:block th:fragment="content">
+<th:block th:replace="~{email-layout :: mailTitle('Tu postulación fue', 'aceptada.')}"></th:block>
+<tr><td><p style="margin:0;font-family:Geist, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#6f6d67;text-align:center">¡Felicidades, <th:block th:text="${freelancerName}">Camila Ríos</th:block>! El cliente aceptó tu propuesta para <strong th:text="${projectTitle}" style="color:#0e0e0c;font-weight:600">Web para pizzería</strong>. Ya puedes empezar a trabajar.</p></td></tr>
+<th:block th:replace="~{email-layout :: mailSpace(28)}"></th:block>
+<tr><td><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;border:1px solid #e4e0d8;border-radius:14px">
+<tr th:replace="~{email-layout :: mailDetail('Proyecto', ${projectTitle}, true)}"></tr>
+<tr><td style="border-top:1px solid #e4e0d8;padding:14px 18px;font-family:Geist, Helvetica, Arial, sans-serif;font-size:11px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:#6f6d67;text-align:left">Estado</td><td style="border-top:1px solid #e4e0d8;padding:14px 18px;font-family:Geist, Helvetica, Arial, sans-serif;font-size:14px;line-height:20px;font-weight:600;color:#1f6f4a;text-align:right">Contratada</td></tr>
+</table>
+<th:block th:replace="~{email-layout :: mailEscrowPill('Tu pago está protegido en garantía.', 'El cliente ya pagó.')}"></th:block>
+</td></tr>
+<th:block th:replace="~{email-layout :: mailButton('Ver mis contratos')}"></th:block>
+</th:block>
 </body>
 </html>

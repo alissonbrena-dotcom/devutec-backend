@@ -54,7 +54,7 @@ public class ApplicationServiceImpl implements ApplicationService {
         Application saved = applicationRepository.save(application);
 
         eventPublisher.publishEvent(new ApplicationCreatedEvent(
-                this, project.getClientId(), project.getTitle(), freelancer.getUser().getNombre()));
+                this, project.getClientId(), project.getTitle(), freelancer.getUser().getNombre(), project.getId()));
         return applicationMapper.toResponse(saved);
     }
 
