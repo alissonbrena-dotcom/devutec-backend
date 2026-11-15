@@ -20,6 +20,8 @@ import pe.edu.utec.devutec.service.CurrentUserService;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 // Pago del contrato con tarjeta usando Stripe Checkout en modo prueba.
 // 1. El cliente pide pagar: se crea la página de pago de Stripe y se devuelve su link.
@@ -46,20 +48,39 @@ public class CheckoutService {
     @Value("${stripe.require-payment:false}")
     private boolean requirePayment;
 
+    // Pago desde la web: al terminar, Stripe vuelve al detalle del contrato
     @Transactional(readOnly = true)
     public CheckoutResponseDTO startCheckout(Long contractId) {
+        return startCheckout(contractId, null);
+    }
+
+    // appReturnUrl llega solo desde la app. Stripe solo acepta links https, así que en ese caso vuelve a una
+    // página pública de la web (/pago-listo, sin iniciar sesión) que tiene el botón para abrir la app.
+    @Transactional(readOnly = true)
+    public CheckoutResponseDTO startCheckout(Long contractId, String appReturnUrl) {
         Contract contract = findContractOfCurrentClient(contractId);
         ensurePayable(contract);
 
-        String contractPage = frontendUrl + "/contracts/" + contractId;
+        String successUrl;
+        String cancelUrl;
+        if (appReturnUrl != null && !appReturnUrl.isBlank()) {
+            String returnPage = frontendUrl + "/pago-listo?volver=" + URLEncoder.encode(appReturnUrl, StandardCharsets.UTF_8);
+            successUrl = returnPage + "&estado=ok";
+            cancelUrl = returnPage + "&estado=cancelado";
+        } else {
+            String contractPage = frontendUrl + "/contracts/" + contractId;
+            // Stripe reemplaza {CHECKOUT_SESSION_ID} por el id real de la sesión
+            successUrl = contractPage + "?pago=ok&session_id={CHECKOUT_SESSION_ID}";
+            cancelUrl = contractPage + "?pago=cancelado";
+        }
+
         StripeCheckoutSession session = stripeGateway.createCheckoutSession(new StripeGateway.CheckoutRequest(
                 String.valueOf(contractId),
                 "DEVUTEC - " + contract.getApplication().getProject().getTitle(),
                 toCents(contract.getPayment().getAmount()),
                 CURRENCY,
-                // Stripe reemplaza {CHECKOUT_SESSION_ID} por el id real de la sesión
-                contractPage + "?pago=ok&session_id={CHECKOUT_SESSION_ID}",
-                contractPage + "?pago=cancelado"
+                successUrl,
+                cancelUrl
         ));
         return new CheckoutResponseDTO(session.id(), session.url());
     }

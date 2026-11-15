@@ -218,6 +218,38 @@ class CheckoutServiceTest {
     }
 
     // TEST 10 - El nombre del producto en Stripe usa la marca DEVUTEC
+    // Desde la app: Stripe vuelve a la página puente /pago-listo, que abre la app con el link que mandó
+    @Test
+    void startCheckout_desdeLaApp_deberiaVolverALaPaginaPuenteConElLinkDeLaApp() {
+        when(contractRepository.findById(5L)).thenReturn(Optional.of(contract));
+        when(currentUserService.getCurrentUser()).thenReturn(client);
+        when(stripeGateway.createCheckoutSession(any()))
+                .thenReturn(new StripeCheckoutSession("cs_test_1", "https://checkout.stripe.com/x", "unpaid", null, "5"));
+
+        checkoutService.startCheckout(5L, "devutec://contracts/5");
+
+        ArgumentCaptor<StripeGateway.CheckoutRequest> captor = ArgumentCaptor.forClass(StripeGateway.CheckoutRequest.class);
+        verify(stripeGateway).createCheckoutSession(captor.capture());
+        StripeGateway.CheckoutRequest request = captor.getValue();
+        assertEquals("https://devutec.vercel.app/pago-listo?volver=devutec%3A%2F%2Fcontracts%2F5&estado=ok", request.successUrl());
+        assertEquals("https://devutec.vercel.app/pago-listo?volver=devutec%3A%2F%2Fcontracts%2F5&estado=cancelado", request.cancelUrl());
+    }
+
+    // Sin link de la app (la web) se mantiene el regreso al detalle del contrato
+    @Test
+    void startCheckout_sinLinkDeLaApp_deberiaVolverAlDetalleDelContrato() {
+        when(contractRepository.findById(5L)).thenReturn(Optional.of(contract));
+        when(currentUserService.getCurrentUser()).thenReturn(client);
+        when(stripeGateway.createCheckoutSession(any()))
+                .thenReturn(new StripeCheckoutSession("cs_test_1", "https://checkout.stripe.com/x", "unpaid", null, "5"));
+
+        checkoutService.startCheckout(5L, "  ");
+
+        ArgumentCaptor<StripeGateway.CheckoutRequest> captor = ArgumentCaptor.forClass(StripeGateway.CheckoutRequest.class);
+        verify(stripeGateway).createCheckoutSession(captor.capture());
+        assertEquals("https://devutec.vercel.app/contracts/5?pago=cancelado", captor.getValue().cancelUrl());
+    }
+
     @Test
     void startCheckout_deberiaUsarLaMarcaDevutec() {
         when(contractRepository.findById(5L)).thenReturn(Optional.of(contract));
