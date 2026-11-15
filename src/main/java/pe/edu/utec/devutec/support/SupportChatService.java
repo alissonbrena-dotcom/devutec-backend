@@ -27,14 +27,18 @@ public class SupportChatService {
     private static final String RULES = """
             Eres Cuyi, el asistente de ayuda de DEVUTEC. Responde en español, en tono cercano y claro, \
             en un máximo de 4 oraciones o una lista corta de pasos.
-            Responde SOLO con la información de DEVUTEC que está abajo. Si la pregunta no es sobre DEVUTEC \
-            o la respuesta no está en esa información, dilo con amabilidad y sugiere escribir al equipo de DEVUTEC. \
+            Responde SOLO con la información de DEVUTEC que está abajo. Si la pregunta no es sobre DEVUTEC, \
+            la respuesta no está en esa información o la persona tiene un problema que no puedes resolver \
+            (un error, un pago, su cuenta), dilo con amabilidad y comparte el correo de soporte: %s. \
             No inventes precios, plazos, funciones ni políticas.
             Nunca pidas contraseñas, datos de tarjetas ni códigos de verificación.
             La persona que pregunta tiene el rol: %s.
 
             %s
             """;
+
+    // Correo al que Cuyi deriva lo que no puede resolver
+    static final String SUPPORT_EMAIL = "devutec.notificaciones@gmail.com";
 
     private final AiGateway aiGateway;
     private final CurrentUserService currentUserService;
@@ -74,7 +78,7 @@ public class SupportChatService {
         }
         turns.add(new ChatTurnDTO("user", request.message().trim()));
 
-        String instructions = RULES.formatted(user.getRol().name(), knowledge);
+        String instructions = RULES.formatted(SUPPORT_EMAIL, user.getRol().name(), knowledge);
         try {
             return new ChatResponseDTO(aiGateway.reply(instructions, turns), remaining);
         } catch (RuntimeException e) {

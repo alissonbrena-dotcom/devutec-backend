@@ -57,6 +57,7 @@ class SupportChatServiceTest {
         assertEquals(29, response.remaining());
         assertTrue(ai.instructions.contains("INFO DE DEVUTEC"));
         assertTrue(ai.instructions.contains("CLIENT"));
+        assertTrue(ai.instructions.contains("devutec.notificaciones@gmail.com"));
         assertEquals(List.of(new ChatTurnDTO("user", "¿Cómo pago?")), ai.turns);
     }
 

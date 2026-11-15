@@ -45,4 +45,4 @@ DEVUTEC conecta a negocios y personas (clientes) con estudiantes y egresados de 
 ## Problemas comunes
 - "No hay conexión con el servidor": revisar el internet. Algunas redes (por ejemplo, ciertos WiFi institucionales) bloquean el servidor; probar con datos móviles.
 - "Tu sesión expiró": volver a iniciar sesión.
-- Si algo no funciona o la duda no está aquí, escribir al equipo de DEVUTEC.
+- Si algo no funciona o la duda no está aquí, escribir al equipo de DEVUTEC: devutec.notificaciones@gmail.com. Conviene contar qué se estaba haciendo y, si se puede, mandar una captura.
