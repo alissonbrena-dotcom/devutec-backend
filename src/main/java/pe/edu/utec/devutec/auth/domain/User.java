@@ -52,6 +52,11 @@ public class User implements UserDetails {
     @Column(name = "avatar_updated_at")
     private LocalDateTime avatarUpdatedAt;
 
+    // Celular peruano de 9 dígitos (empieza con 9), opcional. Solo se comparte con la otra persona de un contrato,
+    // para el botón "Escribir por WhatsApp".
+    @Column(length = 9)
+    private String celular;
+
     // Lado inverso: la FK user_id vive en freelancer_profiles, así que no agrega columnas a users
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private FreelancerProfile freelancerProfile;

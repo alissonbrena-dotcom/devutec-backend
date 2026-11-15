@@ -16,4 +16,6 @@ public class UserResponseDTO {
     private String rol;
     // Ruta de la foto de perfil (/api/v1/users/{id}/avatar?v=...) o null si no tiene
     private String avatarUrl;
+    // Celular propio (9 dígitos) o null si no lo agregó
+    private String celular;
 }
