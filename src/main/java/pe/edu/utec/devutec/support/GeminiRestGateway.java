@@ -16,7 +16,8 @@ import java.util.List;
 import java.util.Map;
 
 // Llama a la API de Gemini (Google AI Studio). La clave solo vive en el servidor, en GEMINI_API_KEY;
-// nunca va al frontend ni al repositorio.
+// nunca va al frontend ni al repositorio. El modelo por defecto se define solo en application.properties
+// y en el servidor se cambia con GEMINI_MODEL, sin tocar el código.
 @Slf4j
 @Component
 public class GeminiRestGateway implements AiGateway {
@@ -28,7 +29,7 @@ public class GeminiRestGateway implements AiGateway {
     private final RestClient restClient;
 
     public GeminiRestGateway(@Value("${gemini.api-key:}") String apiKey,
-                             @Value("${gemini.model:gemini-2.5-flash}") String model) {
+                             @Value("${gemini.model}") String model) {
         this.apiKey = apiKey;
         this.model = model;
         // Si Gemini tarda, se corta a los 25 segundos en vez de dejar la petición colgada
