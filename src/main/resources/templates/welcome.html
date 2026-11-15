@@ -16,7 +16,7 @@
         <th:block th:unless="${isFreelancer}">
             <tr th:replace="~{email-layout :: mailDetail('Paso 1', 'Publica tu proyecto', true)}"></tr>
             <tr th:replace="~{email-layout :: mailDetail('Paso 2', 'Elige a tu freelancer', false)}"></tr>
-            <tr th:replace="~{email-layout :: mailDetail('Paso 3', 'Paga al aprobar la entrega', false)}"></tr>
+            <tr th:replace="~{email-layout :: mailDetail('Paso 3', 'Libera el pago al aprobar la entrega', false)}"></tr>
         </th:block>
     </table>
         <th:block th:replace="~{email-layout :: mailEscrowPill('Pago en garantía.', 'Ningún pago se mueve sin una confirmación.')}"></th:block>

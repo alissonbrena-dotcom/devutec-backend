@@ -158,4 +158,68 @@ class EmailTemplatesTest {
         assertFalse(html.contains("font-size:22px;line-height:30px"), "no debería estar el bloque de la cita");
         assertTrue(html.contains("Ver la reseña"));
     }
+
+    // TEST 7: bienvenida a un freelancer: pasos para postular y botón a su perfil
+    @Test
+    void welcome_freelancer_deberiaMostrarSusPasos() throws IOException {
+        Map<String, Object> variables = base("https://devutec.vercel.app/profile/edit");
+        variables.put("name", "Camila Ríos");
+        variables.put("isFreelancer", true);
+
+        String html = render("welcome", variables);
+
+        assertCommon(html, "https://devutec.vercel.app/profile/edit");
+        assertTrue(html.contains("<title>Bienvenido a DevUTEC, Camila Ríos</title>"));
+        assertTrue(html.contains("Completa tu perfil"));
+        assertTrue(html.contains("Completar mi perfil"));
+        assertFalse(html.contains("Publica tu proyecto"));
+    }
+
+    // TEST 8: bienvenida a un cliente: pasos para publicar
+    @Test
+    void welcome_cliente_deberiaMostrarSusPasos() throws IOException {
+        Map<String, Object> variables = base("https://devutec.vercel.app/projects/new");
+        variables.put("name", "Pizzería Don Mario");
+        variables.put("isFreelancer", false);
+
+        String html = render("welcome", variables);
+
+        assertCommon(html, "https://devutec.vercel.app/projects/new");
+        assertTrue(html.contains("Publica tu proyecto"));
+        assertTrue(html.contains("Libera el pago al aprobar la entrega"));
+        assertTrue(html.contains("Publicar un proyecto"));
+        assertFalse(html.contains("Completa tu perfil"));
+    }
+
+    // TEST 9: postulación rechazada, al freelancer
+    @Test
+    void applicationRejected_deberiaMostrarElProyectoYElLink() throws IOException {
+        Map<String, Object> variables = base("https://devutec.vercel.app/projects");
+        variables.put("freelancerName", "Luis Pérez");
+        variables.put("projectTitle", "Web para pizzería");
+
+        String html = render("application-rejected", variables);
+
+        assertCommon(html, "https://devutec.vercel.app/projects");
+        assertTrue(html.contains("<title>Novedades sobre tu postulación a «Web para pizzería»</title>"));
+        assertTrue(html.contains("decidió seguir con otra opción"));
+        assertTrue(html.contains("Buscar proyectos"));
+    }
+
+    // TEST 10: contrato creado, al cliente: monto en garantía
+    @Test
+    void contractCreated_deberiaMostrarElMontoEnGarantia() throws IOException {
+        Map<String, Object> variables = base("https://devutec.vercel.app/contracts/7");
+        variables.put("clientName", "Pizzería Don Mario");
+        variables.put("freelancerName", "Camila Ríos");
+        variables.put("projectTitle", "Web para pizzería");
+        variables.put("amount", new BigDecimal("1250.5"));
+
+        String html = render("contract-created", variables);
+
+        assertCommon(html, "https://devutec.vercel.app/contracts/7");
+        assertTrue(html.contains("<title>Tu contrato con Camila Ríos está en marcha</title>"));
+        assertTrue(html.contains("1,250"));
+        assertTrue(html.contains("Ver el contrato"));
+    }
 }

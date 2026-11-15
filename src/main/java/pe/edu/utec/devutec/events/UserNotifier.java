@@ -13,17 +13,22 @@ import java.util.Map;
 public class UserNotifier {
 
     private final EmailService emailService;
+    private final EmailLinks links;
 
     @Async
     @TransactionalEventListener
     public void onUserRegistered(UserRegisteredEvent event) {
+        boolean isFreelancer = "FREELANCER".equals(event.getRol());
         emailService.sendHtmlEmail(
                 event.getEmail(),
-                "¡Bienvenido a DevUTEC!",
+                "Bienvenido a DevUTEC, " + event.getNombre(),
                 "welcome",
                 Map.of(
                         "name", event.getNombre(),
-                        "isFreelancer", "FREELANCER".equals(event.getRol())
+                        "isFreelancer", isFreelancer,
+                        "appUrl", links.base(),
+                        // El freelancer empieza completando su perfil; el cliente, publicando su proyecto
+                        "actionUrl", links.to(isFreelancer ? "/profile/edit" : "/projects/new")
                 )
         );
     }

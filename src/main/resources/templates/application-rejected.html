@@ -2,11 +2,11 @@
 <!-- Al freelancer cuando su postulación queda rechazada (el cliente la rechazó o eligió otra).
      Variables: freelancerName, projectTitle, appUrl, actionUrl -->
 <html xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{email-layout :: layout(${'Novedades sobre tu postulación a «' + projectTitle + '»'}, 'El cliente eligió otra propuesta. Hay más proyectos esperándote.', 'cuyi-escribe.png', 'Cuyi, la mascota de DevUTEC, escribiendo', ~{::content})}">
+      th:replace="~{email-layout :: layout(${'Novedades sobre tu postulación a «' + projectTitle + '»'}, 'El cliente decidió seguir con otra opción. Hay más proyectos esperándote.', 'cuyi-escribe.png', 'Cuyi, la mascota de DevUTEC, escribiendo', ~{::content})}">
 <body>
 <th:block th:fragment="content">
     <th:block th:replace="~{email-layout :: mailTitle('Esta vez', 'no fue.')}"></th:block>
-    <tr><td><p style="margin:0;font-family:Geist, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#6f6d67;text-align:center">Hola, <th:block th:text="${freelancerName}">Camila Ríos</th:block>. El cliente de <strong th:text="${projectTitle}" style="color:#0e0e0c;font-weight:600">Web para pizzería</strong> eligió otra propuesta, así que tu postulación quedó como rechazada.</p></td></tr>
+    <tr><td><p style="margin:0;font-family:Geist, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#6f6d67;text-align:center">Hola, <th:block th:text="${freelancerName}">Camila Ríos</th:block>. El cliente de <strong th:text="${projectTitle}" style="color:#0e0e0c;font-weight:600">Web para pizzería</strong> decidió seguir con otra opción, así que tu postulación quedó como rechazada.</p></td></tr>
     <th:block th:replace="~{email-layout :: mailSpace(16)}"></th:block>
     <tr><td><p style="margin:0;font-family:Geist, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#6f6d67;text-align:center">No te desanimes: hay más proyectos abiertos esperando a alguien como tú.</p></td></tr>
     <th:block th:replace="~{email-layout :: mailButton('Buscar proyectos')}"></th:block>
