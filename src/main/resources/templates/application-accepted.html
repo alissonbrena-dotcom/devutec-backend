@@ -1,7 +1,7 @@
 <!doctype html>
 <!-- Al freelancer cuando el cliente acepta su postulación. Variables: freelancerName, projectTitle, appUrl, actionUrl -->
 <html xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{email-layout :: layout(${'Te contrataron para «' + projectTitle + '»'}, 'El pago ya está retenido en garantía. Puedes empezar.', 'cuyi-celebra.png', 'Cuyi, la mascota de DevUTEC, celebrando', ~{::content})}">
+      th:replace="~{email-layout :: layout(${'Te contrataron para «' + projectTitle + '»'}, 'El pago ya está retenido en garantía. Puedes empezar.', 'cuyi-celebra.png', 'Cuyi, la mascota de DEVUTEC, celebrando', ~{::content})}">
 <body>
 <th:block th:fragment="content">
 <th:block th:replace="~{email-layout :: mailTitle('Tu postulación fue', 'aceptada.')}"></th:block>

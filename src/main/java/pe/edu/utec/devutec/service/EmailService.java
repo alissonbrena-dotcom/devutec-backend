@@ -41,7 +41,7 @@ public class EmailService {
             helper.setTo(to);
             helper.setSubject(subject);
             helper.setText(htmlContent, true);
-            helper.setFrom(from, "DevUTEC");
+            helper.setFrom(from, "DEVUTEC");
 
             mailSender.send(message);
             log.info("Correo '{}' enviado a {}", templateName, to);

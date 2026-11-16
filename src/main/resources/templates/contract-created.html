@@ -2,7 +2,7 @@
 <!-- Al cliente cuando acepta una postulación y se crea el contrato con su pago en garantía.
      Variables: clientName, freelancerName, projectTitle, amount (BigDecimal), appUrl, actionUrl -->
 <html xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{email-layout :: layout(${'Tu contrato con ' + freelancerName + ' está en marcha'}, ${'S/ ' + #numbers.formatDecimal(amount, 1, 'COMMA', 2, 'POINT') + ' quedaron retenidos en garantía.'}, 'cuyi-celebra.png', 'Cuyi, la mascota de DevUTEC, celebrando', ~{::content})}">
+      th:replace="~{email-layout :: layout(${'Tu contrato con ' + freelancerName + ' está en marcha'}, ${'S/ ' + #numbers.formatDecimal(amount, 1, 'COMMA', 2, 'POINT') + ' quedaron retenidos en garantía.'}, 'cuyi-celebra.png', 'Cuyi, la mascota de DEVUTEC, celebrando', ~{::content})}">
 <body>
 <th:block th:fragment="content">
     <th:block th:replace="~{email-layout :: mailTitle('Tu contrato está', 'en marcha.')}"></th:block>

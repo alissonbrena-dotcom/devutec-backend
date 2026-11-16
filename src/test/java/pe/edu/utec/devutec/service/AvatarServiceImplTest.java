@@ -122,7 +122,7 @@ class AvatarServiceImplTest {
         assertEquals("image/jpeg", avatar.contentType());
     }
 
-    // TEST 6: el administrador siempre tiene la foto fija de DevUTEC (PNG)
+    // TEST 6: el administrador siempre tiene la foto fija de DEVUTEC (PNG)
     @Test
     void find_admin_deberiaDevolverLaFotoFija() {
         when(userRepository.findById(1L)).thenReturn(Optional.of(user(1L, Role.ADMIN)));

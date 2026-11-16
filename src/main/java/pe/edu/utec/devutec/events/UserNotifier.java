@@ -21,7 +21,7 @@ public class UserNotifier {
         boolean isFreelancer = "FREELANCER".equals(event.getRol());
         emailService.sendHtmlEmail(
                 event.getEmail(),
-                "Bienvenido a DevUTEC, " + event.getNombre(),
+                "Bienvenido a DEVUTEC, " + event.getNombre(),
                 "welcome",
                 Map.of(
                         "name", event.getNombre(),
