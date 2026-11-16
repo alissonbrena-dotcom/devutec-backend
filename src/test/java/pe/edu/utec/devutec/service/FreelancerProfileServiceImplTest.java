@@ -115,7 +115,8 @@ class FreelancerProfileServiceImplTest {
         // Given
         mockMyProfileAndSave();
         FreelancerProfileUpdateDTO dto = new FreelancerProfileUpdateDTO(
-                "PUCP", 8, null, new BigDecimal("45.00"), "https://nuevo.dev", "camila-dev");
+                "PUCP", 8, null, new BigDecimal("45.00"), "https://nuevo.dev", "camila-dev",
+                "  Frontend cuidadoso y comunicación directa.  ");
 
         // When
         FreelancerProfileResponseDTO response = freelancerProfileService.updateMyProfile(dto);
@@ -126,6 +127,8 @@ class FreelancerProfileServiceImplTest {
         assertEquals(new BigDecimal("45.00"), response.getTarifaHora());
         assertEquals("https://nuevo.dev", response.getPortafolioUrl());
         assertEquals("camila-dev", response.getGithubUsername());
+        // La presentación se guarda sin los espacios de los bordes
+        assertEquals("Frontend cuidadoso y comunicación directa.", response.getPresentacion());
     }
 
     // TEST 5 - Marcar egresado borra el ciclo
@@ -200,6 +203,22 @@ class FreelancerProfileServiceImplTest {
         ResourceNotFoundException ex = assertThrows(ResourceNotFoundException.class,
                 () -> freelancerProfileService.findByUserId(999L));
         assertTrue(ex.getMessage().contains("999"));
+    }
+
+    // TEST 10 - Mandar la presentación vacía la borra del perfil
+    @Test
+    void updateMyProfile_conPresentacionEnBlanco_deberiaBorrarla() {
+        // Given
+        mockMyProfileAndSave();
+        profile.setPresentacion("Texto anterior");
+        FreelancerProfileUpdateDTO dto = new FreelancerProfileUpdateDTO();
+        dto.setPresentacion("   ");
+
+        // When
+        FreelancerProfileResponseDTO response = freelancerProfileService.updateMyProfile(dto);
+
+        // Then
+        assertNull(response.getPresentacion());
     }
 
     private void mockMyProfileAndSave() {

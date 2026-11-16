@@ -37,4 +37,8 @@ public class FreelancerProfile {
 
     private BigDecimal calificacionPromedio;
 
+    // "Sobre mí" del perfil público: cómo trabaja y qué hace bien (opcional, máximo 500 caracteres)
+    @Column(length = 500)
+    private String presentacion;
+
 }

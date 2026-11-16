@@ -23,4 +23,6 @@ public class FreelancerProfileResponseDTO {
     private BigDecimal calificacionPromedio;
     // Ruta de la foto de perfil o null si no tiene
     private String avatarUrl;
+    // "Sobre mí" del perfil o null si no escribió nada
+    private String presentacion;
 }
