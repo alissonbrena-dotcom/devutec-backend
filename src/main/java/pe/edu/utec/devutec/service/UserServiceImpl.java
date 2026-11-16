@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pe.edu.utec.devutec.auth.domain.User;
 import pe.edu.utec.devutec.auth.infrastructure.UserRepository;
+import pe.edu.utec.devutec.dto.SocialLinksDTO;
 import pe.edu.utec.devutec.dto.UserResponseDTO;
 import pe.edu.utec.devutec.exceptions.ResourceNotFoundException;
 import pe.edu.utec.devutec.mapper.UserMapper;
@@ -36,6 +37,23 @@ public class UserServiceImpl implements UserService {
     public UserResponseDTO deletePhone() {
         User user = editableCurrentUser();
         user.setCelular(null);
+        return userMapper.toResponse(user);
+    }
+
+    @Override
+    @Transactional
+    public UserResponseDTO updateLinks(SocialLinksDTO links) {
+        // Se validan todas antes de cambiar nada: si una está mal, no se guarda ninguna
+        String instagram = SocialLinks.instagram(links.instagram());
+        String facebook = SocialLinks.facebook(links.facebook());
+        String tiktok = SocialLinks.tiktok(links.tiktok());
+        String sitioWeb = SocialLinks.website(links.sitioWeb());
+
+        User user = editableCurrentUser();
+        user.setInstagram(instagram);
+        user.setFacebook(facebook);
+        user.setTiktok(tiktok);
+        user.setSitioWeb(sitioWeb);
         return userMapper.toResponse(user);
     }
 

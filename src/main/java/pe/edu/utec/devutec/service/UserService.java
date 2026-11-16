@@ -1,5 +1,6 @@
 package pe.edu.utec.devutec.service;
 
+import pe.edu.utec.devutec.dto.SocialLinksDTO;
 import pe.edu.utec.devutec.dto.UserResponseDTO;
 
 public interface UserService {
@@ -10,4 +11,7 @@ public interface UserService {
 
     // Quita el celular: el botón de WhatsApp deja de aparecer en sus contratos
     UserResponseDTO deletePhone();
+
+    // Guarda las redes y la página web de su negocio. Cada campo vacío o null se quita.
+    UserResponseDTO updateLinks(SocialLinksDTO links);
 }

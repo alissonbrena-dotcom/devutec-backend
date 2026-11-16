@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import pe.edu.utec.devutec.dto.PhoneUpdateDTO;
+import pe.edu.utec.devutec.dto.SocialLinksDTO;
 import pe.edu.utec.devutec.dto.UserResponseDTO;
 import pe.edu.utec.devutec.service.AvatarService;
 import pe.edu.utec.devutec.service.UserService;
@@ -52,6 +53,13 @@ public class UserController {
     @DeleteMapping("/me/phone")
     public ResponseEntity<UserResponseDTO> deletePhone() {
         return ResponseEntity.ok(userService.deletePhone());
+    }
+
+    // Redes y página web del negocio: {"instagram": "@pizzeria", "facebook": "", "tiktok": null, "sitioWeb": "pizzeria.pe"}.
+    // Se manda siempre todo: lo vacío se quita. Se guardan como links completos.
+    @PutMapping("/me/links")
+    public ResponseEntity<UserResponseDTO> updateLinks(@Valid @RequestBody SocialLinksDTO request) {
+        return ResponseEntity.ok(userService.updateLinks(request));
     }
 
     @DeleteMapping("/me/avatar")

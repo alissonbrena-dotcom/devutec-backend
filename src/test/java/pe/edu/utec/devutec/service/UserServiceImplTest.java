@@ -9,6 +9,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import pe.edu.utec.devutec.auth.domain.Role;
 import pe.edu.utec.devutec.auth.domain.User;
 import pe.edu.utec.devutec.auth.infrastructure.UserRepository;
+import pe.edu.utec.devutec.dto.SocialLinksDTO;
 import pe.edu.utec.devutec.dto.UserResponseDTO;
 import pe.edu.utec.devutec.exceptions.ApiException;
 import pe.edu.utec.devutec.exceptions.UnauthorizedException;
@@ -109,6 +110,31 @@ class UserServiceImplTest {
 
         assertNull(cliente.getCelular());
         assertNull(response.getCelular());
+    }
+
+    // TEST - Las redes se guardan como links completos y lo vacío se quita
+    @Test
+    void updateLinks_usuarioYWeb_deberiaGuardarLinksCompletos() {
+        User cliente = buildUser(10L, "Pizzería Don Mario", "cliente@test.com", Role.CLIENT);
+        cliente.setFacebook("https://facebook.com/vieja");
+        when(currentUserService.getCurrentUser()).thenReturn(cliente);
+        when(userRepository.findById(10L)).thenReturn(Optional.of(cliente));
+
+        UserResponseDTO response = userService.updateLinks(new SocialLinksDTO("@pizzeriadonmario", "", "@donmario", "pizzeriadonmario.pe"));
+
+        assertEquals("https://instagram.com/pizzeriadonmario", cliente.getInstagram());
+        assertNull(cliente.getFacebook());
+        assertEquals("https://tiktok.com/@donmario", cliente.getTiktok());
+        assertEquals("https://pizzeriadonmario.pe", response.getRedes().sitioWeb());
+    }
+
+    // TEST - Si una red es inválida no se guarda ninguna
+    @Test
+    void updateLinks_unaInvalida_noDeberiaGuardarNada() {
+        SocialLinksDTO links = new SocialLinksDTO("@pizzeria", "https://instagram.com/pizzeria", null, null);
+
+        assertThrows(ApiException.class, () -> userService.updateLinks(links));
+        verify(userRepository, never()).findById(10L);
     }
 
     private static User buildUser(Long id, String nombre, String email, Role rol) {
