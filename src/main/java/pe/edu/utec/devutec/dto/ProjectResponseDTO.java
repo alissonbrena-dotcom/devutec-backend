@@ -29,4 +29,6 @@ public class ProjectResponseDTO {
     // Nombre del negocio y fecha de registro del cliente, para la tarjeta "Cliente" del detalle del proyecto
     private String clientName;
     private LocalDateTime clientSince;
+    // Redes y página web del negocio del cliente, para que el freelancer vea su estilo antes de postular
+    private SocialLinksDTO clientLinks;
 }

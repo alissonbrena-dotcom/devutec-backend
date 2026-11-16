@@ -2,6 +2,7 @@ package pe.edu.utec.devutec.mapper;
 
 import org.springframework.stereotype.Component;
 import pe.edu.utec.devutec.auth.domain.User;
+import pe.edu.utec.devutec.dto.SocialLinksDTO;
 import pe.edu.utec.devutec.dto.UserResponseDTO;
 
 @Component
@@ -14,7 +15,8 @@ public class UserMapper {
                 user.getEmail(),
                 user.getRol().name(),
                 AvatarUrls.of(user),
-                user.getCelular()
+                user.getCelular(),
+                SocialLinksDTO.of(user)
         );
     }
 }

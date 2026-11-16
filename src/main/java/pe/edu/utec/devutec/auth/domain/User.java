@@ -57,6 +57,17 @@ public class User implements UserDetails {
     @Column(length = 9)
     private String celular;
 
+    // Redes y página web del negocio (sobre todo de clientes), opcionales. Se guardan como link completo
+    // (ver SocialLinks) y el freelancer las ve en el detalle del proyecto para conocer el estilo de la marca.
+    private String instagram;
+
+    private String facebook;
+
+    private String tiktok;
+
+    @Column(name = "sitio_web")
+    private String sitioWeb;
+
     @Column(name = "terms_accepted_at")
     private LocalDateTime termsAcceptedAt;
 

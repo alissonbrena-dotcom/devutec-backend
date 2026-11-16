@@ -18,4 +18,6 @@ public class UserResponseDTO {
     private String avatarUrl;
     // Celular propio (9 dígitos) o null si no lo agregó
     private String celular;
+    // Redes y página web de su negocio; cada una es null si no la agregó
+    private SocialLinksDTO redes;
 }

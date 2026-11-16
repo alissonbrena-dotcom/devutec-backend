@@ -285,6 +285,7 @@ class ProjectServiceImplTest {
         // Then
         assertEquals("Café Aula 3", response.getClientName());
         assertEquals(registro, response.getClientSince());
+        assertNull(response.getClientLinks().instagram());
     }
 
     // TEST 15 - Explorar busca a todos los clientes de la página en una sola consulta

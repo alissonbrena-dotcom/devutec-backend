@@ -170,7 +170,8 @@ public class ProjectServiceImpl implements ProjectService {
                 skillDTOs,
                 project.getCreatedAt(),
                 client != null ? client.getNombre() : null,
-                client != null ? client.getFechaRegistro() : null
+                client != null ? client.getFechaRegistro() : null,
+                client != null ? SocialLinksDTO.of(client) : null
         );
     }
 }
