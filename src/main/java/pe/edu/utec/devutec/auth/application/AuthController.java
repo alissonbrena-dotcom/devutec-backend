@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import pe.edu.utec.devutec.auth.dto.AuthResponse;
+import pe.edu.utec.devutec.auth.dto.GoogleConfirmRequest;
 import pe.edu.utec.devutec.auth.dto.GoogleLoginRequest;
 import pe.edu.utec.devutec.auth.dto.LoginRequest;
 import pe.edu.utec.devutec.auth.dto.RefreshTokenRequest;
@@ -32,6 +33,13 @@ public class AuthController {
     @PostMapping("/google")
     public ResponseEntity<AuthResponse> google(@Valid @RequestBody GoogleLoginRequest request) {
         return ResponseEntity.ok(authService.loginWithGoogle(request));
+    }
+
+    // Confirma que quien tiene la sesión abierta es el dueño de esa cuenta de Google (requiere token)
+    @PostMapping("/google/confirm")
+    public ResponseEntity<Void> confirmWithGoogle(@Valid @RequestBody GoogleConfirmRequest request) {
+        authService.confirmWithGoogle(request);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/refresh")

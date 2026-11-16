@@ -12,6 +12,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import pe.edu.utec.devutec.auth.application.AuthServiceImpl;
 import pe.edu.utec.devutec.auth.domain.Role;
 import pe.edu.utec.devutec.auth.domain.User;
+import pe.edu.utec.devutec.auth.dto.GoogleConfirmRequest;
 import pe.edu.utec.devutec.auth.dto.GoogleLoginRequest;
 import pe.edu.utec.devutec.auth.dto.RefreshTokenRequest;
 import pe.edu.utec.devutec.auth.dto.RegisterRequest;
@@ -23,6 +24,7 @@ import pe.edu.utec.devutec.exceptions.DuplicateResourceException;
 import pe.edu.utec.devutec.exceptions.ForbiddenOperationException;
 import pe.edu.utec.devutec.exceptions.GoogleSignupRequiredException;
 import pe.edu.utec.devutec.exceptions.UnauthorizedException;
+import pe.edu.utec.devutec.service.CurrentUserService;
 
 import java.util.Optional;
 
@@ -40,6 +42,7 @@ class AuthServiceImplTest {
     @Mock private AuthenticationManager authenticationManager;
     @Mock private GoogleTokenVerifier googleTokenVerifier;
     @Mock private ApplicationEventPublisher eventPublisher;
+    @Mock private CurrentUserService currentUserService;
 
     @InjectMocks
     private AuthServiceImpl authService;
@@ -191,5 +194,38 @@ class AuthServiceImplTest {
         ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
         verify(userRepository).save(captor.capture());
         assertNotNull(captor.getValue().getTermsAcceptedAt());
+    }
+
+    private User sesionDe(String email) {
+        User user = new User();
+        user.setEmail(email);
+        when(currentUserService.getCurrentUser()).thenReturn(user);
+        return user;
+    }
+
+    @Test
+    void confirmWithGoogle_mismaCuenta_noLanzaError() {
+        when(googleTokenVerifier.verify("token-de-google")).thenReturn(new GoogleAccount("Ana@Gmail.com", "Ana"));
+        sesionDe("ana@gmail.com");
+
+        assertDoesNotThrow(() -> authService.confirmWithGoogle(new GoogleConfirmRequest("token-de-google")));
+    }
+
+    @Test
+    void confirmWithGoogle_otraCuenta_rechaza() {
+        when(googleTokenVerifier.verify("token-de-google")).thenReturn(new GoogleAccount("otra@gmail.com", "Otra"));
+        sesionDe("ana@gmail.com");
+
+        assertThrows(ForbiddenOperationException.class,
+                () -> authService.confirmWithGoogle(new GoogleConfirmRequest("token-de-google")));
+    }
+
+    @Test
+    void confirmWithGoogle_tokenInvalido_noSigue() {
+        when(googleTokenVerifier.verify("token-de-google")).thenThrow(new UnauthorizedException("No se pudo validar"));
+
+        assertThrows(UnauthorizedException.class,
+                () -> authService.confirmWithGoogle(new GoogleConfirmRequest("token-de-google")));
+        verify(currentUserService, never()).getCurrentUser();
     }
 }

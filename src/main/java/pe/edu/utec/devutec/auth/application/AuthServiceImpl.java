@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import pe.edu.utec.devutec.auth.domain.Role;
 import pe.edu.utec.devutec.auth.domain.User;
 import pe.edu.utec.devutec.auth.dto.AuthResponse;
+import pe.edu.utec.devutec.auth.dto.GoogleConfirmRequest;
 import pe.edu.utec.devutec.auth.dto.GoogleLoginRequest;
 import pe.edu.utec.devutec.auth.dto.LoginRequest;
 import pe.edu.utec.devutec.auth.dto.RefreshTokenRequest;
@@ -25,6 +26,7 @@ import pe.edu.utec.devutec.exceptions.ForbiddenOperationException;
 import pe.edu.utec.devutec.exceptions.GoogleSignupRequiredException;
 import pe.edu.utec.devutec.exceptions.UnauthorizedException;
 import pe.edu.utec.devutec.model.FreelancerProfile;
+import pe.edu.utec.devutec.service.CurrentUserService;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -39,6 +41,7 @@ public class AuthServiceImpl implements AuthService {
     private final AuthenticationManager authenticationManager;
     private final GoogleTokenVerifier googleTokenVerifier;
     private final ApplicationEventPublisher eventPublisher;
+    private final CurrentUserService currentUserService;
 
     @Override
     @Transactional
@@ -81,6 +84,17 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new UnauthorizedException("Email o contraseña incorrectos"));
         return buildResponse(user);
+    }
+
+    // Para acciones delicadas (como liberar un pago) en cuentas creadas con Google, que no tienen una contraseña
+    // que la persona conozca: basta con que vuelva a elegir en Google la misma cuenta con la que inició sesión
+    @Override
+    public void confirmWithGoogle(GoogleConfirmRequest request) {
+        GoogleAccount account = googleTokenVerifier.verify(request.idToken());
+        User current = currentUserService.getCurrentUser();
+        if (!account.email().equalsIgnoreCase(current.getEmail())) {
+            throw new ForbiddenOperationException("Esa cuenta de Google no es la de tu sesión");
+        }
     }
 
     @Override
