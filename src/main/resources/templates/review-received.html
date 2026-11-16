@@ -2,7 +2,7 @@
 <!-- A quien recibe una reseña. Variables: revieweeName, authorName, projectTitle, rating (1 a 5), comment (puede venir vacío),
      appUrl, actionUrl, actionLabel -->
 <html xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{email-layout :: layout(${authorName + ' te dejó una reseña'}, ${'Mira lo que opinaron de ti en «' + projectTitle + '».'}, 'cuyi-saluda.png', 'Cuyi, la mascota de DevUTEC, saludando', ~{::content})}">
+      th:replace="~{email-layout :: layout(${authorName + ' te dejó una reseña'}, ${'Mira lo que opinaron de ti en «' + projectTitle + '».'}, 'cuyi-saluda.png', 'Cuyi, la mascota de DEVUTEC, saludando', ~{::content})}">
 <body>
 <th:block th:fragment="content">
 <th:block th:replace="~{email-layout :: mailTitle('Recibiste una nueva', 'reseña.')}"></th:block>

@@ -2,7 +2,7 @@
 <!-- Al freelancer cuando su postulación queda rechazada (el cliente la rechazó o eligió otra).
      Variables: freelancerName, projectTitle, appUrl, actionUrl -->
 <html xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{email-layout :: layout(${'Novedades sobre tu postulación a «' + projectTitle + '»'}, 'El cliente decidió seguir con otra opción. Hay más proyectos esperándote.', 'cuyi-escribe.png', 'Cuyi, la mascota de DevUTEC, escribiendo', ~{::content})}">
+      th:replace="~{email-layout :: layout(${'Novedades sobre tu postulación a «' + projectTitle + '»'}, 'El cliente decidió seguir con otra opción. Hay más proyectos esperándote.', 'cuyi-escribe.png', 'Cuyi, la mascota de DEVUTEC, escribiendo', ~{::content})}">
 <body>
 <th:block th:fragment="content">
     <th:block th:replace="~{email-layout :: mailTitle('Esta vez', 'no fue.')}"></th:block>

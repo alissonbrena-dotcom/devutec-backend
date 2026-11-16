@@ -1,7 +1,7 @@
 <!doctype html>
 <!-- Al cliente cuando el freelancer marca el trabajo como entregado. Variables: clientName, freelancerName, projectTitle, appUrl, actionUrl -->
 <html xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{email-layout :: layout(${freelancerName + ' entregó «' + projectTitle + '»'}, 'Revisa el trabajo y confirma la entrega para liberar el pago.', 'cuyi-escribe.png', 'Cuyi, la mascota de DevUTEC, trabajando en su laptop', ~{::content})}">
+      th:replace="~{email-layout :: layout(${freelancerName + ' entregó «' + projectTitle + '»'}, 'Revisa el trabajo y confirma la entrega para liberar el pago.', 'cuyi-escribe.png', 'Cuyi, la mascota de DEVUTEC, trabajando en su laptop', ~{::content})}">
 <body>
 <th:block th:fragment="content">
 <th:block th:replace="~{email-layout :: mailTitle('Tu proyecto fue', 'entregado.')}"></th:block>

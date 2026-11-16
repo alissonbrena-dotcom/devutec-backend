@@ -2,7 +2,7 @@
 <!-- Al freelancer cuando el cliente confirma la entrega y se libera el pago.
      Variables: freelancerName, projectTitle, amount (BigDecimal), paymentId, appUrl, actionUrl -->
 <html xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{email-layout :: layout(${'Tu pago de S/ ' + #numbers.formatDecimal(amount, 1, 'COMMA', 2, 'POINT') + ' fue liberado'}, ${'El cliente confirmó la entrega de «' + projectTitle + '».'}, 'cuyi-celebra.png', 'Cuyi, la mascota de DevUTEC, celebrando', ~{::content})}">
+      th:replace="~{email-layout :: layout(${'Tu pago de S/ ' + #numbers.formatDecimal(amount, 1, 'COMMA', 2, 'POINT') + ' fue liberado'}, ${'El cliente confirmó la entrega de «' + projectTitle + '».'}, 'cuyi-celebra.png', 'Cuyi, la mascota de DEVUTEC, celebrando', ~{::content})}">
 <body>
 <th:block th:fragment="content">
 <th:block th:replace="~{email-layout :: mailTitle('Tu pago fue', 'liberado.')}"></th:block>

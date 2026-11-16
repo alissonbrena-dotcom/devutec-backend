@@ -55,7 +55,7 @@ class EmailTemplatesTest {
         assertFalse(html.matches("(?s).*\\sth:[a-z]+=.*"), "quedó un atributo de Thymeleaf");
         assertTrue(html.contains("href=\"" + actionUrl + "\""), "falta el link del botón");
         assertTrue(html.contains("https://devutec.vercel.app/email/logo-devutec.png"));
-        assertTrue(html.contains("Este es un correo automático de DevUTEC"));
+        assertTrue(html.contains("Este es un correo automático de DEVUTEC"));
     }
 
     // TEST 1: nueva postulación, al cliente
@@ -169,7 +169,7 @@ class EmailTemplatesTest {
         String html = render("welcome", variables);
 
         assertCommon(html, "https://devutec.vercel.app/profile/edit");
-        assertTrue(html.contains("<title>Bienvenido a DevUTEC, Camila Ríos</title>"));
+        assertTrue(html.contains("<title>Bienvenido a DEVUTEC, Camila Ríos</title>"));
         assertTrue(html.contains("Completa tu perfil"));
         assertTrue(html.contains("Completar mi perfil"));
         assertFalse(html.contains("Publica tu proyecto"));

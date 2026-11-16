@@ -1,7 +1,7 @@
 <!doctype html>
 <!-- Al cliente cuando un freelancer postula a su proyecto. Variables: clientName, freelancerName, projectTitle, appUrl, actionUrl -->
 <html xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{email-layout :: layout(${freelancerName + ' postuló a «' + projectTitle + '»'}, 'Revisa su propuesta y decide si la contratas.', 'cuyi-saluda.png', 'Cuyi, la mascota de DevUTEC, saludando', ~{::content})}">
+      th:replace="~{email-layout :: layout(${freelancerName + ' postuló a «' + projectTitle + '»'}, 'Revisa su propuesta y decide si la contratas.', 'cuyi-saluda.png', 'Cuyi, la mascota de DEVUTEC, saludando', ~{::content})}">
 <body>
 <th:block th:fragment="content">
 <th:block th:replace="~{email-layout :: mailTitle('Tienes una nueva', 'postulación.')}"></th:block>
