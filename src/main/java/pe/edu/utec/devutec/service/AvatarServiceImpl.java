@@ -27,7 +27,7 @@ import java.time.temporal.ChronoUnit;
 @RequiredArgsConstructor
 public class AvatarServiceImpl implements AvatarService {
 
-    // Foto fija del administrador: el isotipo de DevUTEC
+    // Foto fija del administrador: el isotipo de DEVUTEC
     static final String ADMIN_AVATAR = "avatar/admin.png";
 
     private final CurrentUserService currentUserService;
@@ -80,7 +80,7 @@ public class AvatarServiceImpl implements AvatarService {
     private User editableCurrentUser() {
         User current = currentUserService.getCurrentUser();
         if (current.getRol() == Role.ADMIN) {
-            throw new ForbiddenOperationException("La foto del administrador es la de DevUTEC y no se puede cambiar");
+            throw new ForbiddenOperationException("La foto del administrador es la de DEVUTEC y no se puede cambiar");
         }
         return userRepository.findById(current.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con id: " + current.getId()));
