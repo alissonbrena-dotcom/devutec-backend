@@ -1,6 +1,7 @@
 package pe.edu.utec.devutec.auth.application;
 
 import pe.edu.utec.devutec.auth.dto.AuthResponse;
+import pe.edu.utec.devutec.auth.dto.GoogleConfirmRequest;
 import pe.edu.utec.devutec.auth.dto.GoogleLoginRequest;
 import pe.edu.utec.devutec.auth.dto.LoginRequest;
 import pe.edu.utec.devutec.auth.dto.RefreshTokenRequest;
@@ -11,4 +12,5 @@ public interface AuthService {
     AuthResponse login(LoginRequest request);
     AuthResponse loginWithGoogle(GoogleLoginRequest request);
     AuthResponse refresh(RefreshTokenRequest request);
+    void confirmWithGoogle(GoogleConfirmRequest request);
 }
