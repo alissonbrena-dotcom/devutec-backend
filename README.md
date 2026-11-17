@@ -33,8 +33,8 @@
 
 | Rol | Correo | Contraseña | Qué tiene |
 |---|---|---|---|
-| Cliente | `alissonbre19+cliente@gmail.com` | `Demo2026!` | Pastelería Dulce Lima: un proyecto publicado y un contrato terminado con pago liberado |
-| Freelancer | `alissonbre19+dev@gmail.com` | `Demo2026!` | Diego Torres: perfil completo, una postulación aceptada y un pago recibido |
+| Cliente | `devutec.notificaciones+cliente@gmail.com` | `Demo2026!` | Pastelería Dulce Lima: un proyecto publicado y un contrato terminado con pago liberado |
+| Freelancer | `devutec.notificaciones+dev@gmail.com` | `Demo2026!` | Diego Torres: perfil completo, una postulación aceptada y un pago recibido |
 
 Para pagar con tarjeta se usa la tarjeta de prueba `4242 4242 4242 4242`, cualquier fecha futura y cualquier CVC. No se cobra dinero real.
 ---
