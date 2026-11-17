@@ -369,7 +369,7 @@ Todos bajo `/api/v1`. Salvo los públicos, requieren el header `Authorization: B
 | Skills | `GET /skills`, `GET /skills/{id}` · `POST /skills` · `DELETE /skills/{id}` | Autenticado · CLIENT/ADMIN · ADMIN |
 | Projects | `GET /projects` (filtros y paginación), `GET /projects/{id}` · `POST /projects`, `GET /projects/me` (paginado) · `PUT`, `DELETE /projects/{id}` | Autenticado · CLIENT · dueño o ADMIN |
 | Applications | `POST /applications`, `GET /applications/me`, `DELETE /applications/{id}` · `GET /applications?projectId=`, `PATCH /applications/{id}/accept`, `/reject` · `GET /applications/{id}` | FREELANCER · CLIENT dueño · participantes |
-| Contracts | `GET /contracts/me`, `GET /contracts/{id}` · `PATCH /contracts/{id}/deliver` · `/confirm`, `/cancel` | Participantes · FREELANCER · CLIENT |
+| Contracts | `GET /contracts/me`, `GET /contracts/{id}` · `PATCH /contracts/{id}/deliver` (con `{ link, nota }`) · `/confirm`, `/cancel` | Participantes · FREELANCER · CLIENT |
 | Pago con tarjeta | `POST /contracts/{id}/checkout`, `POST /contracts/{id}/checkout/confirm` | CLIENT del contrato |
 | Reviews | `POST`, `GET /contracts/{id}/reviews` · `GET /users/{id}/reviews` (paginado, `minRating`) | Participantes · Público |
 | Payments | `GET /payments`, `GET /payments/{id}` | ADMIN |

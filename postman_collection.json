@@ -3802,7 +3802,12 @@
           "name": "Entregar trabajo",
           "request": {
             "method": "PATCH",
-            "header": [],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/v1/contracts/{{contractId}}/deliver",
               "host": [
@@ -3826,6 +3831,15 @@
                   "type": "string"
                 }
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"link\": \"https://github.com/usuario/proyecto\",\n  \"nota\": \"Te dejo el código y las instrucciones en el README\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": [

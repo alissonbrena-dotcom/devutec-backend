@@ -7,6 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 import pe.edu.utec.devutec.auth.domain.Role;
 import pe.edu.utec.devutec.auth.domain.User;
 import pe.edu.utec.devutec.dto.ContractResponseDTO;
+import pe.edu.utec.devutec.dto.DeliveryRequestDTO;
 import pe.edu.utec.devutec.events.ContractCreatedEvent;
 import pe.edu.utec.devutec.events.ContractDeliveredEvent;
 import pe.edu.utec.devutec.exceptions.ForbiddenOperationException;
@@ -76,13 +77,22 @@ public class ContractServiceImpl implements ContractService {
 
     @Override
     @Transactional
-    public ContractResponseDTO deliver(Long id) {
+    public ContractResponseDTO deliver(Long id, DeliveryRequestDTO request) {
         Contract contract = findContract(id);
         ensureIsFreelancer(contract);
         ensureStatus(contract, ContractStatus.IN_PROGRESS);
 
+        // El link se valida antes de cambiar nada (agrega https:// si falta y revisa que tenga dominio)
+        String link = SocialLinks.link(request.link(), "El link de entrega no parece válido, por ejemplo drive.google.com/...");
+        if (link == null) {
+            throw new InvalidOperationException("Pega el link de tu trabajo");
+        }
+        String note = request.nota() == null || request.nota().isBlank() ? null : request.nota().trim();
+
         contract.setStatus(ContractStatus.DELIVERED);
         contract.setDeliveredAt(LocalDateTime.now());
+        contract.setDeliveryUrl(link);
+        contract.setDeliveryNote(note);
 
         Application application = contract.getApplication();
         eventPublisher.publishEvent(new ContractDeliveredEvent(
@@ -90,7 +100,9 @@ public class ContractServiceImpl implements ContractService {
                 application.getProject().getClientId(),
                 application.getProject().getTitle(),
                 application.getFreelancer().getUser().getNombre(),
-                contract.getId()));
+                contract.getId(),
+                link,
+                note));
         return contractMapper.toResponse(contract);
     }
 

@@ -231,6 +231,7 @@ const PROJECTS = [
 const APPLICATIONS = [
   // Contrato terminado con reseñas
   { project: 'logo-pasteleria', free: 'demo-free-diseno', price: 650, outcome: 'confirmed',
+    deliveryLink: 'https://www.figma.com/file/dulce-lucia-marca', deliveryNote: 'Te dejo el logo en Figma y los PNG y SVG exportados en la carpeta del archivo.',
     message: 'Hola Lucía, me encantaría renovar la marca de tu pastelería. Te propongo 3 rutas de logo y luego afinamos la que más te guste.',
     reviews: { client: [5, 'Valeria entendió el estilo que buscaba desde la primera reunión. Entregó todo a tiempo y muy ordenado.'],
                free: [5, 'Lucía tenía muy claro lo que quería y respondía rápido. Muy buena experiencia.'] } },
@@ -238,12 +239,14 @@ const APPLICATIONS = [
     message: 'Puedo ayudarte con la marca y luego adaptarla a una web sencilla si más adelante la necesitas.' },
 
   { project: 'fotos-cafe', free: 'demo-free-video', price: 350, outcome: 'confirmed',
+    deliveryLink: 'https://drive.google.com/drive/folders/cafe-tostado-fotos', deliveryNote: 'Son 20 fotos en alta, con versiones recortadas para Rappi.',
     message: 'Tengo luces y fondos para fotos de producto. Puedo ir un día por la mañana cuando el local tenga buena luz natural.',
     reviews: { client: [4, 'Muy buenas fotos y puntual. Tardó un par de días más en la edición, pero el resultado valió la pena.'],
                free: [5, 'Martín me dio todas las facilidades en el local. Proyecto muy bonito.'] } },
 
   // Contrato entregado: el cliente tiene que revisar
   { project: 'dashboard-cafe', free: 'demo-free-datos', price: 900, outcome: 'delivered',
+    deliveryLink: 'https://app.powerbi.com/groups/me/reports/cafe-tostado-ventas', deliveryNote: 'El dashboard se actualiza solo cuando subas el Excel de la semana a la carpeta compartida.',
     message: 'He armado dashboards de ventas para restaurantes. Primero reviso tus exportaciones y te muestro un borrador en 5 días.' },
   { project: 'dashboard-cafe', free: 'demo-free-movil', price: 950,
     message: 'Puedo conectar tu Excel a Power BI y dejar el reporte actualizándose solo cada semana.' },
@@ -409,7 +412,10 @@ async function main() {
     }
 
     if (['delivered', 'confirmed'].includes(item.outcome) && contract.status === 'IN_PROGRESS') {
-      await step(`entregar ${label}`, () => api('PATCH', `/contracts/${contract.id}/deliver`, { token: free.token }))
+      await step(`entregar ${label}`, () => api('PATCH', `/contracts/${contract.id}/deliver`, {
+          token: free.token,
+          body: { link: item.deliveryLink ?? 'https://drive.google.com/drive/folders/entrega-demo', nota: item.deliveryNote },
+        }))
       contract = await findContract(free.token)
     }
     if (item.outcome === 'confirmed' && contract.status === 'DELIVERED') {

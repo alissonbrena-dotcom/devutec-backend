@@ -8,9 +8,12 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.http.HttpStatus;
 import pe.edu.utec.devutec.auth.domain.Role;
 import pe.edu.utec.devutec.auth.domain.User;
+import pe.edu.utec.devutec.dto.DeliveryRequestDTO;
 import pe.edu.utec.devutec.events.ContractDeliveredEvent;
+import pe.edu.utec.devutec.exceptions.ApiException;
 import pe.edu.utec.devutec.exceptions.ForbiddenOperationException;
 import pe.edu.utec.devutec.exceptions.InvalidOperationException;
 import pe.edu.utec.devutec.exceptions.ResourceNotFoundException;
@@ -112,12 +115,43 @@ class ContractServiceImplTest {
         when(currentUserService.getCurrentUser()).thenReturn(freelancerUser);
 
         // When
-        contractService.deliver(1L);
+        contractService.deliver(1L, entrega("drive.google.com/drive/folders/abc", "Te dejo los archivos"));
 
         // Then
         assertEquals(ContractStatus.DELIVERED, contract.getStatus());
         assertNotNull(contract.getDeliveredAt());
         verify(eventPublisher).publishEvent(any(ContractDeliveredEvent.class));
+    }
+
+    // TEST 2b - La entrega guarda el link completo (con https://) y la nota
+    @Test
+    void deliver_conLinkSinHttps_deberiaGuardarLinkCompletoYNota() {
+        Contract contract = createContract(ContractStatus.IN_PROGRESS);
+        when(contractRepository.findById(1L)).thenReturn(Optional.of(contract));
+        when(currentUserService.getCurrentUser()).thenReturn(freelancerUser);
+
+        contractService.deliver(1L, entrega("github.com/camila/web-pizzeria", "  Listo, revisa el README  "));
+
+        assertEquals("https://github.com/camila/web-pizzeria", contract.getDeliveryUrl());
+        assertEquals("Listo, revisa el README", contract.getDeliveryNote());
+    }
+
+    // TEST 2c - Un link sin dominio no se acepta y el contrato no cambia
+    @Test
+    void deliver_linkInvalido_deberiaLanzarBadRequestSinEntregar() {
+        Contract contract = createContract(ContractStatus.IN_PROGRESS);
+        when(contractRepository.findById(1L)).thenReturn(Optional.of(contract));
+        when(currentUserService.getCurrentUser()).thenReturn(freelancerUser);
+
+        ApiException error = assertThrows(ApiException.class, () -> contractService.deliver(1L, entrega("mi trabajo", null)));
+        assertEquals(HttpStatus.BAD_REQUEST, error.getStatus());
+        assertEquals(ContractStatus.IN_PROGRESS, contract.getStatus());
+        assertNull(contract.getDeliveryUrl());
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    private static DeliveryRequestDTO entrega(String link, String nota) {
+        return new DeliveryRequestDTO(link, nota);
     }
 
     // TEST 3 - El cliente no puede marcar el trabajo como entregado
@@ -129,7 +163,7 @@ class ContractServiceImplTest {
         when(currentUserService.getCurrentUser()).thenReturn(client);
 
         // When / Then
-        assertThrows(ForbiddenOperationException.class, () -> contractService.deliver(1L));
+        assertThrows(ForbiddenOperationException.class, () -> contractService.deliver(1L, entrega("drive.google.com/drive/folders/abc", "Te dejo los archivos")));
         assertEquals(ContractStatus.IN_PROGRESS, contract.getStatus());
     }
 
@@ -142,7 +176,7 @@ class ContractServiceImplTest {
         when(currentUserService.getCurrentUser()).thenReturn(freelancerUser);
 
         // When / Then
-        assertThrows(InvalidOperationException.class, () -> contractService.deliver(1L));
+        assertThrows(InvalidOperationException.class, () -> contractService.deliver(1L, entrega("drive.google.com/drive/folders/abc", "Te dejo los archivos")));
         verify(eventPublisher, never()).publishEvent(any());
     }
 
