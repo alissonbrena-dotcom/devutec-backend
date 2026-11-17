@@ -6,7 +6,7 @@ After=network.target
 User=ec2-user
 WorkingDirectory=/home/ec2-user/devutec-backend
 EnvironmentFile=/etc/devutec.env
-ExecStart=/usr/bin/java -jar /home/ec2-user/devutec-backend/target/devutec-0.0.1-SNAPSHOT.jar
+ExecStart=/usr/bin/java -Duser.timezone=America/Lima -jar /home/ec2-user/devutec-backend/target/devutec-0.0.1-SNAPSHOT.jar
 Restart=always
 RestartSec=10
 
