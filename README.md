@@ -26,7 +26,7 @@
 |---|---|---|
 | API (Spring Boot) | este repositorio | https://devutec.duckdns.org/api/v1 (AWS EC2 + RDS, HTTPS) |
 | Web (React + Vite) | [nicoleyucra1/devutec-frontend](https://github.com/nicoleyucra1/devutec-frontend) | https://devutec.vercel.app (Vercel) |
-| App móvil (React Native + Expo) | [nicoleyucra1/devutec-frontend-mobile](https://github.com/nicoleyucra1/devutec-frontend-mobile) | [APK para Android](https://expo.dev/artifacts/eas/hwczTxkNs9CuEeh7bSkqL3JdE0uNQGXVLIYhbYWaTRA.apk) (build con EAS) · en iPhone, con Expo Go |
+| App móvil (React Native + Expo) | [nicoleyucra1/devutec-frontend-mobile](https://github.com/nicoleyucra1/devutec-frontend-mobile) | [APK para Android](https://expo.dev/artifacts/eas/xaDfiwlPM_ntQ910rnQPpX7xDFOngMysWxBgHypux0A.apk) (build con EAS) · en iPhone, con Expo Go |
 
 
 **Cuentas de prueba** (para entrar sin registrarse; los pagos son en modo prueba de Stripe):
