@@ -41,7 +41,7 @@ public class ReviewController {
             @RequestParam(defaultValue = "0") @Min(value = 0, message = "page debe ser mayor o igual a 0") int page,
             @RequestParam(defaultValue = "10")
             @Min(value = 1, message = "size debe ser al menos 1")
-            @Max(value = 50, message = "size no puede ser mayor a 50") int size) {
+            @Max(value = 100, message = "size no puede ser mayor a 100") int size) {
         return ResponseEntity.ok(reviewService.findByReviewee(userId, minRating, page, size));
     }
 }
