@@ -332,6 +332,12 @@ docker compose up -d          # PostgreSQL 16 en localhost:5432
 ./mvnw test                   # suite de pruebas
 ```
 
+**Datos de demostración:** [`scripts/cargar-demo.mjs`](scripts/cargar-demo.mjs) crea 4 clientes con las redes de su negocio, 5 freelancers con perfil, 10 proyectos, postulaciones y contratos en distintos estados, usando la misma API que la web y la app. Necesita Node 18 o más, y se puede correr más de una vez sin duplicar nada. Por defecto va al backend local; para otro servidor se agrega `API_URL`.
+
+```bash
+DEMO_PASSWORD='UnaContraseña1!' node scripts/cargar-demo.mjs   # contraseña de todas las cuentas demo
+```
+
 ### Variables de entorno
 
 | Variable | Uso | Valor por defecto |
