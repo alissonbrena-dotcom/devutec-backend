@@ -92,6 +92,10 @@ El estudiante gana experiencia, ingresos y un historial verificable; el negocio 
 | **Contrato con pago en garantía (escrow)** | El pago queda retenido (`HELD`) al aceptar, se libera (`RELEASED`) al confirmar la entrega y se reembolsa (`REFUNDED`) si se cancela. |
 | **Reseñas bidireccionales** y **calificación promedio** | Cada parte califica a la otra (1–5); el freelancer acumula reputación pública. |
 | **Notificaciones por correo** asíncronas | Avisan de cada etapa: postulación, aceptación, entrega, pago liberado y reseña. |
+| **Inicio de sesión con Google** | Entrar o crear la cuenta con un clic, sin otra contraseña; también sirve para confirmar con Google antes de liberar un pago. |
+| **Pago con tarjeta** (Stripe, modo prueba) | El cliente paga el contrato con tarjeta desde la web o la app; el dinero queda retenido hasta que confirma la entrega. |
+| **Foto de perfil, celular y redes** | Cada usuario muestra su foto; las partes de un contrato se escriben por WhatsApp y el cliente muestra las redes y la web de su negocio. |
+| **Asistente de ayuda con IA** (Cuyi, Google Gemini) | Responde dudas sobre cómo usar la plataforma; si no puede resolver algo, comparte el correo de soporte. |
 
 ### Tecnologías utilizadas
 
@@ -101,7 +105,8 @@ El estudiante gana experiencia, ingresos y un historial verificable; el negocio 
 | Base de datos | PostgreSQL 16 (Docker Compose en local, Amazon RDS en producción) |
 | Seguridad | JWT con jjwt 0.12, BCrypt, Spring Security con `@PreAuthorize` |
 | Mapeo y utilidades | ModelMapper, Lombok, SLF4J |
-| Correo | JavaMailSender con plantillas Thymeleaf y Mailtrap (sandbox SMTP) |
+| Correo | JavaMailSender con plantillas Thymeleaf; Gmail (SMTP) en producción y Mailtrap en desarrollo |
+| Servicios externos | Stripe Checkout (pagos en modo prueba), Google Identity (inicio de sesión con Google), Google Gemini (asistente Cuyi) |
 | Pruebas | JUnit 5 y Mockito; colección de Postman ejecutada con Newman |
 | DevOps | Maven, GitHub Actions (CI), AWS EC2 + RDS con Elastic IP, Caddy (HTTPS con Let's Encrypt), DuckDNS, despliegue automático con systemd |
 
@@ -258,7 +263,7 @@ Todos los errores se centralizan en un `@RestControllerAdvice` (`GlobalException
 ### Seguridad de datos
 
 - **Autenticación con JWT.** El login devuelve un *access token* (15 min) y un *refresh token* (7 días), firmados con HMAC. El token lleva los claims `userId`, `role` y `type`; un `JwtAuthenticationFilter` lo valida en cada petición y rechaza los refresh tokens usados como access. La clave se lee de la variable de entorno `JWT_SECRET`.
-- **Contraseñas cifradas con BCrypt**, con validación de fortaleza (mínimo 8 caracteres, letras y números). Nunca se devuelven en las respuestas: la API solo expone DTOs.
+- **Contraseñas cifradas con BCrypt**, con validación de fortaleza (de 8 a 100 caracteres, con mayúscula, minúscula, número y símbolo). Nunca se devuelven en las respuestas: la API solo expone DTOs.
 - **Autorización por roles y por propiedad.** 18 endpoints usan `@PreAuthorize` según el rol; además, los servicios verifican con el usuario autenticado del `SecurityContext` que solo el dueño modifique su proyecto, que solo los participantes vean un contrato y que el cliente se tome del token y no del body. El registro como `ADMIN` está bloqueado.
 - **Sesiones sin estado** (`STATELESS`) y CORS limitado a los orígenes del frontend, configurables con la variable `CORS_ALLOWED_ORIGINS`.
 
@@ -325,8 +330,17 @@ docker compose up -d          # PostgreSQL 16 en localhost:5432
 | `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | Conexión a PostgreSQL | Base local de Docker Compose |
 | `JWT_SECRET` | Clave de firma de los tokens | Solo para desarrollo; **obligatorio cambiarla en producción** |
 | `JWT_ACCESS_EXPIRATION_MS`, `JWT_REFRESH_EXPIRATION_MS` | Duración de los tokens | 15 min y 7 días |
-| `MAIL_USERNAME`, `MAIL_PASSWORD` | Credenciales SMTP de Mailtrap | Sin valor: la API funciona, pero no envía correos |
+| `MAIL_HOST`, `MAIL_PORT` | Servidor de correo (en producción, `smtp.gmail.com` y `587`) | Sandbox de Mailtrap |
+| `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM` | Cuenta que envía los correos (en Gmail, con una contraseña de aplicación) | Sin valor: la API funciona, pero no envía correos |
 | `CORS_ALLOWED_ORIGINS` | Orígenes del frontend permitidos por CORS, separados por comas (por ejemplo, el dominio de la web en Vercel) | `http://localhost:5173,http://localhost:3000` |
+| `FRONTEND_URL` | Dirección de la web: a dónde vuelve Stripe después de pagar y a dónde apuntan los links de los correos | `https://devutec.vercel.app` |
+| `GOOGLE_CLIENT_IDS` | IDs de cliente OAuth de Google aceptados (web y app), separados por comas | Sin valor: el inicio con Google responde 503 |
+| `STRIPE_SECRET_KEY` | Clave secreta de Stripe en modo prueba (`sk_test_...`) | Sin valor: el pago con tarjeta responde 503 |
+| `STRIPE_REQUIRE_PAYMENT` | `true`: el cliente debe pagar con tarjeta antes de confirmar la entrega | `false` (en producción está en `true`) |
+| `GEMINI_API_KEY` | Clave de Google AI Studio para el asistente Cuyi | Sin valor: el chat responde 503 y el front muestra las preguntas frecuentes |
+| `GEMINI_MODEL`, `SUPPORT_CHAT_DAILY_LIMIT` | Modelo de Gemini y preguntas por persona al día | `gemini-3.5-flash-lite` y 30 |
+
+Las claves reales viven solo en el servidor (`/etc/devutec.env`); la plantilla está en [`deploy/devutec.env.example`](deploy/devutec.env.example).
 
 ### Endpoints
 
@@ -334,8 +348,8 @@ Todos bajo `/api/v1`. Salvo los públicos, requieren el header `Authorization: B
 
 | Módulo | Endpoints | Acceso |
 |---|---|---|
-| Auth | `POST /auth/register`, `/auth/login`, `/auth/refresh` | Público |
-| Users | `GET /users/me` | Autenticado |
+| Auth | `POST /auth/register`, `/auth/login`, `/auth/refresh`, `/auth/google` · `POST /auth/google/confirm` | Público · Autenticado |
+| Users | `GET /users/me`, `PUT`/`DELETE /users/me/avatar`, `PUT`/`DELETE /users/me/phone`, `PUT /users/me/links` · `GET /users/{id}/avatar` | Autenticado · Público |
 | Freelancers | `GET`, `PUT /freelancers/me` · `GET /freelancers/{userId}` | FREELANCER · Autenticado |
 | Skills | `GET /skills`, `GET /skills/{id}` · `POST /skills` · `DELETE /skills/{id}` | Autenticado · CLIENT/ADMIN · ADMIN |
 | Projects | `GET /projects` (filtros y paginación), `GET /projects/{id}` · `POST /projects`, `GET /projects/me` (paginado) · `PUT`, `DELETE /projects/{id}` | Autenticado · CLIENT · dueño o ADMIN |
@@ -344,6 +358,7 @@ Todos bajo `/api/v1`. Salvo los públicos, requieren el header `Authorization: B
 | Pago con tarjeta | `POST /contracts/{id}/checkout`, `POST /contracts/{id}/checkout/confirm` | CLIENT del contrato |
 | Reviews | `POST`, `GET /contracts/{id}/reviews` · `GET /users/{id}/reviews` (paginado, `minRating`) | Participantes · Público |
 | Payments | `GET /payments`, `GET /payments/{id}` | ADMIN |
+| Ayuda (Cuyi) | `POST /support/chat` | Autenticado |
 
 **Detalles de los endpoints de la fase 2:**
 
@@ -352,7 +367,9 @@ Todos bajo `/api/v1`. Salvo los públicos, requieren el header `Authorization: B
 - `PUT /freelancers/me` solo cambia los campos enviados. Valida `ciclo` entre 1 y 10, `tarifaHora` mayor a cero, `portafolioUrl` como URL y `githubUsername` con el formato de GitHub. Un egresado (`egresado: true`) no tiene ciclo: marcarlo borra el ciclo, y enviar ambos responde 400.
 - `GET /projects/me` usa el mismo formato paginado que `GET /projects` (10 por página, los más recientes primero).
 - Los proyectos aceptan `location` opcional (por ejemplo, el distrito; máximo 100 caracteres) al crear y editar, y la devuelven en todas las respuestas.
-- **Pago con tarjeta (Stripe, modo prueba).** `POST /contracts/{id}/checkout` crea una página de pago de Stripe Checkout por el monto del contrato (en soles) y devuelve `sessionId` y `checkoutUrl`. Al pagar, Stripe vuelve a `/contracts/{id}?pago=ok&session_id=...` del frontend, que llama a `POST /contracts/{id}/checkout/confirm` con `{ "sessionId": "..." }`. Desde la app, el cuerpo opcional `{ "appReturnUrl": "devutec://contracts/{id}" }` (o `exp://...` en Expo Go) hace que Stripe vuelva a la página pública `/pago-listo` de la web, que abre la app con ese link; la app confirma el pago al abrirse. Solo se aceptan links `devutec://`, `exp://` o `exps://`. El backend le pregunta a Stripe si la sesión está pagada y es de ese contrato, y recién ahí guarda la referencia del pago; los contratos devuelven `paidWithCard: true`. El pago sigue retenido (`HELD`) hasta que el cliente confirma la entrega. Para probar se usa la tarjeta `4242 4242 4242 4242`, cualquier fecha futura y cualquier CVC. La clave secreta (`STRIPE_SECRET_KEY`) vive solo en el servidor; sin ella, estas rutas responden 503. El monto mínimo es S/ 2.00 (límite de Stripe). Si se cancela un contrato pagado con tarjeta, se pide el reembolso a Stripe. Con `STRIPE_REQUIRE_PAYMENT=true`, el cliente tiene que pagar con tarjeta antes de poder confirmar la entrega; queda apagado hasta que la web y la app tengan el botón de pagar. Las llamadas a Stripe se cortan si no responden en 20 segundos.
+- **Pago con tarjeta (Stripe, modo prueba).** `POST /contracts/{id}/checkout` crea una página de pago de Stripe Checkout por el monto del contrato (en soles) y devuelve `sessionId` y `checkoutUrl`. Al pagar, Stripe vuelve a `/contracts/{id}?pago=ok&session_id=...` del frontend, que llama a `POST /contracts/{id}/checkout/confirm` con `{ "sessionId": "..." }`. Desde la app, el cuerpo opcional `{ "appReturnUrl": "devutec://contracts/{id}" }` (o `exp://...` en Expo Go) hace que Stripe vuelva a la página pública `/pago-listo` de la web, que abre la app con ese link; la app confirma el pago al abrirse. Solo se aceptan links `devutec://`, `exp://` o `exps://`. El backend le pregunta a Stripe si la sesión está pagada y es de ese contrato, y recién ahí guarda la referencia del pago; los contratos devuelven `paidWithCard: true`. El pago sigue retenido (`HELD`) hasta que el cliente confirma la entrega. Para probar se usa la tarjeta `4242 4242 4242 4242`, cualquier fecha futura y cualquier CVC. La clave secreta (`STRIPE_SECRET_KEY`) vive solo en el servidor; sin ella, estas rutas responden 503. El monto mínimo es S/ 2.00 (límite de Stripe). Si se cancela un contrato pagado con tarjeta, se pide el reembolso a Stripe. Con `STRIPE_REQUIRE_PAYMENT=true` (activado en producción), el cliente tiene que pagar con tarjeta antes de poder confirmar la entrega. Las llamadas a Stripe se cortan si no responden en 20 segundos.
+- **Inicio de sesión con Google.** `POST /auth/google` recibe el *ID token* que Google entrega a la web o a la app; el backend verifica su firma y que su audiencia sea uno de `GOOGLE_CLIENT_IDS`, y devuelve los mismos tokens JWT que el login normal (si la cuenta es nueva, pide el rol). `POST /auth/google/confirm` comprueba que la cuenta de Google sea la de la sesión, para confirmar acciones importantes como liberar un pago.
+- **Asistente Cuyi.** `POST /support/chat` recibe la conversación y responde con Google Gemini, usando como guía las preguntas frecuentes de `support/devutec-faq.md`. La clave de Gemini vive solo en el servidor, nunca en la web ni en la app. Cada persona tiene un límite de preguntas por día.
 
 La documentación completa, con descripciones y ejemplos de cada respuesta, está en la colección [`postman_collection.json`](postman_collection.json). Ejecutando las carpetas en orden se recorre el flujo completo del negocio.
 
@@ -385,8 +402,8 @@ Se construyó un backend desplegado que resuelve el problema de confianza entre 
 
 ### Trabajo futuro
 
-- Chat con IA que convierta la necesidad del cliente en un brief técnico y recomiende freelancers.
-- Pagos reales con Stripe, verificación de portafolio con GitHub y agendamiento con Cal.com.
+- Que Cuyi convierta la necesidad del cliente en un brief técnico y recomiende freelancers.
+- Pasar Stripe de modo prueba a pagos reales y agendar reuniones con Cal.com.
 - Límite de intentos de login y reintentos automáticos para correos rechazados por el proveedor.
 - Carga de entregables y portafolios a Amazon S3.
 
