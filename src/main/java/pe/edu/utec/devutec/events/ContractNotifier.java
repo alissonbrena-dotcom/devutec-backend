@@ -30,7 +30,10 @@ public class ContractNotifier {
                                 "freelancerName", event.getFreelancerName(),
                                 "projectTitle", event.getProjectTitle(),
                                 "appUrl", links.base(),
-                                "actionUrl", links.to("/contracts/" + event.getContractId())
+                                "actionUrl", links.to("/contracts/" + event.getContractId()),
+                                "deliveryUrl", event.getDeliveryUrl(),
+                                // Map.of no acepta null: sin nota va vacío y la plantilla no la muestra
+                                "deliveryNote", event.getDeliveryNote() != null ? event.getDeliveryNote() : ""
                         )
                 )
         );

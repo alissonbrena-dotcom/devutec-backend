@@ -95,12 +95,32 @@ class EmailTemplatesTest {
         variables.put("clientName", "Pizzería Don Mario");
         variables.put("freelancerName", "Camila Ríos");
         variables.put("projectTitle", "Web para pizzería");
+        variables.put("deliveryUrl", "https://github.com/camila/web-pizzeria");
+        variables.put("deliveryNote", "Revisa el README para publicarla");
 
         String html = render("contract-delivered", variables);
 
         assertCommon(html, "https://devutec.vercel.app/contracts/21");
         assertTrue(html.contains("Revisar la entrega"));
+        assertTrue(html.contains("href=\"https://github.com/camila/web-pizzeria\""), "debería tener el link al trabajo");
+        assertTrue(html.contains("Revisa el README para publicarla"), "debería mostrar la nota");
         assertEquals(1, html.split("&#10003;|✓", -1).length - 1, "solo Retenido debería estar completo");
+    }
+
+    // TEST 3b: entrega sin nota: no aparece el recuadro de la nota
+    @Test
+    void contractDelivered_sinNota_noDeberiaMostrarElRecuadro() throws IOException {
+        Map<String, Object> variables = base("https://devutec.vercel.app/contracts/21");
+        variables.put("clientName", "Pizzería Don Mario");
+        variables.put("freelancerName", "Camila Ríos");
+        variables.put("projectTitle", "Web para pizzería");
+        variables.put("deliveryUrl", "https://github.com/camila/web-pizzeria");
+        variables.put("deliveryNote", "");
+
+        String html = render("contract-delivered", variables);
+
+        assertTrue(html.contains("Abrir el link"));
+        assertFalse(html.contains("Nota de"), "sin nota no debería aparecer el recuadro");
     }
 
     // TEST 4: pago liberado: monto grande partido en "S/ 1,600" y ".50", y el código del pago
