@@ -33,4 +33,7 @@ public class ContractResponseDTO {
     // (el backend responde 403 a los demás) y no se mandan si el contrato está cancelado. null si no lo agregó.
     private String clientPhone;
     private String freelancerPhone;
+    // Link al trabajo entregado y la nota del freelancer. null mientras no entregue.
+    private String deliveryUrl;
+    private String deliveryNote;
 }

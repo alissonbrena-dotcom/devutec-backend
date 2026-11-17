@@ -39,6 +39,13 @@ public class Contract {
     @Column(name = "delivered_at")
     private LocalDateTime deliveredAt;
 
+    // Lo que entregó el freelancer: el link a su trabajo y una nota opcional para el cliente
+    @Column(name = "delivery_url")
+    private String deliveryUrl;
+
+    @Column(name = "delivery_note", length = 1000)
+    private String deliveryNote;
+
     @PrePersist
     protected void onCreate() {
         this.startedAt = LocalDateTime.now();

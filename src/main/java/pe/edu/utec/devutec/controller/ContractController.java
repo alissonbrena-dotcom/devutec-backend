@@ -1,10 +1,12 @@
 package pe.edu.utec.devutec.controller;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import pe.edu.utec.devutec.dto.ContractResponseDTO;
+import pe.edu.utec.devutec.dto.DeliveryRequestDTO;
 import pe.edu.utec.devutec.service.ContractService;
 
 import java.util.List;
@@ -28,8 +30,8 @@ public class ContractController {
 
     @PatchMapping("/{id}/deliver")
     @PreAuthorize("hasRole('FREELANCER')")
-    public ResponseEntity<ContractResponseDTO> deliver(@PathVariable Long id) {
-        return ResponseEntity.ok(contractService.deliver(id));
+    public ResponseEntity<ContractResponseDTO> deliver(@PathVariable Long id, @Valid @RequestBody DeliveryRequestDTO request) {
+        return ResponseEntity.ok(contractService.deliver(id, request));
     }
 
     @PatchMapping("/{id}/confirm")

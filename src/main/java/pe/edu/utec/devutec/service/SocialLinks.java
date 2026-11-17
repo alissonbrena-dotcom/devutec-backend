@@ -33,6 +33,11 @@ public final class SocialLinks {
 
     // Cualquier página web: se le agrega https:// si no lo tiene y tiene que tener un dominio (algo.pe, algo.com)
     public static String website(String raw) {
+        return link(raw, "La página web no parece un link válido, por ejemplo pizzeriadonmario.pe");
+    }
+
+    // Cualquier link (por ejemplo, el de la entrega de un trabajo): agrega https:// si falta y revisa que tenga dominio
+    public static String link(String raw, String errorMessage) {
         String value = clean(raw);
         if (value == null) {
             return null;
@@ -40,7 +45,7 @@ public final class SocialLinks {
         String url = value.matches("(?i)https?://.*") ? value : "https://" + value;
         String host = hostOf(url);
         if (host == null || !host.contains(".")) {
-            throw invalid("La página web no parece un link válido, por ejemplo pizzeriadonmario.pe");
+            throw invalid(errorMessage);
         }
         return url;
     }

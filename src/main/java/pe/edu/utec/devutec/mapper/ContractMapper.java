@@ -36,7 +36,9 @@ public class ContractMapper {
                 application.getProject().getDeadline(),
                 contract.getPayment().getStripeReference() != null,
                 sharePhones && client != null ? client.getCelular() : null,
-                sharePhones ? application.getFreelancer().getUser().getCelular() : null
+                sharePhones ? application.getFreelancer().getUser().getCelular() : null,
+                contract.getDeliveryUrl(),
+                contract.getDeliveryNote()
         );
     }
 
