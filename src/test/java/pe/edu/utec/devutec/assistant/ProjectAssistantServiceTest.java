@@ -72,7 +72,7 @@ class ProjectAssistantServiceTest {
                 new BigDecimal("500.00"), new BigDecimal("1000.00"), new BigDecimal("550.00"), new BigDecimal("1100.00"),
                 2, 4, List.of(new PriceEstimateDTO.Stage("Descubrimiento", 10, 2, 4),
                 new PriceEstimateDTO.Stage("Diseño", 30, 6, 12), new PriceEstimateDTO.Stage("Desarrollo", 40, 8, 16),
-                new PriceEstimateDTO.Stage("Entrega final", 20, 4, 8))));
+                new PriceEstimateDTO.Stage("Entrega final", 10, 2, 4))));
         service = new ProjectAssistantService(ai, currentUser, skills, funcionalidades, estimator,
                 new CommissionCalculator(new BigDecimal("0.10")), new PaymentPlanner(), 2, clock);
     }

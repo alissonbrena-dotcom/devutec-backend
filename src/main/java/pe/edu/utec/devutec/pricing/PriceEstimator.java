@@ -32,12 +32,15 @@ public class PriceEstimator {
     static final String CATEGORY = "CATEGORY";
     static final String HOURS = "HOURS";
 
-    // Etapas sugeridas con su porcentaje de pago. Suman 100.
+    // Etapas con su porcentaje de pago, iguales a las del contrato (ContractStagePlan): suman 90.
+    // El 10 % que falta es la bolsa de emergencia, que va aparte (ver PaymentPlanner).
     static final List<StageTemplate> STAGES = List.of(
             new StageTemplate("Descubrimiento", 10),
             new StageTemplate("Diseño", 30),
             new StageTemplate("Desarrollo", 40),
-            new StageTemplate("Entrega final", 20));
+            new StageTemplate("Entrega final", 10));
+    // Suma de los porcentajes de las etapas (90): las horas se reparten sobre esto, porque la bolsa no es trabajo
+    static final int STAGES_PERCENT = STAGES.stream().mapToInt(StageTemplate::percent).sum();
 
     // Todo proyecto tiene reunión inicial y publicación, aunque la IA no las nombre
     static final List<String> ALWAYS_INCLUDED = List.of("DESCUBRIMIENTO", "DESPLIEGUE");
@@ -160,8 +163,8 @@ public class PriceEstimator {
     static List<PriceEstimateDTO.Stage> stagesFor(int hoursMin, int hoursMax) {
         return STAGES.stream()
                 .map(stage -> new PriceEstimateDTO.Stage(stage.name(), stage.percent(),
-                        (int) Math.round(hoursMin * stage.percent() / 100.0),
-                        (int) Math.round(hoursMax * stage.percent() / 100.0)))
+                        (int) Math.round(hoursMin * stage.percent() / (double) STAGES_PERCENT),
+                        (int) Math.round(hoursMax * stage.percent() / (double) STAGES_PERCENT)))
                 .toList();
     }
 

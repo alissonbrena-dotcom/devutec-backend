@@ -6,11 +6,12 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
 
-// Pago en dos partes. Las etapas siguen siendo 10 / 30 / 40 / 20 %, pero el cliente paga así:
+// Pago en dos partes. Las etapas son 10 / 30 / 40 / 10 % y la bolsa de emergencia es un 10 % aparte
+// (igual que ContractStagePlan en el contrato). El cliente paga así:
 //   Pago 1 (50 %, al aceptar): Descubrimiento 10 % + Diseño 30 % + bolsa de emergencia 10 %.
-//   Pago 2 (50 %, al aprobar Diseño): Desarrollo 40 % + el 10 % que falta de la Entrega final.
-// La bolsa es la mitad de la Entrega final pagada por adelantado: si el cliente desaparece, con ella se le paga
-// al estudiante; si todo va bien, se usa en la Entrega final. Así el estudiante nunca trabaja una etapa sin pagar.
+//   Pago 2 (50 %, al aprobar Diseño): Desarrollo 40 % + Entrega final 10 %.
+// La bolsa protege al estudiante: si el cliente desaparece, con ella se le paga lo que ya entregó; si todo va bien,
+// se le libera al final. Así el estudiante nunca trabaja una etapa sin pagar.
 // Los montos se reparten partiendo los totales, para que los dos pagos sumen exactamente el total, al céntimo.
 @Component
 public class PaymentPlanner {
@@ -29,7 +30,7 @@ public class PaymentPlanner {
                         List.of("Descubrimiento (10 %)", "Diseño (30 %)", "Bolsa de emergencia (10 %)")),
                 new InstallmentDTO(2, 100 - FIRST_PAYMENT_PERCENT, freelancer2, client2.subtract(freelancer2), client2,
                         "Al aprobar la etapa de Diseño, antes de empezar el Desarrollo",
-                        List.of("Desarrollo (40 %)", "Resto de la Entrega final (10 %)")));
+                        List.of("Desarrollo (40 %)", "Entrega final (10 %)")));
     }
 
     private static BigDecimal half(BigDecimal value) {

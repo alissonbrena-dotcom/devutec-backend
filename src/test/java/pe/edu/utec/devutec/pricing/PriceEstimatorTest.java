@@ -57,7 +57,9 @@ class PriceEstimatorTest {
         assertEquals(new BigDecimal("930.00"), estimate.freelancerMax());
         assertEquals(new BigDecimal("605.00"), estimate.clientMin());
         assertEquals(4, estimate.stages().size());
-        assertEquals(100, estimate.stages().stream().mapToInt(PriceEstimateDTO.Stage::percent).sum());
+        // Etapas 10 / 30 / 40 / 10 (como el contrato) + 10 % de bolsa de emergencia aparte
+        assertEquals(90, estimate.stages().stream().mapToInt(PriceEstimateDTO.Stage::percent).sum());
+        assertEquals(10, estimate.stages().get(3).percent());
     }
 
     @Test

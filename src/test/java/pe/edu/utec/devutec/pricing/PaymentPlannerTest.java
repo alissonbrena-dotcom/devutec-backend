@@ -23,6 +23,8 @@ class PaymentPlannerTest {
         assertTrue(plan.get(0).covers().stream().anyMatch(item -> item.contains("Bolsa de emergencia")));
         assertEquals(new BigDecimal("400.00"), plan.get(1).freelancerAmount());
         assertEquals(new BigDecimal("440.00"), plan.get(1).clientAmount());
+        // Igual que el contrato: Entrega final 10 % y la bolsa como línea aparte en el pago 1
+        assertEquals(List.of("Desarrollo (40 %)", "Entrega final (10 %)"), plan.get(1).covers());
     }
 
     @Test
