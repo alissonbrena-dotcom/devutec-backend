@@ -8,6 +8,7 @@ import lombok.Setter;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @AllArgsConstructor
 @NoArgsConstructor
@@ -36,4 +37,9 @@ public class ContractResponseDTO {
     // Link al trabajo entregado y la nota del freelancer. null mientras no entregue.
     private String deliveryUrl;
     private String deliveryNote;
+    // Etapas del trabajo, en orden, y la posición de la que se está trabajando (null si ya terminó o se canceló)
+    private List<ContractStageResponseDTO> stages;
+    private Integer currentStage;
+    // Parte del monto que no es de ninguna etapa: la bolsa de emergencia (0 en contratos de una sola etapa)
+    private BigDecimal emergencyFund;
 }
