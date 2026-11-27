@@ -227,20 +227,45 @@ class ContractStagesTest {
                 () -> contractService.requestChanges(1L, new ChangeRequestDTO("Cambia algo")));
     }
 
-    // TEST 9 - Al cancelar, las etapas sin aprobar quedan canceladas y las aprobadas se mantienen
+    // TEST 9 - Al cancelar antes de aprobar etapas, todas quedan canceladas y se devuelve el pago
     @Test
-    void cancel_deberiaCancelarLasEtapasSinAprobar() {
+    void cancel_sinEtapasAprobadas_deberiaCancelarTodasLasEtapas() {
+        Contract contract = contractWithStages();
+        when(contractRepository.findById(1L)).thenReturn(Optional.of(contract));
+        when(currentUserService.getCurrentUser()).thenReturn(client);
+
+        contractService.cancel(1L);
+
+        assertEquals(ContractStatus.CANCELLED, contract.getStatus());
+        assertTrue(contract.getStages().stream().allMatch(stage -> stage.getStatus() == StageStatus.CANCELLED));
+        verify(paymentService).refundPayment(50L);
+    }
+
+    // TEST 9b - Con etapas ya aprobadas no se puede cancelar: el estudiante perdería lo que ya entregó
+    @Test
+    void cancel_conEtapasAprobadas_deberiaLanzarSinReembolsar() {
         Contract contract = contractWithStages();
         contract.getStages().get(0).setStatus(StageStatus.APPROVED);
         contract.getStages().get(1).setStatus(StageStatus.IN_PROGRESS);
         when(contractRepository.findById(1L)).thenReturn(Optional.of(contract));
         when(currentUserService.getCurrentUser()).thenReturn(client);
 
-        contractService.cancel(1L);
+        assertThrows(InvalidOperationException.class, () -> contractService.cancel(1L));
 
-        assertEquals(StageStatus.APPROVED, contract.getStages().get(0).getStatus());
-        assertEquals(StageStatus.CANCELLED, contract.getStages().get(1).getStatus());
-        assertEquals(StageStatus.CANCELLED, contract.getStages().get(3).getStatus());
+        assertEquals(ContractStatus.IN_PROGRESS, contract.getStatus());
+        assertEquals(StageStatus.IN_PROGRESS, contract.getStages().get(1).getStatus());
+        verify(checkoutService, never()).refundIfPaid(any());
+        verify(paymentService, never()).refundPayment(anyLong());
+    }
+
+    // TEST 9c - El monto liberado es la suma de las etapas aprobadas
+    @Test
+    void releasedAmount_deberiaSumarLasEtapasAprobadas() {
+        Contract contract = contractWithStages();
+        contract.getStages().get(0).setStatus(StageStatus.APPROVED);
+        contract.getStages().get(1).setStatus(StageStatus.APPROVED);
+
+        assertEquals(new BigDecimal("480.00"), ContractStagePlan.releasedAmount(contract));
     }
 
     // TEST 10 - Un contrato anterior a las etapas recibe una sola etapa del 100 % con su mismo estado

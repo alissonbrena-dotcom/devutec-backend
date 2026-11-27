@@ -50,7 +50,8 @@ public class ContractMapper {
                 contract.getDeliveryNote(),
                 contract.getStages().stream().map(this::toStageResponse).toList(),
                 ContractStagePlan.currentStage(contract).map(ContractStage::getPosition).orElse(null),
-                ContractStagePlan.emergencyFund(contract, contract.getPayment().getAmount())
+                ContractStagePlan.emergencyFund(contract, contract.getPayment().getAmount()),
+                ContractStagePlan.releasedAmount(contract)
         );
     }
 

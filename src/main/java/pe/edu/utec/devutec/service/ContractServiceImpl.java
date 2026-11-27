@@ -192,6 +192,11 @@ public class ContractServiceImpl implements ContractService {
         Contract contract = findContract(id);
         ensureIsClient(contract);
         ensureStatus(contract, ContractStatus.IN_PROGRESS);
+        // Si ya aprobó etapas, cancelar devolvería también lo que el estudiante ya entregó y el cliente aceptó
+        if (contract.getStages().stream().anyMatch(stage -> stage.getStatus() == StageStatus.APPROVED)) {
+            throw new InvalidOperationException(
+                    "No puedes cancelar: ya aprobaste etapas de este contrato. Si hay un problema, escríbenos a soporte.");
+        }
         checkoutService.refundIfPaid(contract);
 
         contract.getStages().stream()

@@ -42,4 +42,6 @@ public class ContractResponseDTO {
     private Integer currentStage;
     // Parte del monto que no es de ninguna etapa: la bolsa de emergencia (0 en contratos de una sola etapa)
     private BigDecimal emergencyFund;
+    // Suma de las etapas ya aprobadas por el cliente, para mostrar "Liberado" y "En garantía"
+    private BigDecimal releasedAmount;
 }

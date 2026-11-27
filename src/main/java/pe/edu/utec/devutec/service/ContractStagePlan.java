@@ -104,6 +104,14 @@ public final class ContractStagePlan {
         return price.subtract(stagesTotal).max(BigDecimal.ZERO);
     }
 
+    // Suma de las etapas que el cliente ya aprobó: lo que ya es del estudiante
+    public static BigDecimal releasedAmount(Contract contract) {
+        return contract.getStages().stream()
+                .filter(stage -> stage.getStatus() == StageStatus.APPROVED)
+                .map(ContractStage::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
     static BigDecimal percentOf(BigDecimal price, int percent) {
         return price.multiply(BigDecimal.valueOf(percent)).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
     }
