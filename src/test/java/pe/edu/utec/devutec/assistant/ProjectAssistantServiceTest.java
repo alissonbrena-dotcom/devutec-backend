@@ -10,6 +10,7 @@ import pe.edu.utec.devutec.exceptions.ApiException;
 import pe.edu.utec.devutec.model.Skill;
 import pe.edu.utec.devutec.pricing.CommissionCalculator;
 import pe.edu.utec.devutec.pricing.FuncionalidadReferenciaRepository;
+import pe.edu.utec.devutec.pricing.PaymentPlanner;
 import pe.edu.utec.devutec.pricing.PriceEstimateDTO;
 import pe.edu.utec.devutec.pricing.PriceEstimator;
 import pe.edu.utec.devutec.repository.SkillRepository;
@@ -73,7 +74,7 @@ class ProjectAssistantServiceTest {
                 new PriceEstimateDTO.Stage("Diseño", 30, 6, 12), new PriceEstimateDTO.Stage("Desarrollo", 40, 8, 16),
                 new PriceEstimateDTO.Stage("Entrega final", 20, 4, 8))));
         service = new ProjectAssistantService(ai, currentUser, skills, funcionalidades, estimator,
-                new CommissionCalculator(new BigDecimal("0.10")), 2, clock);
+                new CommissionCalculator(new BigDecimal("0.10")), new PaymentPlanner(), 2, clock);
     }
 
     private static ProjectAssistantAiReply reply(boolean outOfScope, boolean ready, double budget) {
@@ -124,6 +125,10 @@ class ProjectAssistantServiceTest {
         assertEquals(new BigDecimal("264.00"), draft.stages().get(1).clientAmount());
         assertEquals(LocalDate.of(2026, 12, 18), draft.deadline());
         assertTrue(draft.description().contains("rojo y crema"));
+        // Pago en dos partes sobre el presupuesto del cliente (S/ 880 = S/ 800 para el estudiante)
+        assertEquals(2, draft.payments().size());
+        assertEquals(new BigDecimal("440.00"), draft.payments().get(0).clientAmount());
+        assertEquals(new BigDecimal("400.00"), draft.payments().get(1).freelancerAmount());
     }
 
     @Test

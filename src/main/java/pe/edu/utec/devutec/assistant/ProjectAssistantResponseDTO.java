@@ -2,6 +2,7 @@ package pe.edu.utec.devutec.assistant;
 
 import pe.edu.utec.devutec.pricing.BudgetBreakdownDTO;
 import pe.edu.utec.devutec.pricing.FeatureQuantityDTO;
+import pe.edu.utec.devutec.pricing.PaymentPlanner;
 import pe.edu.utec.devutec.pricing.PriceEstimateDTO;
 
 import java.math.BigDecimal;
@@ -16,6 +17,7 @@ public record ProjectAssistantResponseDTO(String reply, boolean outOfScope, bool
     // Borrador para llenar el formulario de "Nuevo proyecto".
     // skillIds y skillNames NO se le muestran al cliente: se envían ocultos al crear el proyecto y los ve el estudiante.
     // budget: desglose del presupuesto del cliente (null si no dijo cuánto) · commissionRate: para recalcular en pantalla
+    // stages: las etapas del trabajo con su porcentaje · payments: cómo se pagan esas etapas (dos pagos)
     public record Draft(
             String title,
             String description,
@@ -28,7 +30,9 @@ public record ProjectAssistantResponseDTO(String reply, boolean outOfScope, bool
             PriceEstimateDTO estimate,
             BudgetBreakdownDTO budget,
             BigDecimal commissionRate,
-            List<StageAmount> stages
+            List<StageAmount> stages,
+            // Pago en dos partes: pago 1 (50 %, con la bolsa de emergencia) y pago 2 (50 %)
+            List<PaymentPlanner.InstallmentDTO> payments
     ) {
     }
 

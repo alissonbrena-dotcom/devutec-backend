@@ -12,6 +12,7 @@ import pe.edu.utec.devutec.pricing.CommissionCalculator;
 import pe.edu.utec.devutec.pricing.FeatureQuantityDTO;
 import pe.edu.utec.devutec.pricing.FuncionalidadReferencia;
 import pe.edu.utec.devutec.pricing.FuncionalidadReferenciaRepository;
+import pe.edu.utec.devutec.pricing.PaymentPlanner;
 import pe.edu.utec.devutec.pricing.PriceEstimateDTO;
 import pe.edu.utec.devutec.pricing.PriceEstimator;
 import pe.edu.utec.devutec.repository.SkillRepository;
@@ -76,6 +77,7 @@ public class ProjectAssistantService {
     private final FuncionalidadReferenciaRepository funcionalidades;
     private final PriceEstimator priceEstimator;
     private final CommissionCalculator commission;
+    private final PaymentPlanner paymentPlanner;
     private final int dailyLimit;
     private final Clock clock;
     // Mensajes usados hoy por cada cliente: "id:fecha" → cantidad. Se reinicia con el servidor; basta para la demo.
@@ -85,20 +87,23 @@ public class ProjectAssistantService {
     public ProjectAssistantService(AiGateway aiGateway, CurrentUserService currentUserService,
                                    SkillRepository skillRepository, FuncionalidadReferenciaRepository funcionalidades,
                                    PriceEstimator priceEstimator, CommissionCalculator commission,
+                                   PaymentPlanner paymentPlanner,
                                    @Value("${assistant.daily-limit:40}") int dailyLimit) {
-        this(aiGateway, currentUserService, skillRepository, funcionalidades, priceEstimator, commission, dailyLimit,
-                Clock.systemDefaultZone());
+        this(aiGateway, currentUserService, skillRepository, funcionalidades, priceEstimator, commission, paymentPlanner,
+                dailyLimit, Clock.systemDefaultZone());
     }
 
     ProjectAssistantService(AiGateway aiGateway, CurrentUserService currentUserService,
                             SkillRepository skillRepository, FuncionalidadReferenciaRepository funcionalidades,
-                            PriceEstimator priceEstimator, CommissionCalculator commission, int dailyLimit, Clock clock) {
+                            PriceEstimator priceEstimator, CommissionCalculator commission, PaymentPlanner paymentPlanner,
+                            int dailyLimit, Clock clock) {
         this.aiGateway = aiGateway;
         this.currentUserService = currentUserService;
         this.skillRepository = skillRepository;
         this.funcionalidades = funcionalidades;
         this.priceEstimator = priceEstimator;
         this.commission = commission;
+        this.paymentPlanner = paymentPlanner;
         this.dailyLimit = dailyLimit;
         this.clock = clock;
     }
@@ -187,6 +192,9 @@ public class ProjectAssistantService {
                 })
                 .toList();
 
+        BigDecimal clientTotal = budget != null ? budget.clientTotal() : commission.clientTotalOf(freelancerBase);
+        List<PaymentPlanner.InstallmentDTO> payments = paymentPlanner.plan(freelancerBase, clientTotal);
+
         int weeks = reply.weeks() > 0 ? reply.weeks() : estimate.weeksMax();
         String category = reply.category() != null && reply.category().matches("WEB|AUTOMATIZACION|APP")
                 ? reply.category() : "WEB";
@@ -206,7 +214,8 @@ public class ProjectAssistantService {
                 estimate,
                 budget,
                 commission.getRate(),
-                stages);
+                stages,
+                payments);
     }
 
     private void giveBackOneMessage(Long userId) {
