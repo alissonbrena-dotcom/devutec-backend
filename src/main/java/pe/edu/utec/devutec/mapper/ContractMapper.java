@@ -12,12 +12,19 @@ import pe.edu.utec.devutec.model.contract.ContractStage;
 import pe.edu.utec.devutec.service.ContractStagePlan;
 
 import java.time.LocalDate;
+import pe.edu.utec.devutec.dto.InstallmentResponseDTO;
+import pe.edu.utec.devutec.model.InstallmentStatus;
+import pe.edu.utec.devutec.payments.InstallmentService;
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.function.Function;
 
 @Component
 @RequiredArgsConstructor
 public class ContractMapper {
 
     private final UserRepository userRepository;
+    private final InstallmentService installmentService;
 
     public ContractResponseDTO toResponse(Contract contract) {
         Application application = contract.getApplication();
@@ -26,6 +33,12 @@ public class ContractMapper {
         LocalDate deadline = application.getProposedDeadline() != null
                 ? application.getProposedDeadline()
                 : application.getProject().getDeadline();
+        // Pago en dos partes: las cuotas y cuánto es del estudiante y cuánto de la comisión
+        List<InstallmentResponseDTO> installments = installmentService.toResponse(contract);
+        boolean hasPlan = !installments.isEmpty();
+        boolean paid = hasPlan
+                ? installments.stream().noneMatch(i -> InstallmentStatus.PENDING.name().equals(i.status()))
+                : contract.getPayment().getStripeReference() != null;
         return new ContractResponseDTO(
                 contract.getId(),
                 application.getProject().getTitle(),
@@ -40,7 +53,7 @@ public class ContractMapper {
                 application.getFreelancer().getUser().getId(),
                 client != null ? client.getNombre() : null,
                 deadline,
-                contract.getPayment().getStripeReference() != null,
+                paid,
                 // DEVUTEC no comparte celulares: todo se coordina dentro de la plataforma (decisión del equipo).
                 // Los campos quedan en null para no romper versiones anteriores de la web y la app.
                 null,
@@ -50,8 +63,16 @@ public class ContractMapper {
                 contract.getStages().stream().map(this::toStageResponse).toList(),
                 ContractStagePlan.currentStage(contract).map(ContractStage::getPosition).orElse(null),
                 ContractStagePlan.emergencyFund(contract, contract.getPayment().getAmount()),
-                ContractStagePlan.releasedAmount(contract)
+                ContractStagePlan.releasedAmount(contract),
+                installments,
+                hasPlan ? sum(installments, InstallmentResponseDTO::studentAmount) : null,
+                hasPlan ? sum(installments, InstallmentResponseDTO::commissionAmount) : null
         );
+    }
+
+    private static BigDecimal sum(List<InstallmentResponseDTO> installments,
+                                  Function<InstallmentResponseDTO, BigDecimal> amount) {
+        return installments.stream().map(amount).reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     private ContractStageResponseDTO toStageResponse(ContractStage stage) {

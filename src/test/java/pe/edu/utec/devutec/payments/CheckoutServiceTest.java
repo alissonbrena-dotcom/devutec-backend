@@ -46,6 +46,11 @@ class CheckoutServiceTest {
     @Mock
     private StripeGateway stripeGateway;
 
+    @Mock
+
+    private pe.edu.utec.devutec.payments.InstallmentService installmentService;
+
+
     @InjectMocks
     private CheckoutService checkoutService;
 
@@ -312,5 +317,57 @@ class CheckoutServiceTest {
     void toCents_deberiaMultiplicarPorCien() {
         assertEquals(120000L, CheckoutService.toCents(new BigDecimal("1200")));
         assertEquals(1999L, CheckoutService.toCents(new BigDecimal("19.99")));
+    }
+
+    // Pago en dos partes: se cobra solo la cuota, con referencia "contrato-cuota"
+    @Test
+    void startCheckout_conPlanDeDosPagos_deberiaCobrarSoloLaCuota() {
+        pe.edu.utec.devutec.model.PaymentInstallment cuota = new pe.edu.utec.devutec.model.PaymentInstallment();
+        cuota.setNumber(1);
+        cuota.setLabel("Pago 1");
+        cuota.setClientAmount(new BigDecimal("600.25"));
+        when(contractRepository.findById(5L)).thenReturn(Optional.of(contract));
+        when(currentUserService.getCurrentUser()).thenReturn(client);
+        when(installmentService.hasPlan(5L)).thenReturn(true);
+        when(installmentService.payable(contract, null)).thenReturn(cuota);
+        when(stripeGateway.createCheckoutSession(any()))
+                .thenReturn(new StripeCheckoutSession("cs_test_2", "https://checkout.stripe.com/c/pay/cs_test_2", "unpaid", null, "5-1"));
+
+        checkoutService.startCheckout(5L, null, null);
+
+        ArgumentCaptor<StripeGateway.CheckoutRequest> captor = ArgumentCaptor.forClass(StripeGateway.CheckoutRequest.class);
+        verify(stripeGateway).createCheckoutSession(captor.capture());
+        assertEquals(60025L, captor.getValue().amountInCents());
+        assertEquals("5-1", captor.getValue().contractId());
+    }
+
+    // Pago en dos partes: al volver de Stripe se marca pagada la cuota correcta
+    @Test
+    void confirmCheckout_conPlanDeDosPagos_deberiaMarcarLaCuota() {
+        pe.edu.utec.devutec.model.PaymentInstallment cuota = new pe.edu.utec.devutec.model.PaymentInstallment();
+        cuota.setNumber(2);
+        when(contractRepository.findById(5L)).thenReturn(Optional.of(contract));
+        when(currentUserService.getCurrentUser()).thenReturn(client);
+        when(installmentService.hasPlan(5L)).thenReturn(true);
+        when(stripeGateway.getCheckoutSession("cs_test_3"))
+                .thenReturn(new StripeCheckoutSession("cs_test_3", null, "paid", "pi_test_3", "5-2"));
+        when(installmentService.find(5L, 2)).thenReturn(cuota);
+
+        checkoutService.confirmCheckout(5L, "cs_test_3");
+
+        verify(installmentService).markPaid(cuota, "pi_test_3");
+    }
+
+    // Pago en dos partes: una sesión de otro contrato no sirve
+    @Test
+    void confirmCheckout_conPlanYReferenciaDeOtroContrato_deberiaLanzarExcepcion() {
+        when(contractRepository.findById(5L)).thenReturn(Optional.of(contract));
+        when(currentUserService.getCurrentUser()).thenReturn(client);
+        when(installmentService.hasPlan(5L)).thenReturn(true);
+        when(stripeGateway.getCheckoutSession("cs_x"))
+                .thenReturn(new StripeCheckoutSession("cs_x", null, "paid", "pi_x", "55-1"));
+
+        assertThrows(InvalidOperationException.class, () -> checkoutService.confirmCheckout(5L, "cs_x"));
+        verify(installmentService, never()).markPaid(any(), any());
     }
 }

@@ -12,6 +12,9 @@ public interface StripeGateway {
     // Devuelve al cliente todo lo que pagó con ese PaymentIntent (pi_...)
     void refund(String paymentIntentId);
 
+    // Devuelve solo una parte de lo que se pagó con ese PaymentIntent (en céntimos)
+    void refund(String paymentIntentId, long amountInCents);
+
     record CheckoutRequest(
             String contractId,
             String productName,

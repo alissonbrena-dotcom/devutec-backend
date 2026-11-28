@@ -74,8 +74,21 @@ public class StripeRestGateway implements StripeGateway {
 
     @Override
     public void refund(String paymentIntentId) {
+        sendRefund(paymentIntentId, null);
+    }
+
+    @Override
+    public void refund(String paymentIntentId, long amountInCents) {
+        sendRefund(paymentIntentId, amountInCents);
+    }
+
+    // Sin monto, Stripe devuelve todo; con monto, solo esa parte
+    private void sendRefund(String paymentIntentId, Long amountInCents) {
         MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
         form.add("payment_intent", paymentIntentId);
+        if (amountInCents != null) {
+            form.add("amount", String.valueOf(amountInCents));
+        }
         call(() -> {
             restClient.post()
                     .uri("/refunds")

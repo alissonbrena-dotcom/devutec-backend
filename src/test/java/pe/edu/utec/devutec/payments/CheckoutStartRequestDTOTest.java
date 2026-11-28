@@ -32,17 +32,17 @@ class CheckoutStartRequestDTOTest {
     @ParameterizedTest
     @ValueSource(strings = {"devutec://contracts/8", "exp://172.20.10.2:8081/--/contracts/8", "exps://u.expo.dev/--/contracts/8"})
     void linksDeLaApp_sonValidos(String link) {
-        assertTrue(validator.validate(new CheckoutStartRequestDTO(link)).isEmpty());
+        assertTrue(validator.validate(new CheckoutStartRequestDTO(link, null)).isEmpty());
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"https://sitio-malo.com", "javascript:alert(1)", "devutec://con espacio", "devutec://"})
     void otrosLinks_noSonValidos(String link) {
-        assertFalse(validator.validate(new CheckoutStartRequestDTO(link)).isEmpty());
+        assertFalse(validator.validate(new CheckoutStartRequestDTO(link, null)).isEmpty());
     }
 
     @org.junit.jupiter.api.Test
     void sinLink_esValido() {
-        assertTrue(validator.validate(new CheckoutStartRequestDTO(null)).isEmpty());
+        assertTrue(validator.validate(new CheckoutStartRequestDTO(null, null)).isEmpty());
     }
 }

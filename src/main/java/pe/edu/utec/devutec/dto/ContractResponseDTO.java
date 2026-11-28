@@ -46,4 +46,10 @@ public class ContractResponseDTO {
     // Lo que pagó el cliente por las etapas ya aprobadas (incluye la comisión de DEVUTEC), para mostrar
     // "Liberado" y "En garantía" desde el lado del cliente. No es lo que recibe el estudiante (eso es monto / 1,10).
     private BigDecimal releasedAmount;
+    // Pago en dos partes, con lo que se cobró de verdad en Stripe. amount es lo que paga el cliente en total
+    // (con la comisión incluida): studentAmount es lo que recibe el estudiante y commissionAmount la tarifa de DEVUTEC.
+    // En los contratos anteriores al pago en dos partes la lista viene vacía y los montos en null.
+    private List<InstallmentResponseDTO> installments;
+    private BigDecimal studentAmount;
+    private BigDecimal commissionAmount;
 }

@@ -31,6 +31,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import pe.edu.utec.devutec.payments.InstallmentService;
+import java.math.BigDecimal;
 
 // El trabajo avanza por etapas: el freelancer entrega la etapa actual y el cliente la aprueba o pide cambios.
 // Al aprobar la última etapa se confirma el contrato y se libera el pago.
@@ -47,6 +49,7 @@ public class ContractServiceImpl implements ContractService {
     private final ContractMapper contractMapper;
     private final ApplicationEventPublisher eventPublisher;
     private final CheckoutService checkoutService;
+    private final InstallmentService installmentService;
 
     @Override
     @Transactional
@@ -64,6 +67,8 @@ public class ContractServiceImpl implements ContractService {
         ContractStagePlan.addDefaultStages(contract, application.getProposedPrice(), deadline);
         // save asigna el id al mismo objeto, así que contract.getId() ya sirve para el link del correo
         contractRepository.save(contract);
+        // Plan de pago en dos partes (50 % al aceptar, 50 % al aprobar el Diseño)
+        installmentService.createPlan(contract);
 
         Project project = application.getProject();
         eventPublisher.publishEvent(new ContractCreatedEvent(
@@ -110,6 +115,8 @@ public class ContractServiceImpl implements ContractService {
         LocalDateTime now = LocalDateTime.now();
 
         Optional<ContractStage> current = ContractStagePlan.currentStage(contract);
+        // El estudiante nunca trabaja una etapa sin pagar: la cuota que cubre esta etapa tiene que estar pagada
+        current.ifPresent(stage -> checkoutService.ensurePartPaid(contract, stage.getPaymentPart()));
         current.ifPresent(stage -> {
             stage.setStatus(StageStatus.DELIVERED);
             stage.setDeliveredAt(now);
@@ -156,6 +163,15 @@ public class ContractServiceImpl implements ContractService {
             stage.setStatus(StageStatus.APPROVED);
             stage.setApprovedAt(LocalDateTime.now());
         });
+        // Pago en dos partes: lo de la etapa aprobada se libera al estudiante; al final, todo lo que quede (con la bolsa)
+        if (installmentService.hasPlan(contract.getId())) {
+            if (lastStage) {
+                installmentService.releaseAll(contract);
+            } else {
+                current.ifPresent(stage -> installmentService.releaseForStage(contract,
+                        BigDecimal.valueOf(stage.getPercentage()).movePointLeft(2)));
+            }
+        }
 
         if (lastStage) {
             contract.setStatus(ContractStatus.CONFIRMED);

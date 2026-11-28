@@ -23,7 +23,8 @@ public class CheckoutController {
     public ResponseEntity<CheckoutResponseDTO> start(@PathVariable Long id,
                                                      @Valid @RequestBody(required = false) CheckoutStartRequestDTO request) {
         String appReturnUrl = request != null ? request.appReturnUrl() : null;
-        return ResponseEntity.ok(checkoutService.startCheckout(id, appReturnUrl));
+        Integer installment = request != null ? request.installment() : null;
+        return ResponseEntity.ok(checkoutService.startCheckout(id, appReturnUrl, installment));
     }
 
     // Se llama al volver de Stripe, con el session_id que Stripe agrega al link de regreso
