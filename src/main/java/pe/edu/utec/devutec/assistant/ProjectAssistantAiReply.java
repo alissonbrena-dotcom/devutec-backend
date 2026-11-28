@@ -38,7 +38,16 @@ public record ProjectAssistantAiReply(
         int weeks,
 
         @JsonPropertyDescription("Colores, logo o estilo de marca que mencionó el cliente. Vacío si no dijo nada.")
-        String brandStyle
+        String brandStyle,
+
+        @JsonPropertyDescription("Qué contenido ya tiene el cliente (fotos, textos, carta, logo) y qué falta preparar. Vacío si no se habló.")
+        String contentStatus,
+
+        @JsonPropertyDescription("QUÉ datos de contacto del negocio quiere mostrar en la web o app (por ejemplo: botón de WhatsApp del negocio, correo, dirección, horario, Instagram). NUNCA números, correos ni links: esos los pasa en el contrato. Vacío si no aplica.")
+        String contactToShow,
+
+        @JsonPropertyDescription("Dudas que quedaron abiertas y que el estudiante debe confirmar con el cliente en la etapa de Descubrimiento, como preguntas cortas. Lista vacía si no queda ninguna.")
+        List<String> openQuestions
 ) {
     public record AiFeature(
             @JsonPropertyDescription("Código de la tabla de funcionalidades, por ejemplo CARTA_CATALOGO")

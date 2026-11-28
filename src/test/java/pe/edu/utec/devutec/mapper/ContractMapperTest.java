@@ -2,6 +2,8 @@ package pe.edu.utec.devutec.mapper;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -66,6 +68,8 @@ class ContractMapperTest {
         Payment payment = new Payment();
         payment.setAmount(new BigDecimal("600"));
         payment.setStatus(PaymentStatus.HELD);
+        // Pagado con tarjeta: el pago está en garantía, así que se pueden compartir los celulares
+        payment.setStripeReference("pi_prueba");
         Contract contract = new Contract();
         contract.setId(21L);
         contract.setApplication(application);
@@ -74,43 +78,15 @@ class ContractMapperTest {
         return contract;
     }
 
-    // TEST 1: en un contrato en curso se comparten los dos celulares
-    @Test
-    void toResponse_contratoEnCurso_deberiaIncluirLosCelulares() {
-        ContractResponseDTO response = contractMapper.toResponse(contract(ContractStatus.IN_PROGRESS));
-
-        assertEquals("912345678", response.getClientPhone());
-        assertEquals("987654321", response.getFreelancerPhone());
-        assertEquals("Pizzería Don Mario", response.getClientName());
-    }
-
-    // TEST 2: también en uno terminado, por si hay que coordinar algo después de la entrega
-    @Test
-    void toResponse_contratoConfirmado_deberiaIncluirLosCelulares() {
-        ContractResponseDTO response = contractMapper.toResponse(contract(ContractStatus.CONFIRMED));
-
-        assertNotNull(response.getClientPhone());
-        assertNotNull(response.getFreelancerPhone());
-    }
-
-    // TEST 3: con el contrato cancelado ya no se comparten
-    @Test
-    void toResponse_contratoCancelado_noDeberiaIncluirLosCelulares() {
-        ContractResponseDTO response = contractMapper.toResponse(contract(ContractStatus.CANCELLED));
+    // DEVUTEC no comparte celulares en ningún estado del contrato, aunque los dos los hayan agregado y el pago
+    // esté en garantía: todo se coordina dentro de la plataforma
+    @ParameterizedTest
+    @EnumSource(ContractStatus.class)
+    void toResponse_nuncaIncluyeLosCelulares(ContractStatus status) {
+        ContractResponseDTO response = contractMapper.toResponse(contract(status));
 
         assertNull(response.getClientPhone());
         assertNull(response.getFreelancerPhone());
         assertEquals("Pizzería Don Mario", response.getClientName());
-    }
-
-    // TEST 4: si alguien no agregó su celular, llega null (la app muestra que todavía no lo agregó)
-    @Test
-    void toResponse_sinCelular_deberiaLlegarNull() {
-        freelancerUser.setCelular(null);
-
-        ContractResponseDTO response = contractMapper.toResponse(contract(ContractStatus.IN_PROGRESS));
-
-        assertNull(response.getFreelancerPhone());
-        assertEquals("912345678", response.getClientPhone());
     }
 }

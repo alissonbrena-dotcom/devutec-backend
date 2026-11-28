@@ -80,7 +80,9 @@ class ProjectAssistantServiceTest {
     private static ProjectAssistantAiReply reply(boolean outOfScope, boolean ready, double budget) {
         return new ProjectAssistantAiReply(outOfScope, "¿Qué negocio tienes?", ready, "Web para Pizzería Mario",
                 "Una web con tu carta y pedidos.", "WEB", List.of("react", "Inventada"),
-                List.of(new ProjectAssistantAiReply.AiFeature("CARTA_CATALOGO", 1)), budget, 3, "rojo y crema");
+                List.of(new ProjectAssistantAiReply.AiFeature("CARTA_CATALOGO", 1)), budget, 3, "rojo y crema",
+                "Tiene logo y fotos de los platos; faltan los textos", "Botón de WhatsApp del negocio y dirección",
+                List.of("¿Delivery, recojo o los dos?"));
     }
 
     @Test
@@ -125,6 +127,10 @@ class ProjectAssistantServiceTest {
         assertEquals(new BigDecimal("264.00"), draft.stages().get(1).clientAmount());
         assertEquals(LocalDate.of(2026, 12, 18), draft.deadline());
         assertTrue(draft.description().contains("rojo y crema"));
+        // Contenido, contacto a mostrar y dudas para Descubrimiento quedan en la descripción
+        assertTrue(draft.description().contains("Contenido: Tiene logo y fotos"));
+        assertTrue(draft.description().contains("Contacto que se mostrará: Botón de WhatsApp del negocio"));
+        assertTrue(draft.description().contains("Por confirmar en Descubrimiento:\n- ¿Delivery, recojo o los dos?"));
         // Pago en dos partes sobre el presupuesto del cliente (S/ 880 = S/ 800 para el estudiante)
         assertEquals(2, draft.payments().size());
         assertEquals(new BigDecimal("440.00"), draft.payments().get(0).clientAmount());
@@ -150,5 +156,18 @@ class ProjectAssistantServiceTest {
                 .outputConfig(ProjectAssistantAiReply.class)
                 .addUserMessage("Hola")
                 .build());
+    }
+
+    @Test
+    void laDescripcionNuncaLlevaNumerosNiCorreos() {
+        ProjectAssistantAiReply withContact = new ProjectAssistantAiReply(false, "Listo", true, "Web para Pizzería Mario",
+                "Una web con la carta. Pedidos al 987 654 321 o a mario.pizza@gmail.com", "WEB", List.of(), List.of(),
+                880, 3, "", "", "WhatsApp 987654321", List.of());
+
+        String description = ProjectAssistantService.describe(withContact, "");
+
+        assertFalse(description.contains("987"));
+        assertFalse(description.contains("@gmail"));
+        assertTrue(description.contains("Contacto que se mostrará: WhatsApp [dato de contacto]"));
     }
 }

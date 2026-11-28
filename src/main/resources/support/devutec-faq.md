@@ -14,7 +14,7 @@ DEVUTEC conecta a negocios y personas (clientes) con estudiantes y egresados de 
 - Se puede subir una foto de perfil (JPG o PNG, hasta 5 MB). Se recorta cuadrada.
 - El freelancer puede completar universidad, ciclo, si es egresado, tarifa por hora, portafolio y usuario de GitHub. El cliente ve sus repositorios públicos.
 - Cada freelancer tiene un código QR de su perfil para compartirlo. En la app se puede escanear el QR de otro freelancer.
-- El celular para WhatsApp se agrega en el perfil (celular peruano de 9 dígitos). Solo lo ven las dos personas de un contrato.
+- DEVUTEC no comparte celulares ni correos entre cliente y estudiante: todo se coordina dentro de la plataforma, así el pago queda protegido por la garantía.
 
 ## Proyectos y postulaciones (cliente)
 - El cliente publica un proyecto con título, descripción, presupuesto en soles, fecha límite, ubicación (distrito) y habilidades.
@@ -33,7 +33,7 @@ DEVUTEC conecta a negocios y personas (clientes) con estudiantes y egresados de 
 - El pago queda retenido en garantía: el freelancer no lo recibe hasta que el cliente confirma la entrega.
 - El freelancer marca el trabajo como entregado. Después el cliente confirma la entrega y se libera el pago. Si al confirmar la app avisa que falta el pago, el cliente primero tiene que pagar el contrato con tarjeta.
 - El cliente puede cancelar un contrato solo mientras está en progreso (antes de la entrega). Si ya había pagado, se le devuelve el dinero y el proyecto vuelve a quedar abierto.
-- Desde el contrato se puede escribir por WhatsApp a la otra persona si ambos agregaron su celular.
+- La comunicación va dentro del contrato: notas de entrega, pedidos de cambios y la traductora. Si alguien pide hablar o pagar por fuera, se puede reportar desde el contrato.
 
 ## Reseñas
 - Cuando la entrega está confirmada, el cliente y el freelancer pueden dejarse una reseña (de 1 a 5 estrellas). Solo una por persona y por contrato.

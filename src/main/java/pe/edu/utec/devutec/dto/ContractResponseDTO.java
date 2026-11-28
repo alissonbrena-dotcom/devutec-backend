@@ -30,8 +30,8 @@ public class ContractResponseDTO {
     private LocalDate deadline;
     // true cuando el cliente ya pagó el contrato con tarjeta (Stripe, modo prueba)
     private boolean paidWithCard;
-    // Celulares de las dos personas para escribirse por WhatsApp. Solo los ve quien participa del contrato
-    // (el backend responde 403 a los demás) y no se mandan si el contrato está cancelado. null si no lo agregó.
+    // Ya no se usan: DEVUTEC no comparte celulares entre cliente y estudiante, todo se coordina en la plataforma.
+    // Siempre llegan null; quedan para no romper versiones anteriores de la web y la app.
     private String clientPhone;
     private String freelancerPhone;
     // Link al trabajo entregado y la nota del freelancer. null mientras no entregue.

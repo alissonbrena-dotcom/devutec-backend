@@ -9,7 +9,6 @@ import pe.edu.utec.devutec.dto.ContractStageResponseDTO;
 import pe.edu.utec.devutec.model.application.Application;
 import pe.edu.utec.devutec.model.contract.Contract;
 import pe.edu.utec.devutec.model.contract.ContractStage;
-import pe.edu.utec.devutec.model.contract.ContractStatus;
 import pe.edu.utec.devutec.service.ContractStagePlan;
 
 import java.time.LocalDate;
@@ -23,8 +22,6 @@ public class ContractMapper {
     public ContractResponseDTO toResponse(Contract contract) {
         Application application = contract.getApplication();
         User client = findClient(application.getProject().getClientId());
-        // Con el contrato cancelado ya no hay trabajo en común, así que no se comparten los celulares
-        boolean sharePhones = contract.getStatus() != ContractStatus.CANCELLED;
         // El plazo del contrato es el que propuso el freelancer (contraoferta) o, si no propuso, el del proyecto
         LocalDate deadline = application.getProposedDeadline() != null
                 ? application.getProposedDeadline()
@@ -44,8 +41,10 @@ public class ContractMapper {
                 client != null ? client.getNombre() : null,
                 deadline,
                 contract.getPayment().getStripeReference() != null,
-                sharePhones && client != null ? client.getCelular() : null,
-                sharePhones ? application.getFreelancer().getUser().getCelular() : null,
+                // DEVUTEC no comparte celulares: todo se coordina dentro de la plataforma (decisión del equipo).
+                // Los campos quedan en null para no romper versiones anteriores de la web y la app.
+                null,
+                null,
                 contract.getDeliveryUrl(),
                 contract.getDeliveryNote(),
                 contract.getStages().stream().map(this::toStageResponse).toList(),

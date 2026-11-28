@@ -18,6 +18,7 @@ import pe.edu.utec.devutec.pricing.PriceEstimator;
 import pe.edu.utec.devutec.repository.SkillRepository;
 import pe.edu.utec.devutec.service.CurrentUserService;
 import pe.edu.utec.devutec.support.AiGateway;
+import pe.edu.utec.devutec.support.ContactFilter;
 import pe.edu.utec.devutec.support.ChatTurnDTO;
 
 import java.math.BigDecimal;
@@ -42,27 +43,66 @@ public class ProjectAssistantService {
     static final String OUT_OF_SCOPE_REPLY =
             "Solo puedo ayudarte a armar tu proyecto digital en DEVUTEC. ¿Me cuentas qué necesitas para tu negocio?";
 
+    // Ya no se usan preguntas fijas: la IA tiene una lista de TEMAS que debe cubrir y decide cómo preguntarlos
+    // según el proyecto (no es lo mismo una web para una pizzería que automatizar un inventario).
+    // Lo que quede abierto pasa al estudiante como "Por confirmar en Descubrimiento".
+    static final int MAX_CLIENT_MESSAGES = 10;
+
     private static final String RULES = """
             Eres el asistente de proyectos de DEVUTEC, una plataforma peruana donde negocios pequeños contratan a \
             estudiantes de tecnología de UTEC para hacer webs, automatizaciones y apps, con el pago en garantía.
-            Tu único trabajo es ayudar al cliente a definir su proyecto digital. Hablas como un consultor amable, \
-            en español de Perú, simple y sin palabras técnicas.
+            Tu único trabajo es ayudar al cliente a definir bien su proyecto digital, como un consultor amable que \
+            entiende su negocio. Hablas en español de Perú, simple y sin palabras técnicas.
+
+            CÓMO CONVERSAS:
+            - UNA sola pregunta por mensaje, corta. Puedes comentar en una frase lo que te dijo antes de preguntar.
+            - Adapta cada pregunta al negocio y a lo que ya respondió. Si una respuesta abre una duda que cambia el \
+            trabajo, pregúntala antes de cambiar de tema (por ejemplo: "pedidos" -> ¿delivery, recojo o los dos? \
+            ¿pagan en línea o al recibir?; "reservas" -> ¿de mesas, citas o clases? ¿con qué anticipación?).
+            - No preguntes lo que ya dijo ni lo que se deduce. Si dice "no sé", propón la opción más común para un \
+            negocio como el suyo y pregúntale si le parece bien.
+            - No preguntes por tecnologías ni lenguajes: el cliente no sabe de eso. Tú eliges las habilidades.
+            - Sé eficiente: apunta a tener todo claro en unas 6 a 10 preguntas.
+
+            TEMAS QUE DEBES CUBRIR (en el orden que tenga más sentido para este cliente; salta los que no apliquen):
+            1. El negocio: qué es y a quién le vende.
+            2. El objetivo: qué problema quiere resolver o qué quiere lograr con el proyecto.
+            3. Qué necesita que haga, con los detalles que cambian el trabajo. Según el tipo:
+               - WEB: qué secciones o páginas; si recibe pedidos, reservas o pagos y cómo lo hace hoy; si ya tiene \
+            la dirección de la web (dominio) o solo redes.
+               - AUTOMATIZACION: qué tarea hace hoy a mano, con qué herramientas (Excel, Google Sheets, WhatsApp, \
+            un sistema), cada cuánto y quién la usa.
+               - APP: quién la usa (sus clientes o su equipo), si necesita cuentas de usuario, avisos en el celular, \
+            y si es para Android, iPhone o los dos.
+            4. Contenido: si ya tiene logo, colores, fotos y textos, o hay que prepararlos. Guárdalo en contentStatus \
+            (y logo o colores en brandStyle).
+            5. Contacto (solo si es una web o app que verán sus clientes): QUÉ datos quiere que aparezcan (WhatsApp \
+            o teléfono del negocio, correo, dirección, horario, redes). Pregunta qué datos, NO los números ni \
+            correos: dile que los exactos se los pasa al estudiante dentro del contrato en DEVUTEC, cuando ya lo hayan contratado. \
+            Guárdalo en contactToShow. Si igual escribe un número, correo o link, NO lo copies en ningún campo.
+            6. Plazo: para cuándo lo necesita.
+            7. Presupuesto: cuánto tiene pensado invertir. Es opcional: si no sabe, dile que DEVUTEC le sugiere un \
+            precio con proyectos parecidos.
+
+            CUÁNDO TERMINAR:
+            - Pon ready = true cuando tengas claros los temas 1, 2, 3 y 6, y ya hayas preguntado por los demás que \
+            apliquen. Lo que haya quedado sin resolver va en openQuestions (preguntas cortas para que el estudiante \
+            las confirme con el cliente en Descubrimiento).
+            - El cliente ya escribió %d de %d mensajes. Si llegó al máximo, pon ready = true con lo que tengas y \
+            deja lo que falte en openQuestions.
+            - Cuando ready = true, llena title, clientDescription, category, skills y features, y en message dile \
+            que ya armaste el proyecto y que lo revise.
 
             REGLAS:
             - Responde SOLO sobre el proyecto digital del cliente en DEVUTEC. Si el mensaje es de otro tema \
             (tareas, recetas, chistes, programación ajena, política, otra empresa, etc.), pon outOfScope = true.
-            - Haz UNA pregunta a la vez. Averigua, en este orden y solo lo que falte: qué negocio tiene, qué quiere \
-            lograr, qué necesita que tenga (páginas, carta, pedidos, reservas, pagos, etc.), si tiene logo o colores, \
-            y para cuándo lo necesita.
-            - No preguntes por tecnologías: el cliente no sabe de eso. Tú eliges las habilidades.
             - NUNCA escribas precios, montos ni rangos en message: DEVUTEC los calcula con datos reales y se los \
             muestra aparte. Si el cliente menciona su presupuesto, guárdalo en clientBudget (es el TOTAL que pagaría, \
             ya con la tarifa de DEVUTEC).
             - Usa SOLO los códigos de la tabla de funcionalidades y SOLO las habilidades de la lista.
-            - Pon ready = true cuando sepas el tipo de negocio, qué quiere lograr y qué funcionalidades necesita. \
-            Entonces llena title, clientDescription, category, skills y features, y en message dile que ya armaste \
-            el proyecto y que lo revise.
-            - Nunca pidas contraseñas, datos de tarjetas ni códigos de verificación.
+            - Nunca pidas contraseñas, datos de tarjetas, códigos de verificación ni datos de contacto personales.
+            - NUNCA pongas números de teléfono, correos ni links en title, clientDescription ni en ningún campo: \
+            la descripción la ven todos los estudiantes.
 
             TABLA DE FUNCIONALIDADES (código: nombre · tipo):
             %s
@@ -121,7 +161,9 @@ public class ProjectAssistantService {
 
         List<Skill> skills = skillRepository.findAll();
         List<FuncionalidadReferencia> catalog = funcionalidades.findAllByOrderByCategoriaAscCodigoAsc();
+        long clientMessages = turns.stream().filter(turn -> "user".equals(turn.role())).count();
         String instructions = RULES.formatted(
+                clientMessages, MAX_CLIENT_MESSAGES,
                 catalog.stream().map(f -> "- " + f.getCodigo() + ": " + f.getNombre() + " · " + f.getCategoria())
                         .collect(Collectors.joining("\n")),
                 skills.stream().map(Skill::getName).collect(Collectors.joining(", ")));
@@ -198,12 +240,11 @@ public class ProjectAssistantService {
         int weeks = reply.weeks() > 0 ? reply.weeks() : estimate.weeksMax();
         String category = reply.category() != null && reply.category().matches("WEB|AUTOMATIZACION|APP")
                 ? reply.category() : "WEB";
-        String brandStyle = reply.brandStyle() == null ? "" : reply.brandStyle().trim();
-        String description = reply.clientDescription() == null ? "" : reply.clientDescription().trim();
-        if (!brandStyle.isEmpty()) description = description + "\n\nEstilo de la marca: " + brandStyle;
+        String brandStyle = clean(reply.brandStyle());
+        String description = describe(reply, brandStyle);
 
         return new ProjectAssistantResponseDTO.Draft(
-                reply.title() == null || reply.title().isBlank() ? "Nuevo proyecto" : reply.title().trim(),
+                clean(reply.title()).isEmpty() ? "Nuevo proyecto" : clean(reply.title()),
                 description,
                 category,
                 skillIds,
@@ -216,6 +257,34 @@ public class ProjectAssistantService {
                 commission.getRate(),
                 stages,
                 payments);
+    }
+
+    // Descripción que ven el cliente y los estudiantes: lo que pidió, su marca, su contenido, qué contacto mostrar
+    // y lo que hay que confirmar en Descubrimiento. Sin datos de contacto: la descripción es pública.
+    static String describe(ProjectAssistantAiReply reply, String brandStyle) {
+        StringBuilder text = new StringBuilder(clean(reply.clientDescription()));
+        appendSection(text, "Estilo de la marca", brandStyle);
+        appendSection(text, "Contenido", clean(reply.contentStatus()));
+        appendSection(text, "Contacto que se mostrará", clean(reply.contactToShow()));
+        List<String> questions = reply.openQuestions() == null ? List.of() : reply.openQuestions().stream()
+                .map(ProjectAssistantService::clean)
+                .filter(question -> !question.isEmpty())
+                .limit(6)
+                .toList();
+        if (!questions.isEmpty()) {
+            text.append("\n\nPor confirmar en Descubrimiento:");
+            questions.forEach(question -> text.append("\n- ").append(question));
+        }
+        return text.toString().trim();
+    }
+
+    private static void appendSection(StringBuilder text, String label, String value) {
+        if (!value.isEmpty()) text.append("\n\n").append(label).append(": ").append(value);
+    }
+
+    // Lo que escribe la IA, sin espacios de más y sin números ni correos (por si igual los copió)
+    private static String clean(String value) {
+        return value == null ? "" : ContactFilter.removeContactData(value.trim());
     }
 
     private void giveBackOneMessage(Long userId) {

@@ -1,5 +1,6 @@
 package pe.edu.utec.devutec.service;
 
+import pe.edu.utec.devutec.moderation.ContactGuard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -34,6 +35,7 @@ public class ApplicationServiceImpl implements ApplicationService {
     private final ProjectRepository projectRepository;
     private final FreelancerProfileRepository freelancerProfileRepository;
     private final CurrentUserService currentUserService;
+    private final ContactGuard contactGuard;
     private final ApplicationMapper applicationMapper;
     private final ApplicationEventPublisher eventPublisher;
     private final ContractService contractService;
@@ -45,6 +47,8 @@ public class ApplicationServiceImpl implements ApplicationService {
         Project project = findProject(dto.getProjectId());
         ensureProjectIsOpen(project);
         ensureNotAppliedYet(project, freelancer);
+        // El mensaje de la postulación llega antes del contrato: sin datos de contacto ni pedidos de salirse
+        contactGuard.checkBeforeContract(freelancer.getUser(), "Postulación al proyecto " + project.getId(), dto.getMessage());
 
         Application application = new Application();
         application.setProject(project);

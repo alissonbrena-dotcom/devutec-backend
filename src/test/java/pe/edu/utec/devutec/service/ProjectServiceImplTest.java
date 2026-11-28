@@ -1,5 +1,6 @@
 package pe.edu.utec.devutec.service;
 
+import pe.edu.utec.devutec.moderation.ContactGuard;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -56,6 +57,9 @@ class ProjectServiceImplTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private ContactGuard contactGuard;
 
     @InjectMocks
     private ProjectServiceImpl projectService;
