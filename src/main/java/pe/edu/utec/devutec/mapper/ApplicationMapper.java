@@ -16,7 +16,10 @@ public class ApplicationMapper {
                 application.getStatus().name(),
                 application.getCreatedAt(),
                 application.getProject().getId(),
-                application.getFreelancer().getUser().getId()
+                application.getFreelancer().getUser().getId(),
+                application.getProposedDeadline(),
+                application.getProject().getBudget(),
+                application.getProject().getDeadline()
         );
     }
 }

@@ -51,6 +51,7 @@ public class ApplicationServiceImpl implements ApplicationService {
         application.setFreelancer(freelancer);
         application.setMessage(dto.getMessage());
         application.setProposedPrice(dto.getProposedPrice());
+        application.setProposedDeadline(dto.getProposedDeadline());
         Application saved = applicationRepository.save(application);
 
         eventPublisher.publishEvent(new ApplicationCreatedEvent(

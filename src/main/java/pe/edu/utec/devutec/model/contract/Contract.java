@@ -9,6 +9,8 @@ import pe.edu.utec.devutec.model.Payment;
 import pe.edu.utec.devutec.model.application.Application;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @NoArgsConstructor
 @AllArgsConstructor
@@ -39,12 +41,17 @@ public class Contract {
     @Column(name = "delivered_at")
     private LocalDateTime deliveredAt;
 
-    // Lo que entregó el freelancer: el link a su trabajo y una nota opcional para el cliente
+    // Lo que entregó el freelancer en la etapa actual: el link a su trabajo y una nota opcional para el cliente
     @Column(name = "delivery_url")
     private String deliveryUrl;
 
     @Column(name = "delivery_note", length = 1000)
     private String deliveryNote;
+
+    // Etapas del trabajo, en orden. Se guardan y se borran junto con el contrato.
+    @OneToMany(mappedBy = "contract", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("position ASC")
+    private List<ContractStage> stages = new ArrayList<>();
 
     @PrePersist
     protected void onCreate() {
@@ -52,5 +59,10 @@ public class Contract {
         if (this.status == null) {
             this.status = ContractStatus.IN_PROGRESS;
         }
+    }
+
+    public void addStage(ContractStage stage) {
+        stage.setContract(this);
+        stages.add(stage);
     }
 }
