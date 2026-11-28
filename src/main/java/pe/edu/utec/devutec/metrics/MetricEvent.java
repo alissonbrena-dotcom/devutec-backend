@@ -18,6 +18,8 @@ public class MetricEvent {
 
     public static final String VIEW = "view";
     public static final String EVENT = "event";
+    public static final String PERFORMANCE = "perf";
+    public static final String CLICK = "click";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -39,7 +41,15 @@ public class MetricEvent {
     @Column(name = "session_id", length = 40)
     private String sessionId;
 
-    // Lo que tardó en cargar la página, en milisegundos (solo en las visitas)
+    // "celular" o "computadora"
+    @Column(length = 12)
+    private String device;
+
+    // De dónde llegó la visita: instagram, google, directo… (solo en las visitas)
+    @Column(length = 20)
+    private String source;
+
+    // Lo que tardó en cargar la página, en milisegundos (solo en los eventos de velocidad)
     @Column(name = "load_ms")
     private Integer loadMs;
 

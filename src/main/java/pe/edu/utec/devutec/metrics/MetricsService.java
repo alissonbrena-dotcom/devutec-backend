@@ -46,6 +46,7 @@ public class MetricsService {
     private final MetricEventRepository eventRepository;
     private final CurrentUserService currentUserService;
     private final String publicApiUrl;
+    private final String frontendUrl;
     private final int perMinuteLimit;
     private final Clock clock;
     // Eventos recibidos por sitio en el minuto actual: "siteKey:minuto" → cantidad (frena el spam)
@@ -55,14 +56,16 @@ public class MetricsService {
     public MetricsService(ContractRepository contractRepository, TrackedSiteRepository siteRepository,
                           MetricEventRepository eventRepository, CurrentUserService currentUserService,
                           @Value("${metrics.public-api-url:http://localhost:8080/api/v1}") String publicApiUrl,
+                          @Value("${app.frontend-url:https://devutec.vercel.app}") String frontendUrl,
                           @Value("${metrics.events-per-minute:120}") int perMinuteLimit) {
-        this(contractRepository, siteRepository, eventRepository, currentUserService, publicApiUrl, perMinuteLimit,
-                Clock.systemDefaultZone());
+        this(contractRepository, siteRepository, eventRepository, currentUserService, publicApiUrl, frontendUrl,
+                perMinuteLimit, Clock.systemDefaultZone());
     }
 
     MetricsService(ContractRepository contractRepository, TrackedSiteRepository siteRepository,
                    MetricEventRepository eventRepository, CurrentUserService currentUserService,
-                   String publicApiUrl, int perMinuteLimit, Clock clock) {
+                   String publicApiUrl, String frontendUrl, int perMinuteLimit, Clock clock) {
+        this.frontendUrl = frontendUrl.replaceAll("/+$", "");
         this.contractRepository = contractRepository;
         this.siteRepository = siteRepository;
         this.eventRepository = eventRepository;
@@ -74,8 +77,17 @@ public class MetricsService {
 
     // ---------- Recibir eventos (público, desde la web del cliente) ----------
 
+    // Tipos que manda public/metricas.js (el script del equipo) → cómo se guardan aquí.
+    // ORDER, CONTACT y RESERVATION son los botones marcados con data-devutec="pedido|contacto|reserva".
+    static final Map<String, String> EVENT_LABELS = Map.of(
+            "ORDER", ORDER,
+            "CONTACT", "contacto",
+            "RESERVATION", "reserva");
+
     // Devuelve true si se guardó. Lo que no sirve (sitio desconocido, JSON roto, spam) se descarta en silencio:
     // la web del cliente nunca debe fallar por las métricas.
+    // Formato: {key, type: PAGEVIEW|PERFORMANCE|CLICK|ORDER|CONTACT|RESERVATION|CUSTOM, path, visitorId, device,
+    //           source, valueMs, name}
     @Transactional
     public boolean record(String body) {
         JsonNode root;
@@ -85,27 +97,46 @@ public class MetricsService {
             return false;
         }
         if (root == null || !root.isObject()) return false;
-        String key = text(root, "k", 32);
-        String type = text(root, "t", 10);
-        if (key == null || !(MetricEvent.VIEW.equals(type) || MetricEvent.EVENT.equals(type))) return false;
+        String key = text(root, "key", 32);
+        String type = text(root, "type", 20);
+        if (key == null || type == null) return false;
+
+        MetricEvent event = new MetricEvent();
+        switch (type.toUpperCase()) {
+            case "PAGEVIEW" -> {
+                event.setType(MetricEvent.VIEW);
+                event.setSource(text(root, "source", 20));
+            }
+            case "PERFORMANCE" -> {
+                JsonNode ms = root.path("valueMs");
+                // Más de 2 minutos no es una carga real
+                if (!ms.isNumber() || ms.asInt() <= 0 || ms.asInt() >= 120_000) return false;
+                event.setType(MetricEvent.PERFORMANCE);
+                event.setLoadMs(ms.asInt());
+            }
+            case "CLICK" -> event.setType(MetricEvent.CLICK);
+            case "CUSTOM" -> {
+                String name = text(root, "name", 60);
+                if (name == null) return false;
+                event.setType(MetricEvent.EVENT);
+                event.setLabel(name.toLowerCase());
+            }
+            default -> {
+                String label = EVENT_LABELS.get(type.toUpperCase());
+                if (label == null) return false;
+                event.setType(MetricEvent.EVENT);
+                event.setLabel(label);
+            }
+        }
 
         TrackedSite site = siteRepository.findBySiteKey(key).orElse(null);
         if (site == null || !underLimit(key)) return false;
 
-        MetricEvent event = new MetricEvent();
         event.setSite(site);
-        event.setType(type);
-        event.setPath(text(root, "p", 200));
-        event.setSessionId(text(root, "s", 40));
-        if (MetricEvent.EVENT.equals(type)) {
-            String label = text(root, "l", 60);
-            if (label == null) return false;
-            event.setLabel(label.toLowerCase());
-        } else {
-            JsonNode ms = root.path("ms");
-            // Más de 2 minutos no es una carga real: se ignora ese dato
-            if (ms.isNumber() && ms.asInt() > 0 && ms.asInt() < 120_000) event.setLoadMs(ms.asInt());
-        }
+        event.setPath(text(root, "path", 200));
+        event.setSessionId(text(root, "visitorId", 40));
+        String device = text(root, "device", 12);
+        event.setDevice(device == null ? null : device.toLowerCase());
         event.setCreatedAt(LocalDateTime.now(clock));
         eventRepository.save(event);
         return true;
@@ -126,9 +157,10 @@ public class MetricsService {
             return new MetricsSetupDTO(false, null, null, null, null, false, null);
         }
         TrackedSite site = siteFor(contract);
-        String scriptUrl = publicApiUrl + "/metrics/sdk.js";
-        String snippet = "<script defer src=\"" + scriptUrl + "\" data-site=\"" + site.getSiteKey() + "\"></script>";
-        String orderSnippet = "<button data-devutec-event=\"pedido\">Hacer pedido</button>";
+        String scriptUrl = frontendUrl + "/metricas.js";
+        String snippet = "<script src=\"" + scriptUrl + "\" data-key=\"" + site.getSiteKey() + "\" data-api=\""
+                + publicApiUrl + "/collect\" defer></script>";
+        String orderSnippet = "<button data-devutec=\"pedido\">Hacer pedido</button>";
         LocalDateTime last = eventRepository.findFirstBySite_IdOrderByCreatedAtDesc(site.getId())
                 .map(MetricEvent::getCreatedAt).orElse(null);
         return new MetricsSetupDTO(true, site.getSiteKey(), scriptUrl, snippet, orderSnippet, last != null, last);
@@ -159,7 +191,7 @@ public class MetricsService {
         if (site == null) {
             return new MetricsDashboardDTO(isWeb(contract), false, null, days,
                     "Todavía no hay datos: el estudiante tiene que instalar las métricas en tu web.",
-                    0, 0, 0, null, emptyDays(days), List.of(), List.of());
+                    0, 0, 0, 0, null, emptyDays(days), List.of(), List.of(), List.of(), List.of());
         }
         LocalDate today = LocalDate.now(clock);
         LocalDate firstDay = today.minusDays(days - 1L);
@@ -178,9 +210,10 @@ public class MetricsService {
         Set<String> sessions = new HashSet<>();
         views.forEach(e -> sessions.add(e.getSessionId() == null ? "sin-id-" + e.getId() : e.getSessionId()));
         long orders = custom.stream().filter(e -> ORDER.equals(e.getLabel())).count();
-        Integer averageLoad = views.stream().filter(e -> e.getLoadMs() != null)
-                .collect(Collectors.averagingInt(MetricEvent::getLoadMs)).intValue();
-        if (views.stream().noneMatch(e -> e.getLoadMs() != null)) averageLoad = null;
+        List<MetricEvent> timed = events.stream().filter(e -> e.getLoadMs() != null).toList();
+        Integer averageLoad = timed.isEmpty() ? null
+                : (int) Math.round(timed.stream().mapToInt(MetricEvent::getLoadMs).average().orElse(0));
+        long clicks = events.stream().filter(e -> MetricEvent.CLICK.equals(e.getType())).count();
 
         Map<LocalDate, long[]> byDay = new LinkedHashMap<>();
         for (int i = 0; i < days; i++) byDay.put(firstDay.plusDays(i), new long[2]);
@@ -198,9 +231,11 @@ public class MetricsService {
 
         return new MetricsDashboardDTO(true, last != null, last, days,
                 summary(visits, sessions.size(), orders, days),
-                visits, sessions.size(), orders, averageLoad, daily,
+                visits, sessions.size(), orders, clicks, averageLoad, daily,
                 top(views, e -> e.getPath() == null ? "/" : e.getPath()),
-                top(custom, MetricEvent::getLabel));
+                top(custom, MetricEvent::getLabel),
+                top(views.stream().filter(e -> e.getSource() != null).toList(), MetricEvent::getSource),
+                top(views.stream().filter(e -> e.getDevice() != null).toList(), MetricEvent::getDevice));
     }
 
     // «Tu web tuvo 340 visitas de 210 personas y 28 pedidos en los últimos 30 días.»

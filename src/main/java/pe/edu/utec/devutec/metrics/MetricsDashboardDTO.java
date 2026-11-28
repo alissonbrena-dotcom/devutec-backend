@@ -14,10 +14,13 @@ public record MetricsDashboardDTO(
         long visits,
         long visitors,
         long orders,
+        long clicks,
         Integer averageLoadMs,
         List<Day> daily,
         List<Count> topPages,
-        List<Count> topEvents
+        List<Count> topEvents,
+        List<Count> sources,
+        List<Count> devices
 ) {
     public record Day(LocalDate date, long visits, long orders) {
     }

@@ -75,7 +75,7 @@ class MetricsServiceTest {
 
     private MetricsService service(int perMinute) {
         return new MetricsService(contracts, sites, events, currentUser, "https://devutec.duckdns.org/api/v1/",
-                perMinute, clock);
+                "https://devutec.vercel.app", perMinute, clock);
     }
 
     private MetricsService service() {
@@ -92,6 +92,7 @@ class MetricsServiceTest {
     private static MetricEvent event(String type, String label, String session, Integer loadMs, String path,
                                      LocalDateTime at) {
         MetricEvent event = new MetricEvent();
+        event.setDevice("celular");
         event.setType(type);
         event.setLabel(label);
         event.setSessionId(session);
@@ -102,45 +103,62 @@ class MetricsServiceTest {
     }
 
     @Test
-    void recordsAVisitWithItsLoadTime() {
-        assertTrue(service().record("{\"k\":\"dvt_abc\",\"t\":\"view\",\"p\":\"/carta\",\"s\":\"x1\",\"ms\":1450}"));
+    void recordsAVisitFromTheTeamScript() {
+        assertTrue(service().record("{\"key\":\"dvt_abc\",\"type\":\"PAGEVIEW\",\"path\":\"/carta\","
+                + "\"visitorId\":\"x1\",\"device\":\"celular\",\"source\":\"instagram\"}"));
 
         MetricEvent event = saved.getFirst();
         assertEquals(MetricEvent.VIEW, event.getType());
         assertEquals("/carta", event.getPath());
-        assertEquals(1450, event.getLoadMs());
+        assertEquals("x1", event.getSessionId());
+        assertEquals("celular", event.getDevice());
+        assertEquals("instagram", event.getSource());
         assertEquals(site, event.getSite());
     }
 
     @Test
-    void recordsAnOrderInLowercase() {
-        assertTrue(service().record("{\"k\":\"dvt_abc\",\"t\":\"event\",\"l\":\"Pedido\",\"s\":\"x1\"}"));
-        assertEquals("pedido", saved.getFirst().getLabel());
+    void recordsSpeedAsItsOwnEvent() {
+        assertTrue(service().record("{\"key\":\"dvt_abc\",\"type\":\"PERFORMANCE\",\"valueMs\":1450}"));
+        assertEquals(MetricEvent.PERFORMANCE, saved.getFirst().getType());
+        assertEquals(1450, saved.getFirst().getLoadMs());
+        // Más de 2 minutos no es una carga real
+        assertFalse(service().record("{\"key\":\"dvt_abc\",\"type\":\"PERFORMANCE\",\"valueMs\":999999}"));
     }
 
     @Test
-    void ignoresGarbageUnknownSitesAndEventsWithoutName() {
+    void markedButtonsBecomeNamedEvents() {
+        MetricsService service = service();
+        service.record("{\"key\":\"dvt_abc\",\"type\":\"ORDER\"}");
+        service.record("{\"key\":\"dvt_abc\",\"type\":\"CONTACT\"}");
+        service.record("{\"key\":\"dvt_abc\",\"type\":\"CUSTOM\",\"name\":\"Reserva_Cancelada\"}");
+        service.record("{\"key\":\"dvt_abc\",\"type\":\"CLICK\"}");
+
+        assertEquals(List.of("pedido", "contacto", "reserva_cancelada"),
+                saved.stream().filter(e -> MetricEvent.EVENT.equals(e.getType())).map(MetricEvent::getLabel).toList());
+        assertEquals(MetricEvent.CLICK, saved.getLast().getType());
+    }
+
+    @Test
+    void ignoresGarbageUnknownSitesAndUnknownTypes() {
         MetricsService service = service();
         assertFalse(service.record("no es json"));
         assertFalse(service.record(null));
-        assertFalse(service.record("{\"k\":\"otro\",\"t\":\"view\"}"));
-        assertFalse(service.record("{\"k\":\"dvt_abc\",\"t\":\"hack\"}"));
-        assertFalse(service.record("{\"k\":\"dvt_abc\",\"t\":\"event\"}"));
+        assertFalse(service.record("{\"key\":\"otro\",\"type\":\"PAGEVIEW\"}"));
+        assertFalse(service.record("{\"key\":\"dvt_abc\",\"type\":\"HACK\"}"));
+        assertFalse(service.record("{\"key\":\"dvt_abc\",\"type\":\"CUSTOM\"}"));
         assertTrue(saved.isEmpty());
     }
 
     @Test
-    void absurdLoadTimesAreIgnoredAndLongTextsAreCut() {
-        service().record("{\"k\":\"dvt_abc\",\"t\":\"view\",\"p\":\"/" + "a".repeat(500) + "\",\"ms\":999999}");
-
-        assertNull(saved.getFirst().getLoadMs());
+    void longTextsAreCut() {
+        service().record("{\"key\":\"dvt_abc\",\"type\":\"PAGEVIEW\",\"path\":\"/" + "a".repeat(500) + "\"}");
         assertEquals(200, saved.getFirst().getPath().length());
     }
 
     @Test
     void perMinuteLimitStopsSpam() {
         MetricsService service = service(2);
-        String body = "{\"k\":\"dvt_abc\",\"t\":\"view\"}";
+        String body = "{\"key\":\"dvt_abc\",\"type\":\"PAGEVIEW\"}";
         assertTrue(service.record(body));
         assertTrue(service.record(body));
         assertFalse(service.record(body));
@@ -155,8 +173,10 @@ class MetricsServiceTest {
 
         assertTrue(setup.webProject());
         assertTrue(setup.siteKey().matches("dvt_[a-z2-9]{20}"));
-        assertEquals("https://devutec.duckdns.org/api/v1/metrics/sdk.js", setup.scriptUrl());
-        assertTrue(setup.snippet().contains("data-site=\"" + setup.siteKey() + "\""));
+        assertEquals("https://devutec.vercel.app/metricas.js", setup.scriptUrl());
+        assertTrue(setup.snippet().contains("data-key=\"" + setup.siteKey() + "\""));
+        assertTrue(setup.snippet().contains("data-api=\"https://devutec.duckdns.org/api/v1/collect\""));
+        assertTrue(setup.orderSnippet().contains("data-devutec=\"pedido\""));
         assertFalse(setup.installed());
         ArgumentCaptor<TrackedSite> captor = ArgumentCaptor.forClass(TrackedSite.class);
         verify(sites).save(captor.capture());
@@ -200,9 +220,12 @@ class MetricsServiceTest {
         LocalDateTime day1 = first.atTime(12, 0);
         LocalDateTime day3 = first.plusDays(2).atTime(9, 0);
         List<MetricEvent> list = List.of(
-                event("view", null, "a", 1000, "/", day1),
-                event("view", null, "a", 3000, "/carta", day1),
+                event("view", null, "a", null, "/", day1),
+                event("perf", null, "a", 1000, "/", day1),
+                event("view", null, "a", null, "/carta", day1),
+                event("perf", null, "a", 3000, "/carta", day1),
                 event("view", null, "b", null, "/carta", day3),
+                event("click", null, "b", null, "/carta", day3),
                 event("event", "pedido", "a", null, "/carta", day3),
                 event("event", "whatsapp", "b", null, "/", day3));
 
@@ -216,6 +239,9 @@ class MetricsServiceTest {
         assertEquals(1, dashboard.daily().get(2).orders());
         assertEquals("/carta", dashboard.topPages().getFirst().name());
         assertEquals(2, dashboard.topEvents().size());
+        assertEquals(1, dashboard.clicks());
+        assertEquals("celular", dashboard.devices().getFirst().name());
+        assertEquals(3, dashboard.devices().getFirst().count());
         assertEquals("Tu web tuvo 3 visitas de 2 personas y 1 pedido en los últimos 3 días.", dashboard.summary());
     }
 

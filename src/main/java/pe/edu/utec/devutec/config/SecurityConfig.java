@@ -47,16 +47,16 @@ public class SecurityConfig {
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
 
-        // Métricas: el script corre en la web del cliente (cualquier dominio) y no manda credenciales
+        // Métricas: public/metricas.js corre en la web del cliente (cualquier dominio) y no manda credenciales
         CorsConfiguration metrics = new CorsConfiguration();
         metrics.setAllowedOriginPatterns(List.of("*"));
-        metrics.setAllowedMethods(List.of("GET", "POST", "OPTIONS"));
+        metrics.setAllowedMethods(List.of("POST", "OPTIONS"));
         metrics.setAllowedHeaders(List.of("Content-Type"));
         metrics.setAllowCredentials(false);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         // El primero que coincide gana: las rutas públicas de métricas van antes que la regla general
-        source.registerCorsConfiguration("/api/v1/metrics/**", metrics);
+        source.registerCorsConfiguration("/api/v1/collect", metrics);
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
@@ -91,9 +91,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/users/*/reviews").permitAll()
                         // Fotos de perfil: las pide una etiqueta <img>, que no manda el token
                         .requestMatchers(HttpMethod.GET, "/api/v1/users/*/avatar").permitAll()
-                        // Métricas de la web del cliente: el script y los eventos que manda (anónimos)
-                        .requestMatchers(HttpMethod.GET, "/api/v1/metrics/sdk.js").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/metrics/events").permitAll()
+                        // Métricas de la web del cliente: los eventos anónimos que manda public/metricas.js
+                        .requestMatchers(HttpMethod.POST, "/api/v1/collect").permitAll()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
