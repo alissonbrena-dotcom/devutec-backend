@@ -5,15 +5,16 @@ import java.util.regex.Pattern;
 
 // Evita que cliente y estudiante se salten DEVUTEC (y pierdan la garantía y las reseñas).
 // - Datos de contacto: celulares, teléfonos con +51 y correos. Se bloquean ANTES del contrato (proyecto y postulación),
-//   porque esos textos los ve cualquiera. Con el pago en garantía, el contacto se comparte en el contrato.
+//   porque esos textos los ve cualquiera. En el contrato se permiten, porque el número del negocio puede ir en la web
+//   (DEVUTEC igual no muestra los celulares de las personas: todo se coordina en la plataforma).
 // - Intención de salirse: "escríbeme al wsp", "mi número", "por fuera de la plataforma" y, sobre todo, pagar por fuera
 //   ("te pago por Yape", "sin la comisión"). Se bloquea SIEMPRE: lo que se protege es el pago.
 // La palabra "WhatsApp" o "Yape" sola SÍ se permite: un proyecto puede pedir un botón de WhatsApp o cobrar con Yape.
 public final class ContactFilter {
 
     public static final String CONTACT_MESSAGE = "Por tu seguridad, no compartas datos de contacto antes del contrato: "
-            + "la garantía de DEVUTEC solo te protege dentro de la plataforma. Cuando el pago esté en garantía, "
-            + "podrán escribirse por WhatsApp desde el contrato.";
+            + "la garantía de DEVUTEC solo te protege dentro de la plataforma. Todo se coordina en DEVUTEC: "
+            + "cuando haya contrato, los datos para la web se pasan en las notas del contrato.";
 
     public static final String LEAVE_MESSAGE = "No se pueden acordar pagos ni trabajos por fuera de DEVUTEC: si algo "
             + "sale mal, nadie podría protegerte ni devolverte tu dinero. Si alguien te lo pide, repórtalo.";
