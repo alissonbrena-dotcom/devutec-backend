@@ -8,6 +8,8 @@ import com.anthropic.errors.AnthropicServiceException;
 import com.anthropic.errors.RateLimitException;
 import com.anthropic.models.messages.Message;
 import com.anthropic.models.messages.MessageCreateParams;
+import com.anthropic.models.messages.Base64ImageSource;
+import com.anthropic.models.messages.ContentBlockParam;
 import com.anthropic.models.messages.OutputConfig;
 import com.anthropic.models.messages.StopReason;
 import com.anthropic.models.messages.StructuredMessage;
@@ -107,6 +109,35 @@ public class ClaudeGateway implements AiGateway {
                 .map(textBlock -> textBlock.text())
                 .findFirst()
                 .orElseThrow(() -> new ApiException(HttpStatus.BAD_GATEWAY, "El asistente no pudo responder. Intenta de nuevo"));
+    }
+
+    @Override
+    public <T> T replyStructuredWithImages(String instructions, String text, List<ImageInput> images, Class<T> type) {
+        List<ContentBlockParam> blocks = new java.util.ArrayList<>();
+        for (ImageInput image : images) {
+            blocks.add(ContentBlockParam.ofImage(Base64ImageSource.builder()
+                    .mediaType(Base64ImageSource.MediaType.of(image.mediaType()))
+                    .data(java.util.Base64.getEncoder().encodeToString(image.data()))
+                    .build()));
+        }
+        blocks.add(ContentBlockParam.ofText(text));
+        StructuredMessageCreateParams.Builder<T> builder = MessageCreateParams.builder()
+                .model(model)
+                .maxTokens(1024L)
+                .system(instructions)
+                .outputConfig(type)
+                .addUserMessageOfContentBlockParams(blocks);
+        if (fallbacks) {
+            builder.putAdditionalHeader("anthropic-beta", FALLBACK_BETA)
+                    .putAdditionalBodyProperty("fallbacks", JsonValue.from("default"));
+        }
+        StructuredMessage<T> response = call(() -> client().messages().create(builder.build()));
+        checkStop(response.stopReason());
+        return response.content().stream()
+                .flatMap(block -> block.text().stream())
+                .map(textBlock -> textBlock.text())
+                .findFirst()
+                .orElseThrow(() -> new ApiException(HttpStatus.BAD_GATEWAY, "No se pudo analizar el archivo"));
     }
 
     private AnthropicClient client() {

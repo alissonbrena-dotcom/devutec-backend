@@ -14,6 +14,13 @@ public record ProjectAssistantRequestDTO(
 
         // La conversación hasta ahora, para que el asistente recuerde lo que ya le contaste
         @Size(max = 20, message = "Se pueden enviar hasta 20 mensajes anteriores")
-        List<@Valid ChatTurnDTO> history
+        List<@Valid ChatTurnDTO> history,
+
+        // Archivos del negocio que el cliente subió en el chat (logo, fotos, un PDF): la IA usa lo que se ve en ellos
+        @Size(max = 7, message = "Se pueden adjuntar hasta 7 archivos")
+        List<Long> assetIds
 ) {
+    public ProjectAssistantRequestDTO(String message, List<ChatTurnDTO> history) {
+        this(message, history, null);
+    }
 }
