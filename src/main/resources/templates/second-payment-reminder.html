@@ -1,0 +1,17 @@
+<!doctype html>
+<!-- Al cliente: recordatorio del pago 2 (1 al aprobar el Diseño, 2 a mitad del plazo, 3 último aviso).
+     Variables: clientName, freelancerName, projectTitle, amount (texto "S/ 440.00"), dueAt (texto), reminderNumber, appUrl, actionUrl -->
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{email-layout :: layout(${reminderNumber == 3 ? 'Último aviso: el pago 2 vence pronto' : 'Ya puedes hacer el pago 2'}, ${'Paga antes del ' + dueAt + ' para seguir con «' + projectTitle + '».'}, 'cuyi-saluda.png', 'Cuyi, la mascota de DEVUTEC, saludando', ~{::content})}">
+<body>
+<th:block th:fragment="content">
+<th:block th:replace="~{email-layout :: mailTitle(${reminderNumber == 3 ? 'Tu pago 2' : 'Toca el'}, ${reminderNumber == 3 ? 'vence pronto.' : 'pago 2.'})}"></th:block>
+<tr><td><p style="margin:0;font-family:Geist, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#6f6d67;text-align:center">Hola, <th:block th:text="${clientName}">Mario</th:block>. Aprobaste el Diseño de <strong th:text="${projectTitle}" style="color:#0e0e0c;font-weight:600">Web para pizzería</strong>. Para que <th:block th:text="${freelancerName}">Sofía</th:block> siga con el Desarrollo, haz el pago 2 de <strong th:text="${amount}" style="color:#0e0e0c;font-weight:600">S/ 440.00</strong> antes del <strong th:text="${dueAt}" style="color:#0e0e0c;font-weight:600">viernes 5 de diciembre</strong>.</p></td></tr>
+<th:block th:replace="~{email-layout :: mailSpace(16)}"></th:block>
+<tr><td><p style="margin:0;font-family:Geist, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#6f6d67;text-align:center">Si no pagas hasta esa fecha, el contrato se cierra solo: <th:block th:text="${freelancerName}">Sofía</th:block> se queda con lo que ya aprobaste y con la bolsa de emergencia, y lo que no se usó se te devuelve.</p></td></tr>
+<th:block th:replace="~{email-layout :: mailSpace(24)}"></th:block>
+<tr><td><th:block th:replace="~{email-layout :: mailEscrowPill('Tu dinero queda en garantía.', 'Se libera solo cuando apruebas cada etapa.')}"></th:block></td></tr>
+<th:block th:replace="~{email-layout :: mailButton('Hacer el pago 2')}"></th:block>
+</th:block>
+</body>
+</html>

@@ -65,6 +65,18 @@ public class PaymentInstallment {
 
     private LocalDateTime paidAt;
 
+    // Pago 2: fecha límite para pagarlo. Se fija cuando el cliente aprueba el Diseño; si llega sin pagar, el contrato
+    // se cierra solo (SecondPaymentService). null mientras no corre el plazo.
+    @Column(name = "due_at")
+    private LocalDateTime dueAt;
+
+    // Recordatorios por correo ya enviados para este pago (1 al aprobar el Diseño, 2 a mitad del plazo, 3 un día antes)
+    @Column(name = "reminders_sent")
+    private Integer remindersSent = 0;
+
+    @Column(name = "last_reminder_at")
+    private LocalDateTime lastReminderAt;
+
     public boolean isPaid() {
         return status != InstallmentStatus.PENDING;
     }

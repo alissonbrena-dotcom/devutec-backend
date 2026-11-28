@@ -9,6 +9,7 @@ import pe.edu.utec.devutec.dto.ContractStageResponseDTO;
 import pe.edu.utec.devutec.model.application.Application;
 import pe.edu.utec.devutec.model.contract.Contract;
 import pe.edu.utec.devutec.model.contract.ContractStage;
+import pe.edu.utec.devutec.model.contract.ContractStatus;
 import pe.edu.utec.devutec.service.ContractStagePlan;
 
 import java.time.LocalDate;
@@ -66,7 +67,14 @@ public class ContractMapper {
                 ContractStagePlan.releasedAmount(contract),
                 installments,
                 hasPlan ? sum(installments, InstallmentResponseDTO::studentAmount) : null,
-                hasPlan ? sum(installments, InstallmentResponseDTO::commissionAmount) : null
+                hasPlan ? sum(installments, InstallmentResponseDTO::commissionAmount) : null,
+                installments.stream()
+                        .filter(i -> contract.getStatus() == ContractStatus.IN_PROGRESS || contract.getStatus() == ContractStatus.DELIVERED)
+                        .filter(i -> i.number() == 2 && InstallmentStatus.PENDING.name().equals(i.status()) && i.dueAt() != null)
+                        .map(InstallmentResponseDTO::dueAt)
+                        .findFirst().orElse(null),
+                contract.getClosedReason(),
+                contract.getClosedAt()
         );
     }
 

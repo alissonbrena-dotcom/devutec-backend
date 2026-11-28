@@ -48,6 +48,13 @@ public class Contract {
     @Column(name = "delivery_note", length = 1000)
     private String deliveryNote;
 
+    // Por qué se cerró el contrato antes de terminar, por ejemplo PAGO_2_NO_REALIZADO. null si no se cerró así.
+    @Column(name = "closed_reason", length = 40)
+    private String closedReason;
+
+    @Column(name = "closed_at")
+    private LocalDateTime closedAt;
+
     // Etapas del trabajo, en orden. Se guardan y se borran junto con el contrato.
     @OneToMany(mappedBy = "contract", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("position ASC")
