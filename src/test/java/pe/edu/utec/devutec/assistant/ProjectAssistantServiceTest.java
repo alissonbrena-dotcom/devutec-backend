@@ -82,7 +82,7 @@ class ProjectAssistantServiceTest {
                 "Una web con tu carta y pedidos.", "WEB", List.of("react", "Inventada"),
                 List.of(new ProjectAssistantAiReply.AiFeature("CARTA_CATALOGO", 1)), budget, 3, "rojo y crema",
                 "Tiene logo y fotos de los platos; faltan los textos", "Botón de WhatsApp del negocio y dirección",
-                List.of("¿Delivery, recojo o los dos?"));
+                List.of("¿Delivery, recojo o los dos?"), true);
     }
 
     @Test
@@ -131,6 +131,8 @@ class ProjectAssistantServiceTest {
         assertTrue(draft.description().contains("Contenido: Tiene logo y fotos"));
         assertTrue(draft.description().contains("Contacto que se mostrará: Botón de WhatsApp del negocio"));
         assertTrue(draft.description().contains("Por confirmar en Descubrimiento:\n- ¿Delivery, recojo o los dos?"));
+        // El cliente dijo que sí a las métricas: el borrador lo lleva para crear el proyecto con metricsRequested
+        assertTrue(draft.metricsRequested());
         // Pago en dos partes sobre el presupuesto del cliente (S/ 880 = S/ 800 para el estudiante)
         assertEquals(2, draft.payments().size());
         assertEquals(new BigDecimal("440.00"), draft.payments().get(0).clientAmount());
@@ -162,7 +164,7 @@ class ProjectAssistantServiceTest {
     void laDescripcionNuncaLlevaNumerosNiCorreos() {
         ProjectAssistantAiReply withContact = new ProjectAssistantAiReply(false, "Listo", true, "Web para Pizzería Mario",
                 "Una web con la carta. Pedidos al 987 654 321 o a mario.pizza@gmail.com", "WEB", List.of(), List.of(),
-                880, 3, "", "", "WhatsApp 987654321", List.of());
+                880, 3, "", "", "WhatsApp 987654321", List.of(), false);
 
         String description = ProjectAssistantService.describe(withContact, "");
 

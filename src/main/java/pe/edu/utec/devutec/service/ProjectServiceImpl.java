@@ -65,6 +65,7 @@ public class ProjectServiceImpl implements ProjectService {
         project.setSkills(resolveSkills(dto.getSkillIds()));
         project.setCategory(dto.getCategory());
         project.setFeatures(resolveFeatures(dto.getFeatures()));
+        project.setMetricsRequested(Boolean.TRUE.equals(dto.getMetricsRequested()));
 
         Project saved = projectRepository.save(project);
         return toResponseDTO(saved, client);
@@ -105,6 +106,7 @@ public class ProjectServiceImpl implements ProjectService {
         if (dto.getDeadline() != null) project.setDeadline(dto.getDeadline());
         if (dto.getLocation() != null) project.setLocation(dto.getLocation());
         if (dto.getSkillIds() != null) project.setSkills(resolveSkills(dto.getSkillIds()));
+        if (dto.getMetricsRequested() != null) project.setMetricsRequested(dto.getMetricsRequested());
 
         return toResponseDTO(projectRepository.save(project), findClient(project));
     }
@@ -202,7 +204,8 @@ public class ProjectServiceImpl implements ProjectService {
                 project.getCreatedAt(),
                 client != null ? client.getNombre() : null,
                 client != null ? client.getFechaRegistro() : null,
-                client != null ? SocialLinksDTO.of(client) : null
+                client != null ? SocialLinksDTO.of(client) : null,
+                Boolean.TRUE.equals(project.getMetricsRequested())
         );
     }
 }

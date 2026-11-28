@@ -105,6 +105,21 @@ class ProjectServiceImplTest {
         assertNull(response.getLocation());
     }
 
+    // TEST 2b - Métricas DEVUTEC: se guardan si el cliente las pidió; si no se mandan, quedan en false
+    @Test
+    void create_conMetricas_deberiaGuardarElPedido() {
+        when(currentUserService.getCurrentUser()).thenReturn(client);
+        when(projectRepository.save(any(Project.class))).thenAnswer(inv -> inv.getArgument(0));
+        ProjectCreateDTO conMetricas = new ProjectCreateDTO(
+                "Web para pizzería", null, new BigDecimal("880.00"), null, null, null);
+        conMetricas.setMetricsRequested(true);
+        ProjectCreateDTO sinMetricas = new ProjectCreateDTO(
+                "Web para pizzería", null, new BigDecimal("880.00"), null, null, null);
+
+        assertTrue(projectService.create(conMetricas).isMetricsRequested());
+        assertFalse(projectService.create(sinMetricas).isMetricsRequested());
+    }
+
     // TEST 3 - Editar sin enviar ubicación mantiene la anterior
     @Test
     void update_sinLocation_deberiaMantenerLaAnterior() {
