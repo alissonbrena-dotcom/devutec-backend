@@ -17,6 +17,8 @@ if (!PASSWORD || !/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9\s]).{8,100}$/
   process.exit(1)
 }
 
+// Los estudiantes de demo usan Gmail: el backend tiene que correr con REQUIRE_STUDENT_EMAIL=false para crearlos
+// (en producción los estudiantes se registran con su correo .edu.pe).
 const email = (alias) => `${MAILBOX}+${alias}@gmail.com`
 const inDays = (days) => {
   const date = new Date()
@@ -436,8 +438,7 @@ async function main() {
     // etapa actual y el cliente la aprueba. 'delivered' deja entregada la primera etapa; 'confirmed' recorre todas
     // hasta confirmar el contrato. Si el backend exige el pago con tarjeta (STRIPE_REQUIRE_PAYMENT=true, como en
     // producción), entregar o aprobar falla y el contrato se queda donde llegó: para cargar la demo completa, se corre
-    // con STRIPE_REQUIRE_PAYMENT=false y después se vuelve a prender. Los estudiantes de demo usan correos de Gmail:
-    // el backend tiene que correr con REQUIRE_STUDENT_EMAIL=false para crearlos (en producción pide .edu.pe).
+    // con STRIPE_REQUIRE_PAYMENT=false y después se vuelve a prender.
     const deliver = () => step(`entregar ${label}`, () => api('PATCH', `/contracts/${contract.id}/deliver`, {
       token: free.token,
       body: { link: item.deliveryLink ?? 'https://drive.google.com/drive/folders/entrega-demo', nota: item.deliveryNote },
