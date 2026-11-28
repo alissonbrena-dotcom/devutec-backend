@@ -40,8 +40,10 @@ public class ContractResponseDTO {
     // Etapas del trabajo, en orden, y la posición de la que se está trabajando (null si ya terminó o se canceló)
     private List<ContractStageResponseDTO> stages;
     private Integer currentStage;
-    // Parte del monto que no es de ninguna etapa: la bolsa de emergencia (0 en contratos de una sola etapa)
+    // Parte del monto que no es de ninguna etapa: la bolsa de emergencia (0 en contratos de una sola etapa).
+    // Como el monto del contrato es lo que paga el cliente, incluye la comisión de DEVUTEC.
     private BigDecimal emergencyFund;
-    // Suma de las etapas ya aprobadas por el cliente, para mostrar "Liberado" y "En garantía"
+    // Lo que pagó el cliente por las etapas ya aprobadas (incluye la comisión de DEVUTEC), para mostrar
+    // "Liberado" y "En garantía" desde el lado del cliente. No es lo que recibe el estudiante (eso es monto / 1,10).
     private BigDecimal releasedAmount;
 }
