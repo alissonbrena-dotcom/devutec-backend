@@ -235,7 +235,8 @@ public class InstallmentService {
                         i.getRefundedAmount(),
                         i.getStatus().name(),
                         isPayableNow(contract, i, plan),
-                        i.getPaidAt()))
+                        i.getPaidAt(),
+                        i.getDueAt()))
                 .toList();
     }
 
