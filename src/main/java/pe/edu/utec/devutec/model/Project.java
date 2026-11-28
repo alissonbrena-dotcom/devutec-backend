@@ -59,6 +59,15 @@ public class Project {
     )
     private Set<Skill> skills = new HashSet<>();
 
+    // Tipo de proyecto: WEB, AUTOMATIZACION o APP (lo define el asistente IA; puede ser null)
+    @Column(length = 20)
+    private String category;
+
+    // Funcionalidades que detectó el asistente IA, para estimar horas y precio
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(name = "project_features", joinColumns = @JoinColumn(name = "project_id"))
+    private List<ProjectFeature> features = new ArrayList<>();
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

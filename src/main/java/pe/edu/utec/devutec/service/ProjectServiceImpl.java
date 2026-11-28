@@ -1,5 +1,11 @@
 package pe.edu.utec.devutec.service;
 
+import java.util.LinkedHashMap;
+import java.util.ArrayList;
+import pe.edu.utec.devutec.pricing.FuncionalidadReferenciaRepository;
+import pe.edu.utec.devutec.pricing.FuncionalidadReferencia;
+import pe.edu.utec.devutec.pricing.FeatureQuantityDTO;
+import pe.edu.utec.devutec.model.ProjectFeature;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -37,6 +43,7 @@ public class ProjectServiceImpl implements ProjectService {
     private final ContractRepository contractRepository;
     private final CurrentUserService currentUserService;
     private final UserRepository userRepository;
+    private final FuncionalidadReferenciaRepository funcionalidadReferenciaRepository;
 
     @Override
     public ProjectResponseDTO create(ProjectCreateDTO dto) {
@@ -52,6 +59,8 @@ public class ProjectServiceImpl implements ProjectService {
         project.setStatus(ProjectStatus.OPEN);
         project.setCreatedAt(LocalDateTime.now());
         project.setSkills(resolveSkills(dto.getSkillIds()));
+        project.setCategory(dto.getCategory());
+        project.setFeatures(resolveFeatures(dto.getFeatures()));
 
         Project saved = projectRepository.save(project);
         return toResponseDTO(saved, client);
@@ -153,6 +162,22 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     // client puede ser null si la cuenta ya no existe: el proyecto se muestra igual, sin nombre
+    // Solo se guardan las funcionalidades con un código que existe en la tabla de horas de referencia
+    private List<ProjectFeature> resolveFeatures(List<FeatureQuantityDTO> features) {
+        if (features == null || features.isEmpty()) return new ArrayList<>();
+        Set<String> known = funcionalidadReferenciaRepository.findAll().stream()
+                .map(FuncionalidadReferencia::getCodigo)
+                .collect(Collectors.toSet());
+        Map<String, Integer> quantities = new LinkedHashMap<>();
+        for (FeatureQuantityDTO feature : features) {
+            String code = feature.code().trim().toUpperCase();
+            if (known.contains(code)) quantities.merge(code, Math.max(1, Math.min(20, feature.quantity())), Integer::sum);
+        }
+        List<ProjectFeature> result = new ArrayList<>();
+        quantities.forEach((code, quantity) -> result.add(new ProjectFeature(code, quantity)));
+        return result;
+    }
+
     private ProjectResponseDTO toResponseDTO(Project project, User client) {
         Set<SkillResponseDTO> skillDTOs = project.getSkills().stream()
                 .map(skill -> new SkillResponseDTO(skill.getId(), skill.getName()))

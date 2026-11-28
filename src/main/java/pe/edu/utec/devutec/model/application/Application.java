@@ -9,6 +9,7 @@ import pe.edu.utec.devutec.model.FreelancerProfile;
 import pe.edu.utec.devutec.model.Project;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @NoArgsConstructor
@@ -41,6 +42,10 @@ public class Application {
 
     @Column(name = "proposed_price", nullable = false)
     private BigDecimal proposedPrice;
+
+    // Contraoferta de plazo: la fecha en que el freelancer propone entregar. null si acepta el plazo del proyecto.
+    @Column(name = "proposed_deadline")
+    private LocalDate proposedDeadline;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

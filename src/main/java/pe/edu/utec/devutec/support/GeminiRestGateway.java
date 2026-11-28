@@ -2,6 +2,7 @@ package pe.edu.utec.devutec.support;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -18,8 +19,10 @@ import java.util.Map;
 // Llama a la API de Gemini (Google AI Studio). La clave solo vive en el servidor, en GEMINI_API_KEY;
 // nunca va al frontend ni al repositorio. El modelo por defecto se define solo en application.properties
 // y en el servidor se cambia con GEMINI_MODEL, sin tocar el código.
+// Solo se usa con AI_PROVIDER=gemini; el proveedor por defecto es Claude (ClaudeGateway).
 @Slf4j
 @Component
+@ConditionalOnProperty(name = "ai.provider", havingValue = "gemini")
 public class GeminiRestGateway implements AiGateway {
 
     private static final String GEMINI_API = "https://generativelanguage.googleapis.com/v1beta";

@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @AllArgsConstructor
@@ -22,4 +23,9 @@ public class ApplicationResponseDTO {
     private LocalDateTime createdAt;
     private Long projectId;
     private Long freelancerUserId;
+    // Contraoferta de plazo del freelancer (null si acepta el del proyecto)
+    private LocalDate proposedDeadline;
+    // Presupuesto y fecha límite del proyecto, para comparar la contraoferta
+    private BigDecimal projectBudget;
+    private LocalDate projectDeadline;
 }
