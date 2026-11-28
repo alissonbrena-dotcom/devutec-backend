@@ -33,6 +33,11 @@ class ContractMapperTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+
+    private pe.edu.utec.devutec.payments.InstallmentService installmentService;
+
+
     @InjectMocks
     private ContractMapper contractMapper;
 
