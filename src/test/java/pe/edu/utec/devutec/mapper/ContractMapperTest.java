@@ -94,4 +94,26 @@ class ContractMapperTest {
         assertNull(response.getFreelancerPhone());
         assertEquals("Pizzería Don Mario", response.getClientName());
     }
+
+    // Pago 2: sin fecha límite todavía (antes de aprobar el Diseño) no se rompe y llega null; con plazo, llega la fecha
+    @Test
+    void toResponse_fechaLimiteDelPago2() {
+        java.time.LocalDateTime due = java.time.LocalDateTime.of(2026, 12, 5, 10, 0);
+        pe.edu.utec.devutec.dto.InstallmentResponseDTO first = new pe.edu.utec.devutec.dto.InstallmentResponseDTO(1, "Pago 1",
+                new BigDecimal("300"), new BigDecimal("272.73"), new BigDecimal("27.27"), new BigDecimal("27.27"),
+                BigDecimal.ZERO, BigDecimal.ZERO, "HELD", false, null, null);
+        pe.edu.utec.devutec.dto.InstallmentResponseDTO withoutDue = new pe.edu.utec.devutec.dto.InstallmentResponseDTO(2, "Pago 2",
+                new BigDecimal("300"), new BigDecimal("272.73"), new BigDecimal("27.27"), BigDecimal.ZERO,
+                BigDecimal.ZERO, BigDecimal.ZERO, "PENDING", false, null, null);
+        org.mockito.Mockito.when(installmentService.toResponse(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(java.util.List.of(first, withoutDue));
+        assertNull(contractMapper.toResponse(contract(ContractStatus.IN_PROGRESS)).getSecondPaymentDueAt());
+
+        pe.edu.utec.devutec.dto.InstallmentResponseDTO withDue = new pe.edu.utec.devutec.dto.InstallmentResponseDTO(2, "Pago 2",
+                new BigDecimal("300"), new BigDecimal("272.73"), new BigDecimal("27.27"), BigDecimal.ZERO,
+                BigDecimal.ZERO, BigDecimal.ZERO, "PENDING", true, null, due);
+        org.mockito.Mockito.when(installmentService.toResponse(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(java.util.List.of(first, withDue));
+        assertEquals(due, contractMapper.toResponse(contract(ContractStatus.IN_PROGRESS)).getSecondPaymentDueAt());
+    }
 }

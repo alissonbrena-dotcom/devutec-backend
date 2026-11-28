@@ -17,6 +17,8 @@ if (!PASSWORD || !/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9\s]).{8,100}$/
   process.exit(1)
 }
 
+// Los estudiantes de demo usan Gmail: el backend tiene que correr con REQUIRE_STUDENT_EMAIL=false para crearlos
+// (en producción los estudiantes se registran con su correo .edu.pe).
 const email = (alias) => `${MAILBOX}+${alias}@gmail.com`
 const inDays = (days) => {
   const date = new Date()

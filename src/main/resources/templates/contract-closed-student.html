@@ -1,0 +1,18 @@
+<!doctype html>
+<!-- Al estudiante: el contrato se cerró porque el cliente no hizo el pago 2; recibe lo aprobado y la bolsa.
+     Variables: freelancerName, projectTitle, received (texto, total que recibe), fund (texto, la bolsa), appUrl, actionUrl -->
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{email-layout :: layout(${'Recibes la bolsa de emergencia de «' + projectTitle + '»'}, 'El cliente no hizo el pago 2 y el contrato se cerró.', 'cuyi-celebra.png', 'Cuyi, la mascota de DEVUTEC', ~{::content})}">
+<body>
+<th:block th:fragment="content">
+<th:block th:replace="~{email-layout :: mailTitle('Tu trabajo', 'está protegido.')}"></th:block>
+<tr><td><p style="margin:0;font-family:Geist, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#6f6d67;text-align:center">Hola, <th:block th:text="${freelancerName}">Sofía</th:block>. El cliente no hizo el pago 2 de <strong th:text="${projectTitle}" style="color:#0e0e0c;font-weight:600">Web para pizzería</strong> a tiempo y el contrato se cerró. Te quedas con lo que ya aprobó y, además, recibes la bolsa de emergencia por el trabajo hecho. No tienes que hacer el Desarrollo.</p></td></tr>
+<th:block th:replace="~{email-layout :: mailSpace(24)}"></th:block>
+<tr><td><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;border:1px solid #e4e0d8;border-radius:14px">
+<tr th:replace="~{email-layout :: mailDetail('Recibes en total', ${received}, true)}"></tr>
+<tr th:replace="~{email-layout :: mailDetail('Incluye la bolsa de emergencia', ${fund}, false)}"></tr>
+</table></td></tr>
+<th:block th:replace="~{email-layout :: mailButton('Ver el contrato')}"></th:block>
+</th:block>
+</body>
+</html>

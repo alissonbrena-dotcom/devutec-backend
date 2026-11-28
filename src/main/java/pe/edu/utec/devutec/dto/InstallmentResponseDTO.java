@@ -15,6 +15,8 @@ public record InstallmentResponseDTO(
         BigDecimal refundedAmount,
         String status,
         boolean payableNow,
-        LocalDateTime paidAt
+        LocalDateTime paidAt,
+        // Fecha límite para pagar (solo el pago 2, desde que se aprueba el Diseño); null si no corre plazo
+        LocalDateTime dueAt
 ) {
 }

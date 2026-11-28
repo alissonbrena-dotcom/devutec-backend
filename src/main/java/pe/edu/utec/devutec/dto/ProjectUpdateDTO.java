@@ -31,4 +31,7 @@ public class ProjectUpdateDTO {
     private String location;
 
     private Set<Long> skillIds;
+
+    // Activar o quitar el pedido de métricas DEVUTEC mientras el proyecto está abierto (null = no cambia)
+    private Boolean metricsRequested;
 }

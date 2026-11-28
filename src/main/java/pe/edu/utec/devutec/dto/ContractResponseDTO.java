@@ -52,4 +52,9 @@ public class ContractResponseDTO {
     private List<InstallmentResponseDTO> installments;
     private BigDecimal studentAmount;
     private BigDecimal commissionAmount;
+    // Fecha límite del pago 2 (desde que se aprueba el Diseño, mientras no se pague). null si no corre plazo.
+    private LocalDateTime secondPaymentDueAt;
+    // Si el contrato se cerró antes de terminar, por qué (PAGO_2_NO_REALIZADO) y cuándo. null en los demás casos.
+    private String closedReason;
+    private LocalDateTime closedAt;
 }

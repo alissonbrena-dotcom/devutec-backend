@@ -47,7 +47,10 @@ public record ProjectAssistantAiReply(
         String contactToShow,
 
         @JsonPropertyDescription("Dudas que quedaron abiertas y que el estudiante debe confirmar con el cliente en la etapa de Descubrimiento, como preguntas cortas. Lista vacía si no queda ninguna.")
-        List<String> openQuestions
+        List<String> openQuestions,
+
+        @JsonPropertyDescription("true si el cliente dijo que sí quiere ver las métricas de su web o app en DEVUTEC (visitas, contactos, pedidos). false si dijo que no o todavía no se le preguntó.")
+        boolean wantsMetrics
 ) {
     public record AiFeature(
             @JsonPropertyDescription("Código de la tabla de funcionalidades, por ejemplo CARTA_CATALOGO")

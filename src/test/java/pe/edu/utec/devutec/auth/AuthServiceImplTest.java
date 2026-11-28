@@ -5,6 +5,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -44,13 +45,16 @@ class AuthServiceImplTest {
     @Mock private ApplicationEventPublisher eventPublisher;
     @Mock private CurrentUserService currentUserService;
 
+    @Spy private pe.edu.utec.devutec.verification.StudentEmailPolicy studentEmailPolicy =
+            new pe.edu.utec.devutec.verification.StudentEmailPolicy(true, ".edu.pe");
+
     @InjectMocks
     private AuthServiceImpl authService;
 
     private RegisterRequest request(Role role) {
         RegisterRequest request = new RegisterRequest();
         request.setNombre("Free Uno");
-        request.setEmail("free@test.com");
+        request.setEmail("free@utec.edu.pe");
         request.setPassword("Password123!");
         request.setRol(role);
         request.setAcceptedTerms(true);
@@ -59,7 +63,7 @@ class AuthServiceImplTest {
 
     @Test
     void register_freelancer_guardaSuPerfilEnCascadaConElUsuario() {
-        when(userRepository.existsByEmail("free@test.com")).thenReturn(false);
+        when(userRepository.existsByEmail("free@utec.edu.pe")).thenReturn(false);
         when(passwordEncoder.encode("Password123!")).thenReturn("hash");
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -74,7 +78,7 @@ class AuthServiceImplTest {
 
     @Test
     void register_cliente_noCreaPerfilDeFreelancer() {
-        when(userRepository.existsByEmail("free@test.com")).thenReturn(false);
+        when(userRepository.existsByEmail("free@utec.edu.pe")).thenReturn(false);
         when(passwordEncoder.encode("Password123!")).thenReturn("hash");
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -87,7 +91,7 @@ class AuthServiceImplTest {
 
     @Test
     void register_emailDuplicado_lanzaDuplicateResource() {
-        when(userRepository.existsByEmail("free@test.com")).thenReturn(true);
+        when(userRepository.existsByEmail("free@utec.edu.pe")).thenReturn(true);
 
         assertThrows(DuplicateResourceException.class, () -> authService.register(request(Role.CLIENT)));
         verify(userRepository, never()).save(any());
@@ -95,7 +99,7 @@ class AuthServiceImplTest {
 
     @Test
     void register_admin_estaProhibido() {
-        when(userRepository.existsByEmail("free@test.com")).thenReturn(false);
+        when(userRepository.existsByEmail("free@utec.edu.pe")).thenReturn(false);
 
         assertThrows(ForbiddenOperationException.class, () -> authService.register(request(Role.ADMIN)));
         verify(userRepository, never()).save(any());
@@ -104,9 +108,9 @@ class AuthServiceImplTest {
     @Test
     void refresh_conTokenInvalido_lanzaUnauthorized() {
         User user = new User();
-        user.setEmail("free@test.com");
-        when(jwtService.extractEmail(anyString())).thenReturn("free@test.com");
-        when(userRepository.findByEmail("free@test.com")).thenReturn(Optional.of(user));
+        user.setEmail("free@utec.edu.pe");
+        when(jwtService.extractEmail(anyString())).thenReturn("free@utec.edu.pe");
+        when(userRepository.findByEmail("free@utec.edu.pe")).thenReturn(Optional.of(user));
         when(jwtService.isTokenValid("token", user, JwtService.REFRESH_TOKEN)).thenReturn(false);
 
         RefreshTokenRequest refreshRequest = new RefreshTokenRequest();
@@ -147,8 +151,8 @@ class AuthServiceImplTest {
 
     @Test
     void loginWithGoogle_cuentaNuevaFreelancer_creaUsuarioConPerfil() {
-        when(googleTokenVerifier.verify("token-de-google")).thenReturn(new GoogleAccount("ana@gmail.com", "Ana"));
-        when(userRepository.findByEmail("ana@gmail.com")).thenReturn(Optional.empty());
+        when(googleTokenVerifier.verify("token-de-google")).thenReturn(new GoogleAccount("ana@pucp.edu.pe", "Ana"));
+        when(userRepository.findByEmail("ana@pucp.edu.pe")).thenReturn(Optional.empty());
         when(passwordEncoder.encode(anyString())).thenReturn("hash");
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -171,7 +175,7 @@ class AuthServiceImplTest {
 
     @Test
     void register_guardaLaFechaEnQueAceptoLosTerminos() {
-        when(userRepository.existsByEmail("free@test.com")).thenReturn(false);
+        when(userRepository.existsByEmail("free@utec.edu.pe")).thenReturn(false);
         when(passwordEncoder.encode("Password123!")).thenReturn("hash");
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -227,5 +231,37 @@ class AuthServiceImplTest {
         assertThrows(UnauthorizedException.class,
                 () -> authService.confirmWithGoogle(new GoogleConfirmRequest("token-de-google")));
         verify(currentUserService, never()).getCurrentUser();
+    }
+
+    @Test
+    void register_estudianteSinCorreoUniversitario_rechaza() {
+        RegisterRequest request = request(Role.FREELANCER);
+        request.setEmail("free@gmail.com");
+        when(userRepository.existsByEmail("free@gmail.com")).thenReturn(false);
+
+        var error = assertThrows(pe.edu.utec.devutec.exceptions.ApiException.class, () -> authService.register(request));
+        assertTrue(error.getMessage().contains(".edu.pe"));
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void register_clienteConCualquierCorreo_sePermite() {
+        RegisterRequest request = request(Role.CLIENT);
+        request.setEmail("pizzeria@gmail.com");
+        when(userRepository.existsByEmail("pizzeria@gmail.com")).thenReturn(false);
+        when(passwordEncoder.encode("Password123!")).thenReturn("hash");
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertDoesNotThrow(() -> authService.register(request));
+    }
+
+    @Test
+    void loginWithGoogle_estudianteNuevoConGmail_rechaza() {
+        when(googleTokenVerifier.verify("token-de-google")).thenReturn(new GoogleAccount("ana@gmail.com", "Ana"));
+        when(userRepository.findByEmail("ana@gmail.com")).thenReturn(Optional.empty());
+
+        assertThrows(pe.edu.utec.devutec.exceptions.ApiException.class,
+                () -> authService.loginWithGoogle(google(Role.FREELANCER)));
+        verify(userRepository, never()).save(any());
     }
 }

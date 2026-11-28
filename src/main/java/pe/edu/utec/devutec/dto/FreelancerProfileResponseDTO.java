@@ -25,4 +25,7 @@ public class FreelancerProfileResponseDTO {
     private String avatarUrl;
     // "Sobre mí" del perfil o null si no escribió nada
     private String presentacion;
+    // Verificaciones: se registró con correo universitario (.edu.pe) y el admin aprobó su carnet
+    private Boolean universityEmail;
+    private Boolean carnetVerified;
 }

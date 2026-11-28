@@ -192,6 +192,22 @@ class InstallmentServiceTest {
         assertEquals("pi_789", contract.getPayment().getStripeReference());
     }
 
+    @Test
+    void createPlan_lasPartesDelEstudianteSumanExactoElTotalSinPerderUnCentimo() {
+        contract.getPayment().setAmount(new BigDecimal("300.00"));
+        when(repository.existsByContract_Id(contract.getId())).thenReturn(false);
+        when(repository.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        List<PaymentInstallment> created = service.createPlan(contract);
+
+        // 300 ÷ 1,10 = 272,73: antes salía 136,36 + 136,36 = 272,72
+        assertEquals(new BigDecimal("136.36"), created.get(0).getStudentAmount());
+        assertEquals(new BigDecimal("136.37"), created.get(1).getStudentAmount());
+        assertEquals(new BigDecimal("272.73"), created.get(0).getStudentAmount().add(created.get(1).getStudentAmount()));
+        assertEquals(new BigDecimal("13.63"), created.get(1).getCommissionAmount());
+        assertEquals(new BigDecimal("150.00"), created.get(1).getStudentAmount().add(created.get(1).getCommissionAmount()));
+    }
+
     private List<PaymentInstallment> plan() {
         PaymentInstallment first = installment(1, "440.00", "400.00", "40.00", "80.00");
         PaymentInstallment second = installment(2, "440.00", "400.00", "40.00", "0");

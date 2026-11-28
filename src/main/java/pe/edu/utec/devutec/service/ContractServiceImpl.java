@@ -32,6 +32,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import pe.edu.utec.devutec.payments.InstallmentService;
+import pe.edu.utec.devutec.payments.SecondPaymentService;
 import pe.edu.utec.devutec.quality.QualityService;
 import java.math.BigDecimal;
 
@@ -51,6 +52,8 @@ public class ContractServiceImpl implements ContractService {
     private final ApplicationEventPublisher eventPublisher;
     private final CheckoutService checkoutService;
     private final InstallmentService installmentService;
+    private final SecondPaymentService secondPaymentService;
+    private final pe.edu.utec.devutec.metrics.MetricsService metricsService;
     private final QualityService qualityService;
 
     @Override
@@ -119,6 +122,11 @@ public class ContractServiceImpl implements ContractService {
         Optional<ContractStage> current = ContractStagePlan.currentStage(contract);
         // El estudiante nunca trabaja una etapa sin pagar: la cuota que cubre esta etapa tiene que estar pagada
         current.ifPresent(stage -> checkoutService.ensurePartPaid(contract, stage.getPaymentPart()));
+        // Entrega final: si el cliente pidió y activó métricas, la web ya tiene que haber mandado al menos un dato
+        boolean finalDelivery = current.map(stage -> Integer.valueOf(contract.getStages().size()).equals(stage.getPosition())).orElse(true);
+        if (finalDelivery) {
+            metricsService.checkFinalDelivery(contract);
+        }
         // Entrega final de un proyecto web: la web tiene que pasar el estándar de calidad de DEVUTEC
         current.ifPresent(stage -> qualityService.ensurePassed(contract, stage));
         current.ifPresent(stage -> {
@@ -182,8 +190,15 @@ public class ContractServiceImpl implements ContractService {
             contract.getApplication().getProject().setStatus(ProjectStatus.DONE);
             paymentService.releasePayment(contract.getPayment().getId());
         } else {
-            ContractStagePlan.currentStage(contract).ifPresent(next -> next.setStatus(StageStatus.IN_PROGRESS));
+            Optional<ContractStage> next = ContractStagePlan.currentStage(contract);
+            next.ifPresent(stage -> stage.setStatus(StageStatus.IN_PROGRESS));
             startNextStage(contract);
+            // Se aprobó la última etapa del pago 1 (el Diseño): corre el plazo del pago 2, con recordatorios y cierre
+            boolean endsFirstPayment = current.map(ContractStage::getPaymentPart).orElse(0) == 1
+                    && next.map(ContractStage::getPaymentPart).orElse(0) == 2;
+            if (endsFirstPayment && installmentService.hasPlan(contract.getId())) {
+                secondPaymentService.open(contract);
+            }
         }
         return contractMapper.toResponse(contract);
     }
@@ -219,8 +234,8 @@ public class ContractServiceImpl implements ContractService {
         ensureIsClient(contract);
         ensureStatus(contract, ContractStatus.IN_PROGRESS);
         // Si ya aprobó etapas, cancelar devolvería también lo que el estudiante ya entregó y el cliente aceptó.
-        // Por eso, si el cliente no hace el pago 2, el contrato queda en pausa (decisión del equipo): no hay forma de
-        // cerrarlo a la mitad ni recordatorios automáticos por ahora. Si hay un problema, lo ve soporte.
+        // Si el cliente no hace el pago 2, no cancela él: el contrato se cierra solo al vencer el plazo, después de los
+        // recordatorios, y el estudiante se queda con lo aprobado y la bolsa de emergencia (SecondPaymentService).
         if (contract.getStages().stream().anyMatch(stage -> stage.getStatus() == StageStatus.APPROVED)) {
             throw new InvalidOperationException(
                     "No puedes cancelar: ya aprobaste etapas de este contrato. Si hay un problema, escríbenos a soporte.");

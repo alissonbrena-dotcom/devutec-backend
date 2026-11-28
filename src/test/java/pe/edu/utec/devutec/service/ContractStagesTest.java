@@ -68,6 +68,12 @@ class ContractStagesTest {
     private pe.edu.utec.devutec.payments.InstallmentService installmentService;
 
     @Mock
+    private pe.edu.utec.devutec.payments.SecondPaymentService secondPaymentService;
+
+    @Mock
+    private pe.edu.utec.devutec.metrics.MetricsService metricsService;
+
+    @Mock
     private pe.edu.utec.devutec.quality.QualityService qualityService;
 
     @InjectMocks
@@ -173,6 +179,36 @@ class ContractStagesTest {
         assertNull(contract.getDeliveryUrl());
         verify(paymentService, never()).releasePayment(anyLong());
         verify(checkoutService, never()).ensurePaidBeforeRelease(any());
+    }
+
+    // TEST 4b - Aprobar el Diseño (última etapa del pago 1) arranca el plazo del pago 2; aprobar Descubrimiento no
+    @Test
+    void confirm_diseno_deberiaArrancarElPlazoDelPago2() {
+        Contract contract = contractWithStages();
+        contract.getStages().get(0).setStatus(StageStatus.APPROVED);
+        contract.getStages().get(1).setStatus(StageStatus.IN_PROGRESS);
+        deliverCurrent(contract);
+        when(contractRepository.findById(1L)).thenReturn(Optional.of(contract));
+        when(currentUserService.getCurrentUser()).thenReturn(client);
+        when(installmentService.hasPlan(1L)).thenReturn(true);
+
+        contractService.confirm(1L);
+
+        assertEquals(StageStatus.IN_PROGRESS, contract.getStages().get(2).getStatus());
+        verify(secondPaymentService).open(contract);
+    }
+
+    @Test
+    void confirm_descubrimiento_noDeberiaArrancarElPlazoDelPago2() {
+        Contract contract = contractWithStages();
+        deliverCurrent(contract);
+        when(contractRepository.findById(1L)).thenReturn(Optional.of(contract));
+        when(currentUserService.getCurrentUser()).thenReturn(client);
+        lenient().when(installmentService.hasPlan(1L)).thenReturn(true);
+
+        contractService.confirm(1L);
+
+        verify(secondPaymentService, never()).open(any());
     }
 
     // TEST 5 - Aprobar la última etapa confirma el contrato y libera el pago

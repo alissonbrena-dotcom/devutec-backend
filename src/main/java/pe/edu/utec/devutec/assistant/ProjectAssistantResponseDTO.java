@@ -32,7 +32,9 @@ public record ProjectAssistantResponseDTO(String reply, boolean outOfScope, bool
             BigDecimal commissionRate,
             List<StageAmount> stages,
             // Pago en dos partes: pago 1 (50 %, con la bolsa de emergencia) y pago 2 (50 %)
-            List<PaymentPlanner.InstallmentDTO> payments
+            List<PaymentPlanner.InstallmentDTO> payments,
+            // El cliente quiere métricas DEVUTEC: va como metricsRequested al crear el proyecto
+            boolean metricsRequested
     ) {
     }
 

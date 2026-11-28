@@ -31,4 +31,6 @@ public class ProjectResponseDTO {
     private LocalDateTime clientSince;
     // Redes y página web del negocio del cliente, para que el freelancer vea su estilo antes de postular
     private SocialLinksDTO clientLinks;
+    // El cliente pidió métricas DEVUTEC: el estudiante lo ve antes de postular ("Incluye métricas DEVUTEC")
+    private boolean metricsRequested;
 }

@@ -70,8 +70,15 @@ public class InstallmentService {
             BigDecimal first = total.multiply(FIRST_SHARE).setScale(2, RoundingMode.HALF_UP);
             BigDecimal second = total.subtract(first);
             BigDecimal reserve = split(total).student().multiply(RESERVE_SHARE).setScale(2, RoundingMode.HALF_UP);
-            plan.add(build(contract, 1, "Pago 1: al aceptar (Descubrimiento, Diseño y bolsa de emergencia)", first, reserve));
-            plan.add(build(contract, 2, "Pago 2: al aprobar el Diseño (Desarrollo y Entrega)", second, BigDecimal.ZERO));
+            PaymentInstallment firstPayment = build(contract, 1, "Pago 1: al aceptar (Descubrimiento, Diseño y bolsa de emergencia)", first, reserve);
+            PaymentInstallment secondPayment = build(contract, 2, "Pago 2: al aprobar el Diseño (Desarrollo y Entrega)", second, BigDecimal.ZERO);
+            // La parte del estudiante del pago 2 es "total del estudiante menos la del pago 1", para que las dos sumen
+            // exactamente total ÷ 1,10 (si cada una se redondea por separado, a veces se pierde un céntimo)
+            BigDecimal studentTotal = split(total).student();
+            secondPayment.setStudentAmount(studentTotal.subtract(firstPayment.getStudentAmount()));
+            secondPayment.setCommissionAmount(second.subtract(secondPayment.getStudentAmount()));
+            plan.add(firstPayment);
+            plan.add(secondPayment);
         }
         return repository.saveAll(plan);
     }
@@ -228,7 +235,8 @@ public class InstallmentService {
                         i.getRefundedAmount(),
                         i.getStatus().name(),
                         isPayableNow(contract, i, plan),
-                        i.getPaidAt()))
+                        i.getPaidAt(),
+                        i.getDueAt()))
                 .toList();
     }
 
