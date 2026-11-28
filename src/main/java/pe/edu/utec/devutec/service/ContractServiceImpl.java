@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Optional;
 import pe.edu.utec.devutec.payments.InstallmentService;
 import pe.edu.utec.devutec.payments.SecondPaymentService;
+import pe.edu.utec.devutec.quality.QualityService;
 import java.math.BigDecimal;
 
 // El trabajo avanza por etapas: el freelancer entrega la etapa actual y el cliente la aprueba o pide cambios.
@@ -53,6 +54,7 @@ public class ContractServiceImpl implements ContractService {
     private final InstallmentService installmentService;
     private final SecondPaymentService secondPaymentService;
     private final pe.edu.utec.devutec.metrics.MetricsService metricsService;
+    private final QualityService qualityService;
 
     @Override
     @Transactional
@@ -125,6 +127,8 @@ public class ContractServiceImpl implements ContractService {
         if (finalDelivery) {
             metricsService.checkFinalDelivery(contract);
         }
+        // Entrega final de un proyecto web: la web tiene que pasar el estándar de calidad de DEVUTEC
+        current.ifPresent(stage -> qualityService.ensurePassed(contract, stage));
         current.ifPresent(stage -> {
             stage.setStatus(StageStatus.DELIVERED);
             stage.setDeliveredAt(now);

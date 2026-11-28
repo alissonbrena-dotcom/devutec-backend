@@ -73,6 +73,9 @@ class ContractStagesTest {
     @Mock
     private pe.edu.utec.devutec.metrics.MetricsService metricsService;
 
+    @Mock
+    private pe.edu.utec.devutec.quality.QualityService qualityService;
+
     @InjectMocks
     private ContractServiceImpl contractService;
 

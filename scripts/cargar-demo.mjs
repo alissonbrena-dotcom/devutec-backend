@@ -438,7 +438,8 @@ async function main() {
     // etapa actual y el cliente la aprueba. 'delivered' deja entregada la primera etapa; 'confirmed' recorre todas
     // hasta confirmar el contrato. Si el backend exige el pago con tarjeta (STRIPE_REQUIRE_PAYMENT=true, como en
     // producción), entregar o aprobar falla y el contrato se queda donde llegó: para cargar la demo completa, se corre
-    // con STRIPE_REQUIRE_PAYMENT=false y después se vuelve a prender.
+    // con STRIPE_REQUIRE_PAYMENT=false y después se vuelve a prender. Lo mismo con el estándar de calidad: la entrega
+    // final de un proyecto web exige pasar PageSpeed, así que la demo se carga con QUALITY_ENABLED=false.
     const deliver = () => step(`entregar ${label}`, () => api('PATCH', `/contracts/${contract.id}/deliver`, {
       token: free.token,
       body: { link: item.deliveryLink ?? 'https://drive.google.com/drive/folders/entrega-demo', nota: item.deliveryNote },
