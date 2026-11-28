@@ -411,20 +411,30 @@ async function main() {
       continue
     }
 
-    if (['delivered', 'confirmed'].includes(item.outcome) && contract.status === 'IN_PROGRESS') {
-      await step(`entregar ${label}`, () => api('PATCH', `/contracts/${contract.id}/deliver`, {
-          token: free.token,
-          body: { link: item.deliveryLink ?? 'https://drive.google.com/drive/folders/entrega-demo', nota: item.deliveryNote },
-        }))
+    // El contrato avanza por etapas (Descubrimiento, Diseño, Desarrollo, Entrega final): el estudiante entrega la
+    // etapa actual y el cliente la aprueba. 'delivered' deja entregada la primera etapa; 'confirmed' recorre todas
+    // hasta confirmar el contrato. Si el backend exige el pago con tarjeta (STRIPE_REQUIRE_PAYMENT=true, como en
+    // producción), entregar o aprobar falla y el contrato se queda donde llegó: para cargar la demo completa, se corre
+    // con STRIPE_REQUIRE_PAYMENT=false y después se vuelve a prender.
+    const deliver = () => step(`entregar ${label}`, () => api('PATCH', `/contracts/${contract.id}/deliver`, {
+      token: free.token,
+      body: { link: item.deliveryLink ?? 'https://drive.google.com/drive/folders/entrega-demo', nota: item.deliveryNote },
+    }))
+    const approve = () => step(`aprobar la etapa de ${label}`, () =>
+      api('PATCH', `/contracts/${contract.id}/confirm`, { token: client.token }))
+
+    if (item.outcome === 'delivered' && contract.status === 'IN_PROGRESS') {
+      await deliver()
       contract = await findContract(free.token)
     }
-    if (item.outcome === 'confirmed' && contract.status === 'DELIVERED') {
-      // Si el backend exige pagar con tarjeta antes de liberar (STRIPE_REQUIRE_PAYMENT, activo en producción), este paso
-      // falla y el contrato queda entregado: se paga con la tarjeta de prueba desde la web y se libera ahí
-      await step(`liberar el pago de ${label}`, () =>
-        api('PATCH', `/contracts/${contract.id}/confirm`, { token: client.token }),
-      )
+    // Como mucho 2 pasos por etapa (entregar y aprobar); el tope evita un bucle si algo no avanza
+    for (let tries = 0; item.outcome === 'confirmed' && contract.status !== 'CONFIRMED' && tries < 12; tries++) {
+      const before = `${contract.status}:${contract.currentStage}`
+      if (contract.status === 'IN_PROGRESS') await deliver()
+      else if (contract.status === 'DELIVERED') await approve()
+      else break
       contract = await findContract(free.token)
+      if (`${contract.status}:${contract.currentStage}` === before) break
     }
     if (item.reviews && contract.status === 'CONFIRMED') {
       for (const [who, [rating, comment]] of Object.entries(item.reviews)) {
