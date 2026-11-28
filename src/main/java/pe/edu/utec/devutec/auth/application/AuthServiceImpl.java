@@ -42,12 +42,15 @@ public class AuthServiceImpl implements AuthService {
     private final GoogleTokenVerifier googleTokenVerifier;
     private final ApplicationEventPublisher eventPublisher;
     private final CurrentUserService currentUserService;
+    private final pe.edu.utec.devutec.verification.StudentEmailPolicy studentEmailPolicy;
 
     @Override
     @Transactional
     public AuthResponse register(RegisterRequest request) {
         ensureEmailIsAvailable(request.getEmail());
         ensureRoleCanRegister(request.getRol());
+        // Los estudiantes se registran con su correo universitario (.edu.pe)
+        if (request.getRol() == Role.FREELANCER) studentEmailPolicy.ensureStudentEmail(request.getEmail());
 
         User saved = createUser(request.getNombre(), request.getEmail(), request.getPassword(), request.getRol());
         return buildResponse(saved);
@@ -69,6 +72,7 @@ public class AuthServiceImpl implements AuthService {
             throw new GoogleSignupRequiredException();
         }
         ensureRoleCanRegister(request.getRol());
+        if (request.getRol() == Role.FREELANCER) studentEmailPolicy.ensureStudentEmail(account.email());
 
         // Quien entra con Google no usa contraseña; se guarda una aleatoria que nadie conoce
         User saved = createUser(account.nombre(), account.email(), UUID.randomUUID().toString(), request.getRol());

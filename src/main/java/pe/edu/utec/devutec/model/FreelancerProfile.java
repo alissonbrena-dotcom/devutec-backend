@@ -41,4 +41,9 @@ public class FreelancerProfile {
     @Column(length = 500)
     private String presentacion;
 
+    // Segunda verificación: el carnet universitario revisado por el admin (null si no lo subió)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "carnet_status", length = 12)
+    private pe.edu.utec.devutec.verification.CarnetStatus carnetStatus;
+
 }

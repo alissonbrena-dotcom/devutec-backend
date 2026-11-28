@@ -33,7 +33,8 @@ class FreelancerProfileServiceImplTest {
     private CurrentUserService currentUserService;
 
     @Spy
-    private FreelancerProfileMapper freelancerProfileMapper = new FreelancerProfileMapper();
+    private FreelancerProfileMapper freelancerProfileMapper = new FreelancerProfileMapper(
+            new pe.edu.utec.devutec.verification.StudentEmailPolicy(true, ".edu.pe"));
 
     @InjectMocks
     private FreelancerProfileServiceImpl freelancerProfileService;
