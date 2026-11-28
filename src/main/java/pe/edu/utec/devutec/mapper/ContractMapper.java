@@ -23,8 +23,10 @@ public class ContractMapper {
     public ContractResponseDTO toResponse(Contract contract) {
         Application application = contract.getApplication();
         User client = findClient(application.getProject().getClientId());
-        // Con el contrato cancelado ya no hay trabajo en común, así que no se comparten los celulares
-        boolean sharePhones = contract.getStatus() != ContractStatus.CANCELLED;
+        // Los celulares se comparten recién cuando el pago del cliente está en garantía (lo que protege DEVUTEC es el
+        // pago, no el dato) y no con el contrato cancelado, porque ya no hay trabajo en común
+        boolean sharePhones = contract.getStatus() != ContractStatus.CANCELLED
+                && contract.getPayment().getStripeReference() != null;
         // El plazo del contrato es el que propuso el freelancer (contraoferta) o, si no propuso, el del proyecto
         LocalDate deadline = application.getProposedDeadline() != null
                 ? application.getProposedDeadline()

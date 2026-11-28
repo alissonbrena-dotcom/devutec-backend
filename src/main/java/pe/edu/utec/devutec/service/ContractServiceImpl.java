@@ -1,5 +1,6 @@
 package pe.edu.utec.devutec.service;
 
+import pe.edu.utec.devutec.moderation.ContactGuard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -42,6 +43,7 @@ public class ContractServiceImpl implements ContractService {
     private final ContractRepository contractRepository;
     private final PaymentService paymentService;
     private final CurrentUserService currentUserService;
+    private final ContactGuard contactGuard;
     private final ContractMapper contractMapper;
     private final ApplicationEventPublisher eventPublisher;
     private final CheckoutService checkoutService;
@@ -96,6 +98,8 @@ public class ContractServiceImpl implements ContractService {
         Contract contract = findContract(id);
         ensureIsFreelancer(contract);
         ensureStatus(contract, ContractStatus.IN_PROGRESS);
+        // En el contrato se bloquea la intención de salirse (sobre todo pagar por fuera), no los datos
+        contactGuard.checkInContract(currentUserService.getCurrentUser(), "Contrato " + id + " (entrega)", request.nota());
 
         // El link se valida antes de cambiar nada (agrega https:// si falta y revisa que tenga dominio)
         String link = SocialLinks.link(request.link(), "El link de entrega no parece válido, por ejemplo drive.google.com/...");
@@ -171,6 +175,8 @@ public class ContractServiceImpl implements ContractService {
         Contract contract = findContract(id);
         ensureIsClient(contract);
         ensureStatus(contract, ContractStatus.DELIVERED);
+        contactGuard.checkInContract(currentUserService.getCurrentUser(), "Contrato " + id + " (pedido de cambios)",
+                request.nota());
 
         ContractStage stage = ContractStagePlan.currentStage(contract)
                 .orElseThrow(() -> new InvalidOperationException("Este contrato no tiene etapas para pedir cambios"));

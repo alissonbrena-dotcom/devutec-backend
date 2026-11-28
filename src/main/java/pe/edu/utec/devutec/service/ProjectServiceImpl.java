@@ -1,5 +1,6 @@
 package pe.edu.utec.devutec.service;
 
+import pe.edu.utec.devutec.moderation.ContactGuard;
 import java.util.LinkedHashMap;
 import java.util.ArrayList;
 import pe.edu.utec.devutec.pricing.FuncionalidadReferenciaRepository;
@@ -42,12 +43,15 @@ public class ProjectServiceImpl implements ProjectService {
     private final SkillRepository skillRepository;
     private final ContractRepository contractRepository;
     private final CurrentUserService currentUserService;
+    private final ContactGuard contactGuard;
     private final UserRepository userRepository;
     private final FuncionalidadReferenciaRepository funcionalidadReferenciaRepository;
 
     @Override
     public ProjectResponseDTO create(ProjectCreateDTO dto) {
         User client = currentUserService.getCurrentUser();
+        // El título y la descripción los ven todos los estudiantes: sin datos de contacto ni pedidos de salirse
+        contactGuard.checkBeforeContract(client, "Proyecto nuevo · " + dto.getTitle(), dto.getTitle(), dto.getDescription());
 
         Project project = new Project();
         project.setTitle(dto.getTitle());
@@ -92,6 +96,8 @@ public class ProjectServiceImpl implements ProjectService {
     public ProjectResponseDTO update(Long id, ProjectUpdateDTO dto) {
         Project project = findEntityById(id);
         ensureCanModify(project);
+        contactGuard.checkBeforeContract(currentUserService.getCurrentUser(), "Proyecto " + id + " (edición)",
+                dto.getTitle(), dto.getDescription());
 
         if (dto.getTitle() != null) project.setTitle(dto.getTitle());
         if (dto.getDescription() != null) project.setDescription(dto.getDescription());

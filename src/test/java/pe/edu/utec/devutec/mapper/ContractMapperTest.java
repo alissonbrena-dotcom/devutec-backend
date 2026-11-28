@@ -66,6 +66,8 @@ class ContractMapperTest {
         Payment payment = new Payment();
         payment.setAmount(new BigDecimal("600"));
         payment.setStatus(PaymentStatus.HELD);
+        // Pagado con tarjeta: el pago está en garantía, así que se pueden compartir los celulares
+        payment.setStripeReference("pi_prueba");
         Contract contract = new Contract();
         contract.setId(21L);
         contract.setApplication(application);
@@ -91,6 +93,18 @@ class ContractMapperTest {
 
         assertNotNull(response.getClientPhone());
         assertNotNull(response.getFreelancerPhone());
+    }
+
+    // TEST 2b: si el cliente todavía no pagó, no se comparten: lo que protege DEVUTEC es el pago
+    @Test
+    void toResponse_sinPagoEnGarantia_noDeberiaIncluirLosCelulares() {
+        Contract contract = contract(ContractStatus.IN_PROGRESS);
+        contract.getPayment().setStripeReference(null);
+
+        ContractResponseDTO response = contractMapper.toResponse(contract);
+
+        assertNull(response.getClientPhone());
+        assertNull(response.getFreelancerPhone());
     }
 
     // TEST 3: con el contrato cancelado ya no se comparten

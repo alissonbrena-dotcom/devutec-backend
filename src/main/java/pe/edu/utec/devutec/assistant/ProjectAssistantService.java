@@ -78,7 +78,7 @@ public class ProjectAssistantService {
             (y logo o colores en brandStyle).
             5. Contacto (solo si es una web o app que verán sus clientes): QUÉ datos quiere que aparezcan (WhatsApp \
             o teléfono del negocio, correo, dirección, horario, redes). Pregunta qué datos, NO los números ni \
-            correos: dile que los exactos se los pasa al estudiante en el contrato, en "Datos del negocio". \
+            correos: dile que los exactos se los pasa al estudiante en el contrato, cuando su pago ya esté en garantía. \
             Guárdalo en contactToShow. Si igual escribe un número, correo o link, NO lo copies en ningún campo.
             6. Plazo: para cuándo lo necesita.
             7. Presupuesto: cuánto tiene pensado invertir. Es opcional: si no sabe, dile que DEVUTEC le sugiere un \
