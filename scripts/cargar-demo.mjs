@@ -111,7 +111,10 @@ const FREELANCERS = [
   },
 ]
 
-// key sirve para referirse al proyecto en las postulaciones; no se manda al backend
+// key sirve para referirse al proyecto en las postulaciones; no se manda al backend.
+// category y features son lo que guardaría el asistente IA: con ellas el copiloto calcula horas reales.
+// Los códigos son los de la tabla de horas (FuncionalidadReferenciaSeeder). Sin features, el copiloto avisa que
+// no tiene el detalle (por ejemplo, fotos o reels, que no están en la tabla).
 const PROJECTS = [
   {
     key: 'logo-pasteleria',
@@ -123,6 +126,8 @@ const PROJECTS = [
     days: 20,
     location: 'Surco',
     skills: ['Branding', 'Diseño gráfico', 'Figma'],
+    category: 'WEB',
+    features: [['DISENO_VISUAL', 2]],
   },
   {
     key: 'reels-pasteleria',
@@ -145,6 +150,8 @@ const PROJECTS = [
     days: 30,
     location: 'Barranco',
     skills: ['React', 'HTML y CSS', 'Diseño UX/UI'],
+    category: 'WEB',
+    features: [['PAGINA_INFO', 3], ['CARTA_CATALOGO', 1], ['RESERVAS', 1], ['FORMULARIO', 1], ['WHATSAPP_REDES', 1]],
   },
   {
     key: 'fotos-cafe',
@@ -167,6 +174,8 @@ const PROJECTS = [
     days: 25,
     location: 'Remoto',
     skills: ['Power BI', 'Excel', 'Análisis de datos'],
+    category: 'AUTOMATIZACION',
+    features: [['REPORTE_DASHBOARD', 1], ['AUTOMATIZACION_SIMPLE', 1]],
   },
   {
     key: 'app-yoga',
@@ -178,6 +187,8 @@ const PROJECTS = [
     days: 45,
     location: 'Miraflores',
     skills: ['React Native', 'Spring Boot', 'Diseño UX/UI'],
+    category: 'APP',
+    features: [['PANTALLA_APP', 5], ['LOGIN', 1], ['RESERVAS', 1], ['NOTIFICACIONES', 1], ['PUBLICACION_TIENDA', 1]],
   },
   {
     key: 'contenido-yoga',
@@ -200,6 +211,8 @@ const PROJECTS = [
     days: 40,
     location: 'San Miguel',
     skills: ['Shopify', 'E-commerce'],
+    category: 'WEB',
+    features: [['CARTA_CATALOGO', 1], ['CARRITO_PEDIDOS', 1], ['PAGOS_EN_LINEA', 1], ['PANEL_ADMIN', 1]],
   },
   {
     key: 'inventario-ferreteria',
@@ -211,6 +224,8 @@ const PROJECTS = [
     days: 12,
     location: 'San Miguel',
     skills: ['Excel', 'Automatización'],
+    category: 'AUTOMATIZACION',
+    features: [['AUTOMATIZACION_SIMPLE', 2]],
   },
   {
     key: 'landing-ferreteria',
@@ -222,6 +237,8 @@ const PROJECTS = [
     days: 18,
     location: 'Remoto',
     skills: ['HTML y CSS', 'WordPress', 'SEO'],
+    category: 'WEB',
+    features: [['PAGINA_INFO', 1], ['WHATSAPP_REDES', 1], ['SEO_BASICO', 1]],
   },
 ]
 
@@ -363,6 +380,10 @@ async function main() {
           deadline: inDays(project.days),
           location: project.location,
           skillIds: skillIds(project.skills),
+          ...(project.category ? { category: project.category } : {}),
+          ...(project.features
+            ? { features: project.features.map(([code, quantity]) => ({ code, quantity })) }
+            : {}),
         },
       }),
     )
