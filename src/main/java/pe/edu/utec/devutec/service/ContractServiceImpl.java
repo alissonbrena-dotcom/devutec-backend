@@ -32,6 +32,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import pe.edu.utec.devutec.payments.InstallmentService;
+import pe.edu.utec.devutec.quality.QualityService;
 import java.math.BigDecimal;
 
 // El trabajo avanza por etapas: el freelancer entrega la etapa actual y el cliente la aprueba o pide cambios.
@@ -50,6 +51,7 @@ public class ContractServiceImpl implements ContractService {
     private final ApplicationEventPublisher eventPublisher;
     private final CheckoutService checkoutService;
     private final InstallmentService installmentService;
+    private final QualityService qualityService;
 
     @Override
     @Transactional
@@ -117,6 +119,8 @@ public class ContractServiceImpl implements ContractService {
         Optional<ContractStage> current = ContractStagePlan.currentStage(contract);
         // El estudiante nunca trabaja una etapa sin pagar: la cuota que cubre esta etapa tiene que estar pagada
         current.ifPresent(stage -> checkoutService.ensurePartPaid(contract, stage.getPaymentPart()));
+        // Entrega final de un proyecto web: la web tiene que pasar el estándar de calidad de DEVUTEC
+        current.ifPresent(stage -> qualityService.ensurePassed(contract, stage));
         current.ifPresent(stage -> {
             stage.setStatus(StageStatus.DELIVERED);
             stage.setDeliveredAt(now);
