@@ -104,7 +104,8 @@ public final class ContractStagePlan {
         return price.subtract(stagesTotal).max(BigDecimal.ZERO);
     }
 
-    // Suma de las etapas que el cliente ya aprobó: lo que ya es del estudiante
+    // Suma de las etapas que el cliente ya aprobó, con los montos del contrato: lo que pagó el cliente por ellas,
+    // comisión incluida (no lo que recibe el estudiante)
     public static BigDecimal releasedAmount(Contract contract) {
         return contract.getStages().stream()
                 .filter(stage -> stage.getStatus() == StageStatus.APPROVED)
