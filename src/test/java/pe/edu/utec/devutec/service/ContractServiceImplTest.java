@@ -70,6 +70,9 @@ class ContractServiceImplTest {
     @Mock
     private pe.edu.utec.devutec.payments.SecondPaymentService secondPaymentService;
 
+    @Mock
+    private pe.edu.utec.devutec.metrics.MetricsService metricsService;
+
     @InjectMocks
     private ContractServiceImpl contractService;
 

@@ -52,6 +52,7 @@ public class ContractServiceImpl implements ContractService {
     private final CheckoutService checkoutService;
     private final InstallmentService installmentService;
     private final SecondPaymentService secondPaymentService;
+    private final pe.edu.utec.devutec.metrics.MetricsService metricsService;
 
     @Override
     @Transactional
@@ -119,6 +120,11 @@ public class ContractServiceImpl implements ContractService {
         Optional<ContractStage> current = ContractStagePlan.currentStage(contract);
         // El estudiante nunca trabaja una etapa sin pagar: la cuota que cubre esta etapa tiene que estar pagada
         current.ifPresent(stage -> checkoutService.ensurePartPaid(contract, stage.getPaymentPart()));
+        // Entrega final: si el cliente pidió y activó métricas, la web ya tiene que haber mandado al menos un dato
+        boolean finalDelivery = current.map(stage -> Integer.valueOf(contract.getStages().size()).equals(stage.getPosition())).orElse(true);
+        if (finalDelivery) {
+            metricsService.checkFinalDelivery(contract);
+        }
         current.ifPresent(stage -> {
             stage.setStatus(StageStatus.DELIVERED);
             stage.setDeliveredAt(now);

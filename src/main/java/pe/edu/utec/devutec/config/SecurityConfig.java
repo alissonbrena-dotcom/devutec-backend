@@ -48,6 +48,14 @@ public class SecurityConfig {
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        // Métricas: las manda la web de cada cliente desde su propio dominio, así que /collect acepta cualquier origen
+        // (sin cookies ni credenciales; solo recibe eventos anónimos)
+        CorsConfiguration collect = new CorsConfiguration();
+        collect.setAllowedOriginPatterns(List.of("*"));
+        collect.setAllowedMethods(List.of("POST", "OPTIONS"));
+        collect.setAllowedHeaders(List.of("Content-Type"));
+        collect.setAllowCredentials(false);
+        source.registerCorsConfiguration("/api/v1/collect", collect);
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
@@ -82,6 +90,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/users/*/reviews").permitAll()
                         // Fotos de perfil: las pide una etiqueta <img>, que no manda el token
                         .requestMatchers(HttpMethod.GET, "/api/v1/users/*/avatar").permitAll()
+                        // Métricas que manda la web del cliente (eventos anónimos, sin sesión)
+                        .requestMatchers(HttpMethod.POST, "/api/v1/collect").permitAll()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
