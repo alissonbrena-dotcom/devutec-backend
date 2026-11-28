@@ -1,0 +1,1942 @@
+diff --git a/src/main/java/pe/edu/utec/devutec/config/SecurityConfig.java b/src/main/java/pe/edu/utec/devutec/config/SecurityConfig.java
+index 1640d5a..4e6d498 100644
+--- a/src/main/java/pe/edu/utec/devutec/config/SecurityConfig.java
++++ b/src/main/java/pe/edu/utec/devutec/config/SecurityConfig.java
+@@ -48,6 +48,14 @@ public class SecurityConfig {
+         configuration.setAllowCredentials(true);
+ 
+         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
++        // Métricas: las manda la web de cada cliente desde su propio dominio, así que /collect acepta cualquier origen
++        // (sin cookies ni credenciales; solo recibe eventos anónimos)
++        CorsConfiguration collect = new CorsConfiguration();
++        collect.setAllowedOriginPatterns(List.of("*"));
++        collect.setAllowedMethods(List.of("POST", "OPTIONS"));
++        collect.setAllowedHeaders(List.of("Content-Type"));
++        collect.setAllowCredentials(false);
++        source.registerCorsConfiguration("/api/v1/collect", collect);
+         source.registerCorsConfiguration("/**", configuration);
+         return source;
+     }
+@@ -82,6 +90,8 @@ public class SecurityConfig {
+                         .requestMatchers(HttpMethod.GET, "/api/v1/users/*/reviews").permitAll()
+                         // Fotos de perfil: las pide una etiqueta <img>, que no manda el token
+                         .requestMatchers(HttpMethod.GET, "/api/v1/users/*/avatar").permitAll()
++                        // Métricas que manda la web del cliente (eventos anónimos, sin sesión)
++                        .requestMatchers(HttpMethod.POST, "/api/v1/collect").permitAll()
+                         .anyRequest().authenticated()
+                 )
+                 .exceptionHandling(ex -> ex.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
+diff --git a/src/main/java/pe/edu/utec/devutec/metrics/AdvancedReportDTO.java b/src/main/java/pe/edu/utec/devutec/metrics/AdvancedReportDTO.java
+new file mode 100644
+index 0000000..d355a46
+--- /dev/null
++++ b/src/main/java/pe/edu/utec/devutec/metrics/AdvancedReportDTO.java
+@@ -0,0 +1,20 @@
++package pe.edu.utec.devutec.metrics;
++
++import java.util.List;
++
++// Reporte Pro: sale de Amplitude. available=false con un mensaje si no hay plan Pro o si Amplitude no respondió
++public record AdvancedReportDTO(
++        boolean available,
++        String message,
++        List<Item> topPages,
++        List<Item> sources,
++        List<Item> devices,
++        List<Item> contactsByMonth
++) {
++    public record Item(String label, long total) {
++    }
++
++    static AdvancedReportDTO unavailable(String message) {
++        return new AdvancedReportDTO(false, message, List.of(), List.of(), List.of(), List.of());
++    }
++}
+diff --git a/src/main/java/pe/edu/utec/devutec/metrics/AmplitudeClient.java b/src/main/java/pe/edu/utec/devutec/metrics/AmplitudeClient.java
+new file mode 100644
+index 0000000..3d4f90d
+--- /dev/null
++++ b/src/main/java/pe/edu/utec/devutec/metrics/AmplitudeClient.java
+@@ -0,0 +1,172 @@
++package pe.edu.utec.devutec.metrics;
++
++import jakarta.annotation.PreDestroy;
++import lombok.extern.slf4j.Slf4j;
++import org.springframework.beans.factory.annotation.Value;
++import org.springframework.http.MediaType;
++import org.springframework.http.client.SimpleClientHttpRequestFactory;
++import org.springframework.stereotype.Component;
++import org.springframework.web.client.RestClient;
++import org.springframework.web.client.RestClientException;
++import tools.jackson.databind.json.JsonMapper;
++
++import java.nio.charset.StandardCharsets;
++import java.time.Duration;
++import java.time.LocalDate;
++import java.time.format.DateTimeFormatter;
++import java.util.ArrayList;
++import java.util.Base64;
++import java.util.LinkedHashMap;
++import java.util.List;
++import java.util.Map;
++import java.util.concurrent.ArrayBlockingQueue;
++import java.util.concurrent.RejectedExecutionException;
++import java.util.concurrent.ThreadPoolExecutor;
++import java.util.concurrent.TimeUnit;
++
++// Conversación con Amplitude, el motor de analítica que DEVUTEC usa por detrás (recomendación de Aaron).
++// - Enviar: cada evento que llega a /collect se reenvía con la API HTTP V2 (https://api2.amplitude.com/2/httpapi).
++//   Lo manda nuestro servidor, así Amplitude nunca ve la IP del visitante ni pone cookies en su navegador.
++// - Leer: el reporte Pro le pregunta a la Dashboard REST API (Event Segmentation), con la clave secreta solo en el servidor.
++// Las claves viven en /etc/devutec.env (AMPLITUDE_API_KEY y AMPLITUDE_SECRET_KEY). Sin claves, no se envía nada
++// y el reporte Pro dice que Amplitude no está configurado; el panel básico sigue funcionando.
++@Slf4j
++@Component
++public class AmplitudeClient {
++
++    private static final JsonMapper JSON = JsonMapper.builder().build();
++    private static final DateTimeFormatter DAY = DateTimeFormatter.BASIC_ISO_DATE;
++
++    private final String apiKey;
++    private final String secretKey;
++    private final String ingestUrl;
++    private final String dashboardUrl;
++    private final RestClient restClient;
++    // Envío en segundo plano para que /collect responda al toque. Si se juntan demasiados eventos, se descartan
++    // (es analítica: perder alguno es mejor que trabar el servidor)
++    private final ThreadPoolExecutor sender = new ThreadPoolExecutor(1, 2, 30, TimeUnit.SECONDS,
++            new ArrayBlockingQueue<>(2_000), new ThreadPoolExecutor.AbortPolicy());
++
++    public AmplitudeClient(@Value("${amplitude.api-key:}") String apiKey,
++                           @Value("${amplitude.secret-key:}") String secretKey,
++                           @Value("${amplitude.region:us}") String region) {
++        this.apiKey = apiKey == null ? "" : apiKey.trim();
++        this.secretKey = secretKey == null ? "" : secretKey.trim();
++        boolean eu = "eu".equalsIgnoreCase(region);
++        this.ingestUrl = eu ? "https://api.eu.amplitude.com/2/httpapi" : "https://api2.amplitude.com/2/httpapi";
++        this.dashboardUrl = eu ? "https://analytics.eu.amplitude.com" : "https://amplitude.com";
++        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
++        factory.setConnectTimeout(Duration.ofSeconds(5));
++        factory.setReadTimeout(Duration.ofSeconds(20));
++        this.restClient = RestClient.builder().requestFactory(factory).build();
++    }
++
++    public boolean canSend() {
++        return !apiKey.isBlank();
++    }
++
++    public boolean canRead() {
++        return !apiKey.isBlank() && !secretKey.isBlank();
++    }
++
++    // Un evento ya limpio (sin IP ni datos personales). deviceId es un identificador al azar que dura solo esa visita
++    public record Event(String eventType, String deviceId, long timeMillis, String insertId, Map<String, Object> properties) {
++    }
++
++    public void send(Event event) {
++        if (!canSend()) {
++            return;
++        }
++        try {
++            sender.execute(() -> post(event));
++        } catch (RejectedExecutionException e) {
++            log.warn("Demasiados eventos de métricas en cola: se descartó uno");
++        }
++    }
++
++    private void post(Event event) {
++        Map<String, Object> amplitudeEvent = new LinkedHashMap<>();
++        amplitudeEvent.put("event_type", event.eventType());
++        amplitudeEvent.put("device_id", event.deviceId());
++        amplitudeEvent.put("time", event.timeMillis());
++        amplitudeEvent.put("insert_id", event.insertId());
++        amplitudeEvent.put("platform", "Web");
++        amplitudeEvent.put("event_properties", event.properties());
++        Map<String, Object> body = Map.of("api_key", apiKey, "events", List.of(amplitudeEvent));
++        try {
++            restClient.post().uri(ingestUrl)
++                    .contentType(MediaType.APPLICATION_JSON)
++                    .body(JSON.writeValueAsString(body))
++                    .retrieve()
++                    .toBodilessEntity();
++        } catch (RestClientException e) {
++            log.warn("Amplitude no recibió un evento de métricas: {}", e.getMessage());
++        }
++    }
++
++    // Resultado de una consulta: una serie por grupo (por ejemplo una por página), con su total en el rango y por día
++    public record Segmentation(List<String> labels, List<Long> totals, List<String> days, List<List<Long>> perDay) {
++        public long total() {
++            return totals.stream().mapToLong(Long::longValue).sum();
++        }
++    }
++
++    // Cuenta un evento de una web (filtrado por su llave), del día start al end. groupBy es una propiedad del evento
++    // (por ejemplo "pagina" o "origen") o null para el total. interval: 1 = por día, 30 = por mes
++    public Segmentation segmentation(String eventType, String siteKey, LocalDate start, LocalDate end, String groupBy, int interval) {
++        Map<String, Object> filter = Map.of(
++                "subprop_type", "event",
++                "subprop_key", "web",
++                "subprop_op", "is",
++                "subprop_value", List.of(siteKey));
++        Map<String, Object> e = new LinkedHashMap<>();
++        e.put("event_type", "ce:" + eventType);
++        e.put("filters", List.of(filter));
++        if (groupBy != null) {
++            e.put("group_by", List.of(Map.of("type", "event", "value", groupBy)));
++        }
++        String auth = Base64.getEncoder().encodeToString((apiKey + ":" + secretKey).getBytes(StandardCharsets.UTF_8));
++        Map<?, ?> response = restClient.get()
++                .uri(dashboardUrl + "/api/2/events/segmentation?e={e}&m=totals&start={start}&end={end}&i={i}&limit=20",
++                        JSON.writeValueAsString(e), start.format(DAY), end.format(DAY), interval)
++                .header("Authorization", "Basic " + auth)
++                .retrieve()
++                .body(Map.class);
++        return parse(response);
++    }
++
++    @SuppressWarnings("unchecked")
++    static Segmentation parse(Map<?, ?> response) {
++        Map<String, Object> data = response == null ? Map.of() : (Map<String, Object>) response.get("data");
++        if (data == null) {
++            return new Segmentation(List.of(), List.of(), List.of(), List.of());
++        }
++        List<String> days = new ArrayList<>();
++        for (Object day : (List<Object>) data.getOrDefault("xValues", List.of())) {
++            days.add(String.valueOf(day));
++        }
++        List<String> labels = new ArrayList<>();
++        for (Object label : (List<Object>) data.getOrDefault("seriesLabels", List.of())) {
++            // Con group_by la etiqueta viene como [índice, "valor"]; sin group_by, como 0
++            labels.add(label instanceof List<?> parts && parts.size() > 1 ? String.valueOf(parts.get(1)) : String.valueOf(label));
++        }
++        List<List<Long>> perDay = new ArrayList<>();
++        for (Object series : (List<Object>) data.getOrDefault("series", List.of())) {
++            List<Long> values = new ArrayList<>();
++            for (Object value : (List<Object>) series) {
++                values.add(value instanceof Number number ? number.longValue() : 0L);
++            }
++            perDay.add(values);
++        }
++        List<Long> totals = new ArrayList<>();
++        for (List<Long> values : perDay) {
++            totals.add(values.stream().mapToLong(Long::longValue).sum());
++        }
++        return new Segmentation(labels, totals, days, perDay);
++    }
++
++    @PreDestroy
++    void stop() {
++        sender.shutdown();
++    }
++}
+diff --git a/src/main/java/pe/edu/utec/devutec/metrics/CollectRequestDTO.java b/src/main/java/pe/edu/utec/devutec/metrics/CollectRequestDTO.java
+new file mode 100644
+index 0000000..9e71a8c
+--- /dev/null
++++ b/src/main/java/pe/edu/utec/devutec/metrics/CollectRequestDTO.java
+@@ -0,0 +1,12 @@
++package pe.edu.utec.devutec.metrics;
++
++// Lo que manda el script (o el código del estudiante) desde la web del cliente.
++// Llega como texto (text/plain) para que el navegador lo envíe sin pedir permiso antes (sin preflight de CORS).
++// - key: llave pública de la web · type: PAGEVIEW, CLICK, CONTACT, ORDER, RESERVATION, PERFORMANCE o CUSTOM
++// - path: página (se le quita lo que va después de "?") · valueMs: milisegundos de carga (solo PERFORMANCE)
++// - name: nombre del evento propio (solo CUSTOM, por ejemplo "reporte_generado")
++// - visitorId: identificador al azar que dura solo esa visita, y solo si el visitante aceptó el aviso
++// - source: de dónde llegó (instagram, facebook, google, tiktok, directo u otro) · device: celular o computadora
++public record CollectRequestDTO(String key, String type, String path, Integer valueMs, String name,
++                                String visitorId, String source, String device) {
++}
+diff --git a/src/main/java/pe/edu/utec/devutec/metrics/MetricDailyCount.java b/src/main/java/pe/edu/utec/devutec/metrics/MetricDailyCount.java
+new file mode 100644
+index 0000000..fa056dd
+--- /dev/null
++++ b/src/main/java/pe/edu/utec/devutec/metrics/MetricDailyCount.java
+@@ -0,0 +1,52 @@
++package pe.edu.utec.devutec.metrics;
++
++import jakarta.persistence.Column;
++import jakarta.persistence.Entity;
++import jakarta.persistence.EnumType;
++import jakarta.persistence.Enumerated;
++import jakarta.persistence.GeneratedValue;
++import jakarta.persistence.GenerationType;
++import jakarta.persistence.Id;
++import jakarta.persistence.Table;
++import jakarta.persistence.UniqueConstraint;
++import lombok.Getter;
++import lombok.NoArgsConstructor;
++import lombok.Setter;
++
++import java.time.LocalDate;
++
++// Contador simple por web, día y tipo de evento (por ejemplo "web 9, 28 de noviembre, contactos: 4").
++// Con esto sale el panel básico al instante sin depender de Amplitude. No guarda nada de cada visitante.
++// test = el dato vino de localhost o de un link de prueba (mientras el estudiante desarrolla o en el demo)
++@Entity
++@Table(name = "metric_daily_counts",
++        uniqueConstraints = @UniqueConstraint(name = "uk_metric_daily", columnNames = {"site_id", "day", "type", "test"}))
++@Getter
++@Setter
++@NoArgsConstructor
++public class MetricDailyCount {
++
++    @Id
++    @GeneratedValue(strategy = GenerationType.IDENTITY)
++    private Long id;
++
++    @Column(name = "site_id", nullable = false)
++    private Long siteId;
++
++    @Column(nullable = false)
++    private LocalDate day;
++
++    @Enumerated(EnumType.STRING)
++    @Column(nullable = false, length = 20)
++    private MetricType type;
++
++    @Column(nullable = false)
++    private boolean test;
++
++    @Column(nullable = false)
++    private long total;
++
++    // Solo para PERFORMANCE: suma de milisegundos, para sacar el promedio (sumValueMs ÷ total)
++    @Column(name = "sum_value_ms", nullable = false)
++    private long sumValueMs;
++}
+diff --git a/src/main/java/pe/edu/utec/devutec/metrics/MetricDailyCountRepository.java b/src/main/java/pe/edu/utec/devutec/metrics/MetricDailyCountRepository.java
+new file mode 100644
+index 0000000..f550937
+--- /dev/null
++++ b/src/main/java/pe/edu/utec/devutec/metrics/MetricDailyCountRepository.java
+@@ -0,0 +1,21 @@
++package pe.edu.utec.devutec.metrics;
++
++import org.springframework.data.jpa.repository.JpaRepository;
++import org.springframework.data.jpa.repository.Modifying;
++import org.springframework.data.jpa.repository.Query;
++import org.springframework.data.repository.query.Param;
++
++import java.time.LocalDate;
++import java.util.List;
++import java.util.Optional;
++
++public interface MetricDailyCountRepository extends JpaRepository<MetricDailyCount, Long> {
++
++    Optional<MetricDailyCount> findBySiteIdAndDayAndTypeAndTest(Long siteId, LocalDate day, MetricType type, boolean test);
++
++    List<MetricDailyCount> findBySiteIdAndDayGreaterThanEqual(Long siteId, LocalDate since);
++
++    @Modifying
++    @Query("delete from MetricDailyCount c where c.siteId = :siteId")
++    void deleteBySiteId(@Param("siteId") Long siteId);
++}
+diff --git a/src/main/java/pe/edu/utec/devutec/metrics/MetricType.java b/src/main/java/pe/edu/utec/devutec/metrics/MetricType.java
+new file mode 100644
+index 0000000..c45ba7f
+--- /dev/null
++++ b/src/main/java/pe/edu/utec/devutec/metrics/MetricType.java
+@@ -0,0 +1,26 @@
++package pe.edu.utec.devutec.metrics;
++
++import java.util.Locale;
++
++// Lo que cuenta DEVUTEC en la web (o la app o la automatización) del cliente. Nada identifica a quien visita.
++// amplitudeName es el nombre del evento en Amplitude.
++public enum MetricType {
++    // Alguien abrió una página (el script lo manda solo)
++    PAGEVIEW,
++    // Tocó un botón o un link (el script lo manda solo)
++    CLICK,
++    // Contactó al negocio: WhatsApp, llamar, "cómo llegar" o un formulario (data-devutec="contacto")
++    CONTACT,
++    // Hizo un pedido (data-devutec="pedido")
++    ORDER,
++    // Hizo una reserva (data-devutec="reserva")
++    RESERVATION,
++    // Cuánto tardó la página en cargar, en milisegundos (el script lo manda solo)
++    PERFORMANCE,
++    // Un evento propio con nombre, para apps y automatizaciones (por ejemplo "reporte_generado")
++    CUSTOM;
++
++    public String amplitudeName() {
++        return "devutec_" + name().toLowerCase(Locale.ROOT);
++    }
++}
+diff --git a/src/main/java/pe/edu/utec/devutec/metrics/MetricsConsentDTO.java b/src/main/java/pe/edu/utec/devutec/metrics/MetricsConsentDTO.java
+new file mode 100644
+index 0000000..df40dc6
+--- /dev/null
++++ b/src/main/java/pe/edu/utec/devutec/metrics/MetricsConsentDTO.java
+@@ -0,0 +1,9 @@
++package pe.edu.utec.devutec.metrics;
++
++import jakarta.validation.constraints.AssertTrue;
++
++public record MetricsConsentDTO(
++        @AssertTrue(message = "Tienes que aceptar el uso de métricas anónimas para activarlas")
++        boolean consent
++) {
++}
+diff --git a/src/main/java/pe/edu/utec/devutec/metrics/MetricsController.java b/src/main/java/pe/edu/utec/devutec/metrics/MetricsController.java
+new file mode 100644
+index 0000000..e9059c6
+--- /dev/null
++++ b/src/main/java/pe/edu/utec/devutec/metrics/MetricsController.java
+@@ -0,0 +1,91 @@
++package pe.edu.utec.devutec.metrics;
++
++import jakarta.servlet.http.HttpServletRequest;
++import jakarta.validation.Valid;
++import lombok.RequiredArgsConstructor;
++import lombok.extern.slf4j.Slf4j;
++import org.springframework.http.ResponseEntity;
++import org.springframework.web.bind.annotation.DeleteMapping;
++import org.springframework.web.bind.annotation.GetMapping;
++import org.springframework.web.bind.annotation.PathVariable;
++import org.springframework.web.bind.annotation.PostMapping;
++import org.springframework.web.bind.annotation.RequestBody;
++import org.springframework.web.bind.annotation.RestController;
++import tools.jackson.core.JacksonException;
++import tools.jackson.databind.DeserializationFeature;
++import tools.jackson.databind.json.JsonMapper;
++
++@Slf4j
++@RestController
++@RequiredArgsConstructor
++public class MetricsController {
++
++    private static final JsonMapper JSON = JsonMapper.builder()
++            .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
++            .build();
++
++    private final MetricsService metricsService;
++
++    // Público: lo llama la web del cliente (el script de DEVUTEC) o el código del estudiante con un POST.
++    // Acepta el cuerpo como texto o JSON y siempre responde 204, para no darle pistas a quien quiera abusar.
++    // Ejemplo: {"key":"dv_...","type":"CONTACT","path":"/contacto"}
++    @PostMapping("/api/v1/collect")
++    public ResponseEntity<Void> collect(@RequestBody(required = false) String body, HttpServletRequest request) {
++        if (body != null && body.length() <= 2_000) {
++            try {
++                metricsService.collect(JSON.readValue(body, CollectRequestDTO.class), request.getHeader("Origin"), clientIp(request));
++            } catch (JacksonException ignored) {
++                // Un evento mal formado simplemente no se cuenta
++            } catch (RuntimeException e) {
++                // Por ejemplo, dos eventos del mismo día llegando a la vez: se pierde uno, pero la web del cliente no ve errores
++                log.debug("No se pudo contar un evento de métricas: {}", e.getMessage());
++            }
++        }
++        return ResponseEntity.noContent().build();
++    }
++
++    @GetMapping("/api/v1/contracts/{id}/metrics")
++    public ResponseEntity<MetricsResponseDTO> get(@PathVariable Long id) {
++        return ResponseEntity.ok(metricsService.get(id));
++    }
++
++    // Solo el cliente, marcando el consentimiento
++    @PostMapping("/api/v1/contracts/{id}/metrics")
++    public ResponseEntity<MetricsResponseDTO> enable(@PathVariable Long id, @Valid @RequestBody MetricsConsentDTO request) {
++        return ResponseEntity.ok(metricsService.enable(id));
++    }
++
++    // Retira el consentimiento y borra la llave y los contadores del panel
++    @DeleteMapping("/api/v1/contracts/{id}/metrics")
++    public ResponseEntity<MetricsResponseDTO> disable(@PathVariable Long id) {
++        return ResponseEntity.ok(metricsService.disable(id));
++    }
++
++    // Reporte Pro (sale de Amplitude)
++    @GetMapping("/api/v1/contracts/{id}/metrics/advanced")
++    public ResponseEntity<AdvancedReportDTO> advanced(@PathVariable Long id) {
++        return ResponseEntity.ok(metricsService.advanced(id));
++    }
++
++    // Membresía: abre Stripe para suscribirse a Básico o Pro y, al volver, confirma la suscripción
++    @PostMapping("/api/v1/contracts/{id}/metrics/subscription")
++    public ResponseEntity<MetricsSubscriptionDTOs.StartResponse> subscribe(@PathVariable Long id,
++                                                                           @Valid @RequestBody MetricsSubscriptionDTOs.StartRequest request) {
++        return ResponseEntity.ok(metricsService.startSubscription(id, request.plan()));
++    }
++
++    @PostMapping("/api/v1/contracts/{id}/metrics/subscription/confirm")
++    public ResponseEntity<MetricsResponseDTO> confirm(@PathVariable Long id,
++                                                      @Valid @RequestBody MetricsSubscriptionDTOs.ConfirmRequest request) {
++        return ResponseEntity.ok(metricsService.confirmSubscription(id, request.sessionId()));
++    }
++
++    // Caddy pasa la IP real en X-Forwarded-For. Solo se usa en memoria para el límite de eventos y nunca se guarda
++    private static String clientIp(HttpServletRequest request) {
++        String forwarded = request.getHeader("X-Forwarded-For");
++        if (forwarded != null && !forwarded.isBlank()) {
++            return forwarded.split(",")[0].trim();
++        }
++        return request.getRemoteAddr();
++    }
++}
+diff --git a/src/main/java/pe/edu/utec/devutec/metrics/MetricsPlan.java b/src/main/java/pe/edu/utec/devutec/metrics/MetricsPlan.java
+new file mode 100644
+index 0000000..5fcbeb2
+--- /dev/null
++++ b/src/main/java/pe/edu/utec/devutec/metrics/MetricsPlan.java
+@@ -0,0 +1,27 @@
++package pe.edu.utec.devutec.metrics;
++
++import java.math.BigDecimal;
++
++// Membresías del panel de métricas. Los 3 primeros meses son gratis (empiezan con el primer dato de la web)
++// y después el cliente elige Básico o Pro. Se cobran con una suscripción mensual de Stripe.
++public enum MetricsPlan {
++    NONE(BigDecimal.ZERO, "Sin plan"),
++    BASIC(new BigDecimal("19.00"), "Métricas DEVUTEC · Básico"),
++    PRO(new BigDecimal("39.00"), "Métricas DEVUTEC · Pro");
++
++    private final BigDecimal monthlyPrice;
++    private final String productName;
++
++    MetricsPlan(BigDecimal monthlyPrice, String productName) {
++        this.monthlyPrice = monthlyPrice;
++        this.productName = productName;
++    }
++
++    public BigDecimal monthlyPrice() {
++        return monthlyPrice;
++    }
++
++    public String productName() {
++        return productName;
++    }
++}
+diff --git a/src/main/java/pe/edu/utec/devutec/metrics/MetricsResponseDTO.java b/src/main/java/pe/edu/utec/devutec/metrics/MetricsResponseDTO.java
+new file mode 100644
+index 0000000..0c03be5
+--- /dev/null
++++ b/src/main/java/pe/edu/utec/devutec/metrics/MetricsResponseDTO.java
+@@ -0,0 +1,59 @@
++package pe.edu.utec.devutec.metrics;
++
++import java.math.BigDecimal;
++import java.time.LocalDate;
++import java.time.LocalDateTime;
++import java.util.List;
++
++// Panel de métricas del contrato: estado, membresía, números del último mes y cómo integrarlo
++public record MetricsResponseDTO(
++        // El cliente ya las activó con su consentimiento
++        boolean enabled,
++        // El cliente las pidió al crear el proyecto: es un requisito de la Entrega final
++        boolean requested,
++        // Quien mira es el cliente: puede activarlas, desactivarlas y elegir su plan
++        boolean canManage,
++        String consentText,
++        // Integración: llave, si ya llegó algún dato y de qué dominio
++        String publicKey,
++        LocalDateTime consentedAt,
++        boolean integrated,
++        LocalDateTime integratedAt,
++        // Todo lo recibido hasta ahora vino de localhost o de un link de prueba
++        boolean onlyTestData,
++        String allowedOrigin,
++        Access access,
++        // null si el panel está bloqueado (terminó la prueba gratis y no hay plan)
++        Summary summary,
++        Integration integration
++) {
++    public record Access(
++            MetricsPlan plan,
++            // Los 3 meses gratis: null si todavía no empiezan (empiezan con el primer dato real)
++            LocalDateTime trialEndsAt,
++            boolean trialActive,
++            boolean locked,
++            BigDecimal basicPrice,
++            BigDecimal proPrice
++    ) {
++    }
++
++    public record Summary(
++            long visits,
++            long contacts,
++            long orders,
++            long reservations,
++            long clicks,
++            Integer averageLoadMs,
++            // Hay datos de prueba sumados en estos números
++            boolean includesTestData,
++            List<Day> lastDays
++    ) {
++    }
++
++    public record Day(LocalDate date, long visits, long contacts) {
++    }
++
++    public record Integration(String scriptUrl, String scriptTag, String collectUrl, String postExample, String aiPrompt) {
++    }
++}
+diff --git a/src/main/java/pe/edu/utec/devutec/metrics/MetricsService.java b/src/main/java/pe/edu/utec/devutec/metrics/MetricsService.java
+new file mode 100644
+index 0000000..de180df
+--- /dev/null
++++ b/src/main/java/pe/edu/utec/devutec/metrics/MetricsService.java
+@@ -0,0 +1,565 @@
++package pe.edu.utec.devutec.metrics;
++
++import lombok.extern.slf4j.Slf4j;
++import org.springframework.beans.factory.annotation.Value;
++import org.springframework.stereotype.Service;
++import org.springframework.transaction.annotation.Transactional;
++import pe.edu.utec.devutec.auth.domain.User;
++import pe.edu.utec.devutec.exceptions.ForbiddenOperationException;
++import pe.edu.utec.devutec.exceptions.InvalidOperationException;
++import pe.edu.utec.devutec.exceptions.ResourceNotFoundException;
++import pe.edu.utec.devutec.model.Project;
++import pe.edu.utec.devutec.model.contract.Contract;
++import pe.edu.utec.devutec.model.contract.ContractStatus;
++import pe.edu.utec.devutec.repository.ContractRepository;
++import pe.edu.utec.devutec.service.CurrentUserService;
++
++import java.net.URI;
++import java.security.SecureRandom;
++import java.time.Clock;
++import java.time.LocalDate;
++import java.time.LocalDateTime;
++import java.time.ZoneId;
++import java.util.ArrayList;
++import java.util.EnumMap;
++import java.util.HexFormat;
++import java.util.LinkedHashMap;
++import java.util.List;
++import java.util.Locale;
++import java.util.Map;
++import java.util.Optional;
++import java.util.Set;
++import java.util.TreeMap;
++import java.util.UUID;
++import java.util.concurrent.ConcurrentHashMap;
++
++// Métricas DEVUTEC: el negocio ve cuántas personas visitan su web y, sobre todo, cuántas lo contactan, piden o reservan.
++// 1. El cliente pide métricas al crear el proyecto (lo marca el asistente) y en el contrato da su consentimiento: se crea la llave.
++// 2. El estudiante integra una línea de script (o hace POST desde su código) y la web manda eventos anónimos a /collect.
++// 3. /collect revisa la llave y el dominio, suma un contador por día y tipo (para el panel básico, al instante)
++//    y reenvía el evento a Amplitude, que es el motor del reporte Pro.
++// 4. Si el cliente pidió y activó métricas, la Entrega final se bloquea hasta que llegue el primer dato.
++// 5. Los 3 primeros meses son gratis desde el primer dato real; después, Básico (S/ 19) o Pro (S/ 39) al mes con Stripe.
++// Nunca se guarda nada que identifique a quien visita la web (ni IP, ni navegador, ni cookies): Ley 29733.
++@Slf4j
++@Service
++public class MetricsService {
++
++    static final String CONSENT_VERSION = "2026-11";
++    static final String CONSENT_TEXT = "Autorizo a DEVUTEC a recibir estadísticas anónimas de mi web (visitas, contactos, pedidos, "
++            + "reservas y velocidad de carga) y a procesarlas con su proveedor de analítica (Amplitude) para mostrarme este panel. "
++            + "No se guardan datos personales de mis visitantes: ni nombres, ni IP, ni cookies, y cada visitante decide con un aviso "
++            + "si acepta ser contado. Puedo desactivarlo y borrar los datos de mi panel cuando quiera "
++            + "(Ley 29733 de Protección de Datos Personales).";
++    static final int TRIAL_DAYS = 90;
++    static final int PANEL_DAYS = 30;
++    static final int CHART_DAYS = 14;
++    static final int MAX_PATH = 200;
++    static final int MAX_VALUE_MS = 60_000;
++    // Tope por llave y por visitante (IP) en un minuto, para que nadie llene la base de datos desde afuera.
++    // La IP solo se usa en memoria para este conteo y nunca se guarda
++    static final int MAX_EVENTS_PER_MINUTE = 120;
++    static final Set<String> SOURCES = Set.of("instagram", "facebook", "google", "tiktok", "whatsapp", "directo", "otro");
++    static final Set<String> DEVICES = Set.of("celular", "computadora");
++
++    private final MetricsSiteRepository siteRepository;
++    private final MetricDailyCountRepository countRepository;
++    private final ContractRepository contractRepository;
++    private final CurrentUserService currentUserService;
++    private final AmplitudeClient amplitude;
++    private final MetricsStripeGateway stripe;
++    private final String frontendUrl;
++    private final String scriptUrl;
++    private final String collectUrl;
++
++    private final SecureRandom random = new SecureRandom();
++    private final Map<String, int[]> rateWindow = new ConcurrentHashMap<>();
++    private final Map<Long, Object> siteLocks = new ConcurrentHashMap<>();
++    private Clock clock = Clock.system(ZoneId.of("America/Lima"));
++
++    public MetricsService(MetricsSiteRepository siteRepository,
++                          MetricDailyCountRepository countRepository,
++                          ContractRepository contractRepository,
++                          CurrentUserService currentUserService,
++                          AmplitudeClient amplitude,
++                          MetricsStripeGateway stripe,
++                          @Value("${app.frontend-url:https://devutec.vercel.app}") String frontendUrl,
++                          @Value("${app.metrics.script-url:https://devutec.vercel.app/metricas.js}") String scriptUrl,
++                          @Value("${app.metrics.collect-url:https://devutec.duckdns.org/api/v1/collect}") String collectUrl) {
++        this.siteRepository = siteRepository;
++        this.countRepository = countRepository;
++        this.contractRepository = contractRepository;
++        this.currentUserService = currentUserService;
++        this.amplitude = amplitude;
++        this.stripe = stripe;
++        this.frontendUrl = frontendUrl.endsWith("/") ? frontendUrl.substring(0, frontendUrl.length() - 1) : frontendUrl;
++        this.scriptUrl = scriptUrl;
++        this.collectUrl = collectUrl;
++    }
++
++    // ---------- Panel del contrato ----------
++
++    @Transactional(readOnly = true)
++    public MetricsResponseDTO get(Long contractId) {
++        Contract contract = findContract(contractId);
++        boolean isClient = ensureParticipant(contract);
++        return toResponse(contract, siteRepository.findByContractId(contractId).orElse(null), isClient);
++    }
++
++    @Transactional
++    public MetricsResponseDTO enable(Long contractId) {
++        Contract contract = findContract(contractId);
++        User user = currentUserService.getCurrentUser();
++        if (!user.getId().equals(clientId(contract))) {
++            throw new ForbiddenOperationException("Solo el cliente puede activar las métricas de su web");
++        }
++        if (contract.getStatus() == ContractStatus.CANCELLED) {
++            throw new InvalidOperationException("El contrato está cancelado");
++        }
++        MetricsSite site = siteRepository.findByContractId(contractId).orElseGet(() -> {
++            MetricsSite created = new MetricsSite();
++            created.setContractId(contractId);
++            created.setPublicKey(newKey());
++            created.setConsentedByUserId(user.getId());
++            created.setConsentedAt(now());
++            created.setConsentVersion(CONSENT_VERSION);
++            return siteRepository.save(created);
++        });
++        return toResponse(contract, site, true);
++    }
++
++    // Desactivar retira el consentimiento: se borran la llave y los contadores del panel.
++    // Lo que ya llegó a Amplitude no se puede borrar por web (los ids son por visita): está en las preguntas para el profe de derecho
++    @Transactional
++    public MetricsResponseDTO disable(Long contractId) {
++        Contract contract = findContract(contractId);
++        if (!currentUserService.getCurrentUser().getId().equals(clientId(contract))) {
++            throw new ForbiddenOperationException("Solo el cliente puede desactivar las métricas de su web");
++        }
++        siteRepository.findByContractId(contractId).ifPresent(site -> {
++            countRepository.deleteBySiteId(site.getId());
++            siteRepository.delete(site);
++        });
++        return toResponse(contract, null, true);
++    }
++
++    // ---------- Lo que manda la web del cliente ----------
++
++    // Devuelve false si el evento se ignoró. Nunca lanza error, así una web mal configurada no les muestra errores a sus visitantes.
++    // origin: cabecera Origin del navegador (null si lo manda el código del estudiante desde su servidor) · ip: solo para el límite
++    @Transactional
++    public boolean collect(CollectRequestDTO request, String origin, String ip) {
++        if (request == null || request.key() == null || request.type() == null) {
++            return false;
++        }
++        MetricType type;
++        try {
++            type = MetricType.valueOf(request.type().trim().toUpperCase(Locale.ROOT));
++        } catch (IllegalArgumentException e) {
++            return false;
++        }
++        Integer value = request.valueMs();
++        if (type == MetricType.PERFORMANCE && (value == null || value < 0 || value > MAX_VALUE_MS)) {
++            return false;
++        }
++        String name = type == MetricType.CUSTOM ? cleanName(request.name()) : null;
++        if (type == MetricType.CUSTOM && name == null) {
++            return false;
++        }
++        Optional<MetricsSite> found = siteRepository.findByPublicKey(request.key().trim());
++        if (found.isEmpty() || !allow(found.get().getPublicKey(), ip)) {
++            return false;
++        }
++        MetricsSite site = found.get();
++        String cleanOrigin = cleanOrigin(origin);
++        boolean test = cleanOrigin != null && isTestOrigin(cleanOrigin);
++
++        synchronized (siteLocks.computeIfAbsent(site.getId(), id -> new Object())) {
++            // El primer dato real fija el dominio; después solo se aceptan datos de ese dominio (y de los de prueba)
++            if (cleanOrigin != null && !test) {
++                if (site.getAllowedOrigin() == null) {
++                    site.setAllowedOrigin(cleanOrigin);
++                } else if (!site.getAllowedOrigin().equals(cleanOrigin)) {
++                    return false;
++                }
++            }
++            LocalDateTime now = now();
++            if (site.getFirstEventAt() == null) {
++                site.setFirstEventAt(now);
++            }
++            site.setLastEventAt(now);
++            if (!test && site.getTrialEndsAt() == null) {
++                site.setTrialEndsAt(now.plusDays(TRIAL_DAYS));
++            }
++            siteRepository.save(site);
++            count(site.getId(), now.toLocalDate(), type, test, type == MetricType.PERFORMANCE ? value : 0);
++        }
++
++        Map<String, Object> properties = new LinkedHashMap<>();
++        properties.put("web", site.getPublicKey());
++        properties.put("contrato", site.getContractId());
++        properties.put("pagina", cleanPath(request.path()));
++        properties.put("prueba", test);
++        if (value != null && type == MetricType.PERFORMANCE) {
++            properties.put("carga_ms", value);
++        }
++        if (name != null) {
++            properties.put("nombre", name);
++        }
++        String source = clean(request.source(), SOURCES);
++        if (source != null) {
++            properties.put("origen", source);
++        }
++        String device = clean(request.device(), DEVICES);
++        if (device != null) {
++            properties.put("dispositivo", device);
++        }
++        amplitude.send(new AmplitudeClient.Event(type.amplitudeName(), visitorId(request.visitorId()),
++                clock.millis(), UUID.randomUUID().toString(), properties));
++        return true;
++    }
++
++    // ---------- Entrega final ----------
++
++    // Si el cliente pidió métricas y ya las activó, la Entrega final necesita que la web haya mandado al menos un dato.
++    // Si las pidió pero nunca las activó, no se bloquea: sin llave el estudiante no puede integrarlas
++    @Transactional(readOnly = true)
++    public void checkFinalDelivery(Contract contract) {
++        if (!requested(contract)) {
++            return;
++        }
++        Optional<MetricsSite> site = siteRepository.findByContractId(contract.getId());
++        if (site.isPresent() && site.get().getFirstEventAt() == null) {
++            throw new InvalidOperationException("El cliente pidió métricas. Integra el script de DEVUTEC en la web y ábrela una vez "
++                    + "antes de la Entrega final.");
++        }
++    }
++
++    // ---------- Reporte Pro (Amplitude) ----------
++
++    @Transactional(readOnly = true)
++    public AdvancedReportDTO advanced(Long contractId) {
++        Contract contract = findContract(contractId);
++        ensureParticipant(contract);
++        MetricsSite site = siteRepository.findByContractId(contractId).orElse(null);
++        if (site == null) {
++            return AdvancedReportDTO.unavailable("Primero hay que activar las métricas");
++        }
++        if (site.getPlan() != MetricsPlan.PRO) {
++            return AdvancedReportDTO.unavailable("El reporte avanzado es parte del plan Pro");
++        }
++        if (!amplitude.canRead()) {
++            return AdvancedReportDTO.unavailable("Amplitude todavía no está configurado en el servidor");
++        }
++        LocalDate today = LocalDate.now(clock);
++        LocalDate start = today.minusDays(PANEL_DAYS - 1L);
++        try {
++            String key = site.getPublicKey();
++            return new AdvancedReportDTO(true, null,
++                    items(amplitude.segmentation(MetricType.PAGEVIEW.amplitudeName(), key, start, today, "pagina", 1), 5),
++                    items(amplitude.segmentation(MetricType.PAGEVIEW.amplitudeName(), key, start, today, "origen", 1), 6),
++                    items(amplitude.segmentation(MetricType.PAGEVIEW.amplitudeName(), key, start, today, "dispositivo", 1), 2),
++                    months(amplitude.segmentation(MetricType.CONTACT.amplitudeName(), key, today.minusMonths(11).withDayOfMonth(1),
++                            today, null, 30)));
++        } catch (RuntimeException e) {
++            log.warn("Amplitude no respondió el reporte Pro del contrato {}: {}", contractId, e.getMessage());
++            return AdvancedReportDTO.unavailable("Amplitude no respondió. Intenta en unos minutos.");
++        }
++    }
++
++    // ---------- Membresía con Stripe ----------
++
++    @Transactional(readOnly = true)
++    public MetricsSubscriptionDTOs.StartResponse startSubscription(Long contractId, MetricsPlan plan) {
++        Contract contract = findContract(contractId);
++        if (!currentUserService.getCurrentUser().getId().equals(clientId(contract))) {
++            throw new ForbiddenOperationException("Solo el cliente puede elegir el plan de sus métricas");
++        }
++        if (plan == null || plan == MetricsPlan.NONE) {
++            throw new InvalidOperationException("Elige Básico o Pro");
++        }
++        MetricsSite site = siteRepository.findByContractId(contractId)
++                .orElseThrow(() -> new InvalidOperationException("Primero activa las métricas de tu web"));
++        if (site.getPlan() == plan) {
++            throw new InvalidOperationException("Ya tienes el plan " + (plan == MetricsPlan.PRO ? "Pro" : "Básico"));
++        }
++        // Si todavía le quedan días gratis, Stripe recién cobra cuando terminan (Stripe pide al menos 2 días de anticipación)
++        Long trialEnd = null;
++        if (site.getTrialEndsAt() != null && site.getTrialEndsAt().isAfter(now().plusDays(2))) {
++            trialEnd = site.getTrialEndsAt().atZone(clock.getZone()).toEpochSecond();
++        }
++        String page = frontendUrl + "/contracts/" + contractId;
++        MetricsStripeGateway.SubscriptionSession session = stripe.createCheckout(contractId, plan, trialEnd,
++                page + "?metricas=ok&session_id={CHECKOUT_SESSION_ID}#metricas", page + "?metricas=cancelado#metricas");
++        return new MetricsSubscriptionDTOs.StartResponse(session.id(), session.url());
++    }
++
++    @Transactional
++    public MetricsResponseDTO confirmSubscription(Long contractId, String sessionId) {
++        Contract contract = findContract(contractId);
++        if (!currentUserService.getCurrentUser().getId().equals(clientId(contract))) {
++            throw new ForbiddenOperationException("Solo el cliente puede elegir el plan de sus métricas");
++        }
++        MetricsSite site = siteRepository.findByContractId(contractId)
++                .orElseThrow(() -> new InvalidOperationException("Primero activa las métricas de tu web"));
++        MetricsStripeGateway.SubscriptionSession session = stripe.getCheckout(sessionId);
++        if (!String.valueOf(contractId).equals(session.contractId()) || session.plan() == null) {
++            throw new InvalidOperationException("Esa sesión de pago no es de este contrato");
++        }
++        if (!"complete".equals(session.status())) {
++            throw new InvalidOperationException("Todavía no vemos la suscripción. Si ya pagaste, espera unos segundos e intenta de nuevo.");
++        }
++        site.setPlan(MetricsPlan.valueOf(session.plan()));
++        site.setStripeSubscriptionId(session.subscriptionId());
++        site.setPlanStartedAt(now());
++        siteRepository.save(site);
++        return toResponse(contract, site, true);
++    }
++
++    // ---------- Armar la respuesta ----------
++
++    private MetricsResponseDTO toResponse(Contract contract, MetricsSite site, boolean isClient) {
++        boolean requested = requested(contract);
++        if (site == null) {
++            return new MetricsResponseDTO(false, requested, isClient, CONSENT_TEXT, null, null, false, null, false, null,
++                    access(null), null, null);
++        }
++        MetricsResponseDTO.Access access = access(site);
++        boolean integrated = site.getFirstEventAt() != null;
++        return new MetricsResponseDTO(true, requested, isClient, CONSENT_TEXT, site.getPublicKey(), site.getConsentedAt(),
++                integrated, site.getFirstEventAt(), integrated && site.getTrialEndsAt() == null, site.getAllowedOrigin(),
++                access, access.locked() ? null : summary(site), integration(site, contract));
++    }
++
++    private MetricsResponseDTO.Access access(MetricsSite site) {
++        MetricsPlan plan = site == null ? MetricsPlan.NONE : site.getPlan();
++        LocalDateTime trialEnds = site == null ? null : site.getTrialEndsAt();
++        boolean trialActive = trialEnds != null && trialEnds.isAfter(now());
++        // Sin plan, el panel se ve mientras la prueba no empieza (solo datos de prueba) o mientras dura
++        boolean locked = site != null && plan == MetricsPlan.NONE && trialEnds != null && !trialActive;
++        return new MetricsResponseDTO.Access(plan, trialEnds, trialActive, locked,
++                MetricsPlan.BASIC.monthlyPrice(), MetricsPlan.PRO.monthlyPrice());
++    }
++
++    private MetricsResponseDTO.Summary summary(MetricsSite site) {
++        LocalDate today = LocalDate.now(clock);
++        Map<MetricType, long[]> totals = new EnumMap<>(MetricType.class);
++        Map<LocalDate, long[]> perDay = new TreeMap<>();
++        for (int i = CHART_DAYS - 1; i >= 0; i--) {
++            perDay.put(today.minusDays(i), new long[2]);
++        }
++        boolean includesTest = false;
++        for (MetricDailyCount row : countRepository.findBySiteIdAndDayGreaterThanEqual(site.getId(), today.minusDays(PANEL_DAYS - 1L))) {
++            long[] sum = totals.computeIfAbsent(row.getType(), type -> new long[2]);
++            sum[0] += row.getTotal();
++            sum[1] += row.getSumValueMs();
++            includesTest |= row.isTest();
++            long[] day = perDay.get(row.getDay());
++            if (day != null && row.getType() == MetricType.PAGEVIEW) {
++                day[0] += row.getTotal();
++            } else if (day != null && row.getType() == MetricType.CONTACT) {
++                day[1] += row.getTotal();
++            }
++        }
++        long[] speed = totals.getOrDefault(MetricType.PERFORMANCE, new long[2]);
++        List<MetricsResponseDTO.Day> days = new ArrayList<>();
++        perDay.forEach((date, values) -> days.add(new MetricsResponseDTO.Day(date, values[0], values[1])));
++        return new MetricsResponseDTO.Summary(
++                total(totals, MetricType.PAGEVIEW), total(totals, MetricType.CONTACT), total(totals, MetricType.ORDER),
++                total(totals, MetricType.RESERVATION), total(totals, MetricType.CLICK),
++                speed[0] == 0 ? null : (int) Math.round((double) speed[1] / speed[0]),
++                includesTest, days);
++    }
++
++    private MetricsResponseDTO.Integration integration(MetricsSite site, Contract contract) {
++        String key = site.getPublicKey();
++        String tag = "<script src=\"" + scriptUrl + "\" data-key=\"" + key + "\" defer></script>";
++        String post = "POST " + collectUrl + "\nContent-Type: text/plain\n\n"
++                + "{\"key\":\"" + key + "\",\"type\":\"CONTACT\",\"path\":\"/contacto\"}";
++        Project project = contract.getApplication().getProject();
++        String category = project.getCategory() == null ? "WEB" : project.getCategory();
++        String what = switch (category) {
++            case "APP" -> "Es una app. Desde su backend, manda un POST a " + collectUrl + " cuando pase algo importante: "
++                    + "abrir la app (type PAGEVIEW con el nombre de la pantalla en path), contactos (CONTACT), pedidos (ORDER), "
++                    + "reservas (RESERVATION) o un evento propio (type CUSTOM con name, por ejemplo \"pedido_entregado\").";
++            case "AUTOMATIZACION" -> "Es una automatización. Al terminar cada ejecución manda un POST a " + collectUrl
++                    + " con type CUSTOM y name \"ejecucion\" (o \"error\" si falló). Si ahorra tiempo, usa valueMs con los milisegundos "
++                    + "que tardó, con type PERFORMANCE.";
++            default -> "Es una web. Pega esta línea antes de </body> en todas las páginas: " + tag + "\n"
++                    + "El script ya cuenta solo las visitas, los clics y la velocidad. Marca los botones importantes con un atributo: "
++                    + "data-devutec=\"contacto\" en WhatsApp, llamar, cómo llegar y formularios; data-devutec=\"pedido\" en el botón de pedir; "
++                    + "data-devutec=\"reserva\" en el de reservar.";
++        };
++        String prompt = "Integra las métricas de DEVUTEC en el proyecto \"" + project.getTitle() + "\". La llave de este proyecto es "
++                + key + ". " + what + "\n"
++                + "Reglas: no envíes nombres, correos, teléfonos ni nada que identifique a una persona; no agregues otras herramientas "
++                + "de analítica ni cookies. Cada POST es un JSON con key, type y path (y valueMs o name si corresponde), enviado como "
++                + "text/plain. Al terminar, abre la web o ejecuta la app una vez: en el contrato debe aparecer \"Integrada, ya recibimos datos\".";
++        return new MetricsResponseDTO.Integration(scriptUrl, tag, collectUrl, post, prompt);
++    }
++
++    // ---------- Ayudas ----------
++
++    private void count(Long siteId, LocalDate day, MetricType type, boolean test, int valueMs) {
++        MetricDailyCount row = countRepository.findBySiteIdAndDayAndTypeAndTest(siteId, day, type, test).orElseGet(() -> {
++            MetricDailyCount created = new MetricDailyCount();
++            created.setSiteId(siteId);
++            created.setDay(day);
++            created.setType(type);
++            created.setTest(test);
++            return created;
++        });
++        row.setTotal(row.getTotal() + 1);
++        row.setSumValueMs(row.getSumValueMs() + valueMs);
++        countRepository.save(row);
++    }
++
++    private boolean allow(String key, String ip) {
++        long minute = clock.millis() / 60_000;
++        String bucket = key + "|" + (ip == null ? "-" : ip);
++        int[] window = rateWindow.compute(bucket, (k, current) ->
++                current == null || current[0] != (int) minute ? new int[]{(int) minute, 0} : current);
++        if (rateWindow.size() > 50_000) {
++            rateWindow.clear();
++        }
++        synchronized (window) {
++            window[1]++;
++            return window[1] <= MAX_EVENTS_PER_MINUTE;
++        }
++    }
++
++    // "https://Pizzeria.pe:443/" → "https://pizzeria.pe"; null si no hay Origin o no es válido
++    static String cleanOrigin(String origin) {
++        if (origin == null || origin.isBlank() || "null".equals(origin)) {
++            return null;
++        }
++        try {
++            URI uri = URI.create(origin.trim());
++            if (uri.getScheme() == null || uri.getHost() == null) {
++                return null;
++            }
++            int port = uri.getPort();
++            boolean defaultPort = port == -1 || (port == 443 && "https".equals(uri.getScheme())) || (port == 80 && "http".equals(uri.getScheme()));
++            return uri.getScheme().toLowerCase(Locale.ROOT) + "://" + uri.getHost().toLowerCase(Locale.ROOT) + (defaultPort ? "" : ":" + port);
++        } catch (IllegalArgumentException e) {
++            return null;
++        }
++    }
++
++    // Datos de prueba: localhost, links de vista previa de Vercel (llevan "-git-") y la página de prueba de DEVUTEC
++    boolean isTestOrigin(String origin) {
++        String host = URI.create(origin).getHost();
++        return host.equals("localhost") || host.equals("127.0.0.1")
++                || (host.endsWith(".vercel.app") && host.contains("-git-"))
++                || origin.equals(cleanOrigin(frontendUrl));
++    }
++
++    // "/carta?mesa=4#arriba" → "/carta". Lo que va después de ? o # se descarta porque ahí a veces viajan datos personales
++    static String cleanPath(String path) {
++        if (path == null || path.isBlank()) {
++            return "/";
++        }
++        String clean = path.trim();
++        int query = clean.indexOf('?');
++        int hash = clean.indexOf('#');
++        int cut = query < 0 ? hash : hash < 0 ? query : Math.min(query, hash);
++        if (cut >= 0) {
++            clean = clean.substring(0, cut);
++        }
++        if (!clean.startsWith("/")) {
++            clean = "/" + clean;
++        }
++        return clean.length() > MAX_PATH ? clean.substring(0, MAX_PATH) : clean;
++    }
++
++    // Nombre de evento propio: solo letras, números y _ (máximo 40), para que nadie meta datos personales ahí
++    static String cleanName(String name) {
++        if (name == null) {
++            return null;
++        }
++        String clean = name.trim().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_]", "_");
++        clean = clean.length() > 40 ? clean.substring(0, 40) : clean;
++        return clean.replace("_", "").isEmpty() ? null : clean;
++    }
++
++    private static String clean(String value, Set<String> allowed) {
++        if (value == null) {
++            return null;
++        }
++        String lower = value.trim().toLowerCase(Locale.ROOT);
++        return allowed.contains(lower) ? lower : null;
++    }
++
++    // Amplitude pide un identificador por evento: se usa el de la visita (al azar, solo si el visitante aceptó) o uno nuevo
++    private String visitorId(String fromScript) {
++        if (fromScript != null && fromScript.matches("[A-Za-z0-9_-]{8,64}")) {
++            return "v_" + fromScript;
++        }
++        return "v_" + UUID.randomUUID();
++    }
++
++    private static long total(Map<MetricType, long[]> totals, MetricType type) {
++        long[] sum = totals.get(type);
++        return sum == null ? 0 : sum[0];
++    }
++
++    private static List<AdvancedReportDTO.Item> items(AmplitudeClient.Segmentation result, int limit) {
++        List<AdvancedReportDTO.Item> items = new ArrayList<>();
++        for (int i = 0; i < result.labels().size(); i++) {
++            items.add(new AdvancedReportDTO.Item(result.labels().get(i), result.totals().get(i)));
++        }
++        items.sort((a, b) -> Long.compare(b.total(), a.total()));
++        return items.size() > limit ? items.subList(0, limit) : items;
++    }
++
++    private static List<AdvancedReportDTO.Item> months(AmplitudeClient.Segmentation result) {
++        List<AdvancedReportDTO.Item> items = new ArrayList<>();
++        List<Long> values = result.perDay().isEmpty() ? List.of() : result.perDay().get(0);
++        for (int i = 0; i < result.days().size() && i < values.size(); i++) {
++            String day = result.days().get(i);
++            items.add(new AdvancedReportDTO.Item(day.length() >= 7 ? day.substring(0, 7) : day, values.get(i)));
++        }
++        return items;
++    }
++
++    private String newKey() {
++        byte[] bytes = new byte[12];
++        random.nextBytes(bytes);
++        return "dv_" + HexFormat.of().formatHex(bytes);
++    }
++
++    private LocalDateTime now() {
++        return LocalDateTime.now(clock);
++    }
++
++    private Contract findContract(Long id) {
++        return contractRepository.findById(id)
++                .orElseThrow(() -> new ResourceNotFoundException("Contrato no encontrado con id: " + id));
++    }
++
++    // true si es el cliente; lanza error si no es ni el cliente ni el freelancer del contrato
++    private boolean ensureParticipant(Contract contract) {
++        Long userId = currentUserService.getCurrentUser().getId();
++        if (userId.equals(clientId(contract))) {
++            return true;
++        }
++        if (userId.equals(contract.getApplication().getFreelancer().getUser().getId())) {
++            return false;
++        }
++        throw new ForbiddenOperationException("Solo el cliente y el freelancer del contrato ven sus métricas");
++    }
++
++    private static Long clientId(Contract contract) {
++        return contract.getApplication().getProject().getClientId();
++    }
++
++    // El cliente pidió métricas al crear el proyecto (campo de Nicole, lo marca el asistente o el formulario)
++    private static boolean requested(Contract contract) {
++        return Boolean.TRUE.equals(contract.getApplication().getProject().getMetricsRequested());
++    }
++
++    // Para las pruebas: fija la hora
++    void setClock(Clock clock) {
++        this.clock = clock;
++    }
++}
+diff --git a/src/main/java/pe/edu/utec/devutec/metrics/MetricsSite.java b/src/main/java/pe/edu/utec/devutec/metrics/MetricsSite.java
+new file mode 100644
+index 0000000..9b411db
+--- /dev/null
++++ b/src/main/java/pe/edu/utec/devutec/metrics/MetricsSite.java
+@@ -0,0 +1,71 @@
++package pe.edu.utec.devutec.metrics;
++
++import jakarta.persistence.Column;
++import jakarta.persistence.Entity;
++import jakarta.persistence.EnumType;
++import jakarta.persistence.Enumerated;
++import jakarta.persistence.GeneratedValue;
++import jakarta.persistence.GenerationType;
++import jakarta.persistence.Id;
++import jakarta.persistence.Table;
++import lombok.Getter;
++import lombok.NoArgsConstructor;
++import lombok.Setter;
++
++import java.time.LocalDateTime;
++
++// Métricas activadas para la web que se entrega en un contrato. Se crea cuando el cliente da su consentimiento.
++// publicKey va dentro del script de la web: no es secreta, solo dice a qué contrato pertenecen los datos.
++@Entity
++@Table(name = "metrics_sites")
++@Getter
++@Setter
++@NoArgsConstructor
++public class MetricsSite {
++
++    @Id
++    @GeneratedValue(strategy = GenerationType.IDENTITY)
++    private Long id;
++
++    @Column(name = "contract_id", nullable = false, unique = true)
++    private Long contractId;
++
++    @Column(name = "public_key", nullable = false, unique = true, length = 32)
++    private String publicKey;
++
++    // Quién aceptó (el cliente del contrato), cuándo y qué versión del texto de consentimiento leyó
++    @Column(name = "consented_by_user_id", nullable = false)
++    private Long consentedByUserId;
++
++    @Column(name = "consented_at", nullable = false)
++    private LocalDateTime consentedAt;
++
++    @Column(name = "consent_version", nullable = false, length = 20)
++    private String consentVersion;
++
++    // Dominio de la web del cliente (por ejemplo https://pizzeriaramon.pe). Se fija con el primer dato que no es de prueba;
++    // después solo se aceptan datos de ese dominio (y de los de prueba: localhost y links de vista previa)
++    @Column(name = "allowed_origin")
++    private String allowedOrigin;
++
++    // Primer y último dato recibido (de prueba o real). El primero desbloquea la Entrega final
++    @Column(name = "first_event_at")
++    private LocalDateTime firstEventAt;
++
++    @Column(name = "last_event_at")
++    private LocalDateTime lastEventAt;
++
++    // Los 3 meses gratis empiezan con el primer dato real (no de prueba), así no se gastan mientras el estudiante desarrolla
++    @Column(name = "trial_ends_at")
++    private LocalDateTime trialEndsAt;
++
++    @Enumerated(EnumType.STRING)
++    @Column(nullable = false, length = 10)
++    private MetricsPlan plan = MetricsPlan.NONE;
++
++    @Column(name = "stripe_subscription_id")
++    private String stripeSubscriptionId;
++
++    @Column(name = "plan_started_at")
++    private LocalDateTime planStartedAt;
++}
+diff --git a/src/main/java/pe/edu/utec/devutec/metrics/MetricsSiteRepository.java b/src/main/java/pe/edu/utec/devutec/metrics/MetricsSiteRepository.java
+new file mode 100644
+index 0000000..08663a5
+--- /dev/null
++++ b/src/main/java/pe/edu/utec/devutec/metrics/MetricsSiteRepository.java
+@@ -0,0 +1,11 @@
++package pe.edu.utec.devutec.metrics;
++
++import org.springframework.data.jpa.repository.JpaRepository;
++
++import java.util.Optional;
++
++public interface MetricsSiteRepository extends JpaRepository<MetricsSite, Long> {
++    Optional<MetricsSite> findByContractId(Long contractId);
++
++    Optional<MetricsSite> findByPublicKey(String publicKey);
++}
+diff --git a/src/main/java/pe/edu/utec/devutec/metrics/MetricsStripeGateway.java b/src/main/java/pe/edu/utec/devutec/metrics/MetricsStripeGateway.java
+new file mode 100644
+index 0000000..b2ed996
+--- /dev/null
++++ b/src/main/java/pe/edu/utec/devutec/metrics/MetricsStripeGateway.java
+@@ -0,0 +1,100 @@
++package pe.edu.utec.devutec.metrics;
++
++import lombok.extern.slf4j.Slf4j;
++import org.springframework.beans.factory.annotation.Value;
++import org.springframework.http.HttpStatus;
++import org.springframework.http.MediaType;
++import org.springframework.http.client.SimpleClientHttpRequestFactory;
++import org.springframework.stereotype.Component;
++import org.springframework.util.LinkedMultiValueMap;
++import org.springframework.util.MultiValueMap;
++import org.springframework.web.client.RestClient;
++import org.springframework.web.client.RestClientException;
++import pe.edu.utec.devutec.exceptions.ApiException;
++
++import java.time.Duration;
++import java.util.Map;
++
++// Suscripción mensual a las métricas con Stripe Checkout (modo prueba), usando la misma STRIPE_SECRET_KEY de los pagos.
++// El plan se arma en el mismo pedido (price_data con recurring), así que no hay que crear productos en el panel de Stripe.
++@Slf4j
++@Component
++public class MetricsStripeGateway {
++
++    private final String secretKey;
++    private final RestClient restClient;
++
++    public MetricsStripeGateway(@Value("${stripe.secret-key:}") String secretKey) {
++        this.secretKey = secretKey;
++        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
++        factory.setConnectTimeout(Duration.ofSeconds(5));
++        factory.setReadTimeout(Duration.ofSeconds(20));
++        this.restClient = RestClient.builder().baseUrl("https://api.stripe.com/v1").requestFactory(factory).build();
++    }
++
++    public record SubscriptionSession(String id, String url, String status, String subscriptionId, String contractId, String plan) {
++    }
++
++    // trialEndEpochSeconds: hasta cuándo no se cobra (el final de los 3 meses gratis), o null para cobrar desde hoy
++    public SubscriptionSession createCheckout(Long contractId, MetricsPlan plan, Long trialEndEpochSeconds,
++                                              String successUrl, String cancelUrl) {
++        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
++        form.add("mode", "subscription");
++        form.add("client_reference_id", String.valueOf(contractId));
++        form.add("metadata[contractId]", String.valueOf(contractId));
++        form.add("metadata[plan]", plan.name());
++        form.add("line_items[0][quantity]", "1");
++        form.add("line_items[0][price_data][currency]", "pen");
++        form.add("line_items[0][price_data][unit_amount]", String.valueOf(plan.monthlyPrice().movePointRight(2).longValueExact()));
++        form.add("line_items[0][price_data][recurring][interval]", "month");
++        form.add("line_items[0][price_data][product_data][name]", plan.productName());
++        if (trialEndEpochSeconds != null) {
++            form.add("subscription_data[trial_end]", String.valueOf(trialEndEpochSeconds));
++        }
++        form.add("success_url", successUrl);
++        form.add("cancel_url", cancelUrl);
++        return call(() -> toSession(restClient.post().uri("/checkout/sessions")
++                .header("Authorization", "Bearer " + requireKey())
++                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
++                .body(form)
++                .retrieve()
++                .body(Map.class)));
++    }
++
++    public SubscriptionSession getCheckout(String sessionId) {
++        return call(() -> toSession(restClient.get().uri("/checkout/sessions/{id}", sessionId)
++                .header("Authorization", "Bearer " + requireKey())
++                .retrieve()
++                .body(Map.class)));
++    }
++
++    private String requireKey() {
++        if (secretKey == null || secretKey.isBlank()) {
++            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "Los pagos con tarjeta no están configurados en el servidor");
++        }
++        return secretKey;
++    }
++
++    private SubscriptionSession call(java.util.function.Supplier<SubscriptionSession> request) {
++        try {
++            return request.get();
++        } catch (RestClientException e) {
++            log.warn("Stripe respondió con un error en la suscripción de métricas: {}", e.getMessage());
++            throw new ApiException(HttpStatus.BAD_GATEWAY, "No se pudo completar la suscripción con Stripe. Intenta de nuevo.");
++        }
++    }
++
++    private static SubscriptionSession toSession(Map<?, ?> body) {
++        if (body == null) {
++            throw new ApiException(HttpStatus.BAD_GATEWAY, "Stripe no devolvió una respuesta válida");
++        }
++        Object metadata = body.get("metadata");
++        String plan = metadata instanceof Map<?, ?> map && map.get("plan") != null ? map.get("plan").toString() : null;
++        return new SubscriptionSession(text(body.get("id")), text(body.get("url")), text(body.get("status")),
++                text(body.get("subscription")), text(body.get("client_reference_id")), plan);
++    }
++
++    private static String text(Object value) {
++        return value == null ? null : value.toString();
++    }
++}
+diff --git a/src/main/java/pe/edu/utec/devutec/metrics/MetricsSubscriptionDTOs.java b/src/main/java/pe/edu/utec/devutec/metrics/MetricsSubscriptionDTOs.java
+new file mode 100644
+index 0000000..831a3d2
+--- /dev/null
++++ b/src/main/java/pe/edu/utec/devutec/metrics/MetricsSubscriptionDTOs.java
+@@ -0,0 +1,19 @@
++package pe.edu.utec.devutec.metrics;
++
++import jakarta.validation.constraints.NotBlank;
++import jakarta.validation.constraints.NotNull;
++
++public final class MetricsSubscriptionDTOs {
++
++    private MetricsSubscriptionDTOs() {
++    }
++
++    public record StartRequest(@NotNull(message = "Elige Básico o Pro") MetricsPlan plan) {
++    }
++
++    public record StartResponse(String sessionId, String checkoutUrl) {
++    }
++
++    public record ConfirmRequest(@NotBlank(message = "Falta la sesión de pago") String sessionId) {
++    }
++}
+diff --git a/src/main/java/pe/edu/utec/devutec/service/ContractServiceImpl.java b/src/main/java/pe/edu/utec/devutec/service/ContractServiceImpl.java
+index 0145a57..2b2b6bd 100644
+--- a/src/main/java/pe/edu/utec/devutec/service/ContractServiceImpl.java
++++ b/src/main/java/pe/edu/utec/devutec/service/ContractServiceImpl.java
+@@ -50,6 +50,7 @@ public class ContractServiceImpl implements ContractService {
+     private final ApplicationEventPublisher eventPublisher;
+     private final CheckoutService checkoutService;
+     private final InstallmentService installmentService;
++    private final pe.edu.utec.devutec.metrics.MetricsService metricsService;
+ 
+     @Override
+     @Transactional
+@@ -117,6 +118,11 @@ public class ContractServiceImpl implements ContractService {
+         Optional<ContractStage> current = ContractStagePlan.currentStage(contract);
+         // El estudiante nunca trabaja una etapa sin pagar: la cuota que cubre esta etapa tiene que estar pagada
+         current.ifPresent(stage -> checkoutService.ensurePartPaid(contract, stage.getPaymentPart()));
++        // Entrega final: si el cliente pidió y activó métricas, la web ya tiene que haber mandado al menos un dato
++        boolean finalDelivery = current.map(stage -> Integer.valueOf(contract.getStages().size()).equals(stage.getPosition())).orElse(true);
++        if (finalDelivery) {
++            metricsService.checkFinalDelivery(contract);
++        }
+         current.ifPresent(stage -> {
+             stage.setStatus(StageStatus.DELIVERED);
+             stage.setDeliveredAt(now);
+diff --git a/src/main/resources/application.properties b/src/main/resources/application.properties
+index f6384b8..bc6c2d7 100644
+--- a/src/main/resources/application.properties
++++ b/src/main/resources/application.properties
+@@ -37,6 +37,13 @@ support.chat.daily-limit=${SUPPORT_CHAT_DAILY_LIMIT:30}
+ # Asistente de proyectos y precios
+ assistant.daily-limit=${ASSISTANT_DAILY_LIMIT:40}
+ app.commission-rate=${COMMISSION_RATE:0.10}
++# Métricas DEVUTEC: el script que pega el estudiante y la dirección donde manda los eventos
++app.metrics.script-url=${METRICS_SCRIPT_URL:https://devutec.vercel.app/metricas.js}
++app.metrics.collect-url=${METRICS_COLLECT_URL:https://devutec.duckdns.org/api/v1/collect}
++# Amplitude (motor de analítica del reporte Pro). Las claves solo viven en el servidor; sin ellas no se reenvía nada
++amplitude.api-key=${AMPLITUDE_API_KEY:}
++amplitude.secret-key=${AMPLITUDE_SECRET_KEY:}
++amplitude.region=${AMPLITUDE_REGION:us}
+ pricing.default-hourly-rate=${PRICING_DEFAULT_HOURLY_RATE:25}
+ pricing.min-samples=${PRICING_MIN_SAMPLES:3}
+ pricing.student-hours-per-week=${PRICING_STUDENT_HOURS_PER_WEEK:12}
+diff --git a/src/test/java/pe/edu/utec/devutec/metrics/MetricsServiceTest.java b/src/test/java/pe/edu/utec/devutec/metrics/MetricsServiceTest.java
+new file mode 100644
+index 0000000..761020a
+--- /dev/null
++++ b/src/test/java/pe/edu/utec/devutec/metrics/MetricsServiceTest.java
+@@ -0,0 +1,493 @@
++package pe.edu.utec.devutec.metrics;
++
++import org.junit.jupiter.api.BeforeEach;
++import org.junit.jupiter.api.Test;
++import org.junit.jupiter.api.extension.ExtendWith;
++import org.mockito.ArgumentCaptor;
++import org.mockito.Mock;
++import org.mockito.junit.jupiter.MockitoExtension;
++import pe.edu.utec.devutec.auth.domain.User;
++import pe.edu.utec.devutec.exceptions.ForbiddenOperationException;
++import pe.edu.utec.devutec.exceptions.InvalidOperationException;
++import pe.edu.utec.devutec.model.FreelancerProfile;
++import pe.edu.utec.devutec.model.Project;
++import pe.edu.utec.devutec.model.application.Application;
++import pe.edu.utec.devutec.model.contract.Contract;
++import pe.edu.utec.devutec.model.contract.ContractStatus;
++import pe.edu.utec.devutec.repository.ContractRepository;
++import pe.edu.utec.devutec.service.CurrentUserService;
++
++import java.time.Clock;
++import java.time.LocalDate;
++import java.time.LocalDateTime;
++import java.time.ZoneId;
++import java.util.List;
++import java.util.Optional;
++
++import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
++import static org.junit.jupiter.api.Assertions.assertEquals;
++import static org.junit.jupiter.api.Assertions.assertFalse;
++import static org.junit.jupiter.api.Assertions.assertNotNull;
++import static org.junit.jupiter.api.Assertions.assertNull;
++import static org.junit.jupiter.api.Assertions.assertThrows;
++import static org.junit.jupiter.api.Assertions.assertTrue;
++import static org.mockito.ArgumentMatchers.any;
++import static org.mockito.ArgumentMatchers.anyLong;
++import static org.mockito.ArgumentMatchers.eq;
++import static org.mockito.ArgumentMatchers.isNull;
++import static org.mockito.Mockito.lenient;
++import static org.mockito.Mockito.never;
++import static org.mockito.Mockito.verify;
++import static org.mockito.Mockito.when;
++
++@ExtendWith(MockitoExtension.class)
++class MetricsServiceTest {
++
++    private static final ZoneId LIMA = ZoneId.of("America/Lima");
++    // 28 de noviembre de 2026, 10:00 a. m. en Lima
++    private static final LocalDateTime NOW = LocalDateTime.of(2026, 11, 28, 10, 0);
++
++    @Mock
++    private MetricsSiteRepository siteRepository;
++    @Mock
++    private MetricDailyCountRepository countRepository;
++    @Mock
++    private ContractRepository contractRepository;
++    @Mock
++    private CurrentUserService currentUserService;
++    @Mock
++    private AmplitudeClient amplitude;
++    @Mock
++    private MetricsStripeGateway stripe;
++
++    private MetricsService service;
++    private Contract contract;
++    private Project project;
++    private User client;
++    private User freelancer;
++
++    @BeforeEach
++    void setUp() {
++        service = new MetricsService(siteRepository, countRepository, contractRepository, currentUserService, amplitude, stripe,
++                "https://devutec.vercel.app", "https://devutec.vercel.app/metricas.js", "https://devutec.duckdns.org/api/v1/collect");
++        service.setClock(Clock.fixed(NOW.atZone(LIMA).toInstant(), LIMA));
++        client = user(1L);
++        freelancer = user(2L);
++        project = new Project();
++        project.setClientId(1L);
++        project.setTitle("Web para Pizzería Ramón");
++        project.setCategory("WEB");
++        FreelancerProfile profile = new FreelancerProfile();
++        profile.setUser(freelancer);
++        Application application = new Application();
++        application.setProject(project);
++        application.setFreelancer(profile);
++        contract = new Contract();
++        contract.setId(5L);
++        contract.setApplication(application);
++        contract.setStatus(ContractStatus.IN_PROGRESS);
++        lenient().when(contractRepository.findById(5L)).thenReturn(Optional.of(contract));
++        lenient().when(siteRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
++    }
++
++    // ---------- Activar ----------
++
++    @Test
++    void enable_elCliente_creaLaLlaveConSuConsentimientoYLasInstrucciones() {
++        when(currentUserService.getCurrentUser()).thenReturn(client);
++        when(siteRepository.findByContractId(5L)).thenReturn(Optional.empty());
++
++        MetricsResponseDTO response = service.enable(5L);
++
++        ArgumentCaptor<MetricsSite> saved = ArgumentCaptor.forClass(MetricsSite.class);
++        verify(siteRepository).save(saved.capture());
++        assertTrue(saved.getValue().getPublicKey().startsWith("dv_"));
++        assertEquals(1L, saved.getValue().getConsentedByUserId());
++        assertEquals(MetricsService.CONSENT_VERSION, saved.getValue().getConsentVersion());
++        assertTrue(response.enabled());
++        assertFalse(response.integrated());
++        assertTrue(response.integration().scriptTag().contains(saved.getValue().getPublicKey()));
++        assertTrue(response.integration().aiPrompt().contains("data-devutec=\"contacto\""));
++        // La prueba gratis todavía no empieza: empieza con el primer dato real
++        assertNull(response.access().trialEndsAt());
++        assertFalse(response.access().locked());
++    }
++
++    @Test
++    void enable_elFreelancer_noPuede() {
++        when(currentUserService.getCurrentUser()).thenReturn(freelancer);
++
++        assertThrows(ForbiddenOperationException.class, () -> service.enable(5L));
++        verify(siteRepository, never()).save(any());
++    }
++
++    @Test
++    void get_sinActivar_muestraElTextoLegalYSiElClienteLasPidio() {
++        project.setMetricsRequested(true);
++        when(currentUserService.getCurrentUser()).thenReturn(freelancer);
++        when(siteRepository.findByContractId(5L)).thenReturn(Optional.empty());
++
++        MetricsResponseDTO response = service.get(5L);
++
++        assertFalse(response.enabled());
++        assertTrue(response.requested());
++        assertFalse(response.canManage());
++        assertNull(response.integration());
++        assertTrue(response.consentText().contains("Ley 29733"));
++        assertTrue(response.consentText().contains("Amplitude"));
++    }
++
++    @Test
++    void get_alguienDeAfuera_noPuedeVerlas() {
++        when(currentUserService.getCurrentUser()).thenReturn(user(99L));
++
++        assertThrows(ForbiddenOperationException.class, () -> service.get(5L));
++    }
++
++    // ---------- Recibir datos ----------
++
++    @Test
++    void collect_primerDatoReal_fijaElDominioEmpiezaLaPruebaYSeReenviaAAmplitudSinDatosPersonales() {
++        MetricsSite site = site();
++        when(siteRepository.findByPublicKey("dv_abc")).thenReturn(Optional.of(site));
++        when(countRepository.findBySiteIdAndDayAndTypeAndTest(9L, NOW.toLocalDate(), MetricType.CONTACT, false))
++                .thenReturn(Optional.empty());
++
++        boolean saved = service.collect(new CollectRequestDTO("dv_abc", "contact", "/contacto?nombre=Ana", null, null,
++                "visita12345", "instagram", "celular"), "https://PizzeriaRamon.pe", "1.2.3.4");
++
++        assertTrue(saved);
++        assertEquals("https://pizzeriaramon.pe", site.getAllowedOrigin());
++        assertEquals(NOW, site.getFirstEventAt());
++        assertEquals(NOW.plusDays(90), site.getTrialEndsAt());
++        ArgumentCaptor<MetricDailyCount> count = ArgumentCaptor.forClass(MetricDailyCount.class);
++        verify(countRepository).save(count.capture());
++        assertEquals(1, count.getValue().getTotal());
++        assertFalse(count.getValue().isTest());
++
++        ArgumentCaptor<AmplitudeClient.Event> event = ArgumentCaptor.forClass(AmplitudeClient.Event.class);
++        verify(amplitude).send(event.capture());
++        assertEquals("devutec_contact", event.getValue().eventType());
++        assertEquals("v_visita12345", event.getValue().deviceId());
++        assertEquals("/contacto", event.getValue().properties().get("pagina"));
++        assertEquals("dv_abc", event.getValue().properties().get("web"));
++        assertEquals("instagram", event.getValue().properties().get("origen"));
++        assertFalse(event.getValue().properties().containsValue("1.2.3.4"));
++    }
++
++    @Test
++    void collect_desdeOtroDominio_seIgnora() {
++        MetricsSite site = site();
++        site.setAllowedOrigin("https://pizzeriaramon.pe");
++        when(siteRepository.findByPublicKey("dv_abc")).thenReturn(Optional.of(site));
++
++        assertFalse(service.collect(new CollectRequestDTO("dv_abc", "PAGEVIEW", "/", null, null, null, null, null),
++                "https://otra-web.com", "1.2.3.4"));
++        verify(countRepository, never()).save(any());
++        verify(amplitude, never()).send(any());
++    }
++
++    @Test
++    void collect_desdeLocalhostOLaPaginaDePrueba_cuentaComoPruebaYNoEmpiezaLos3Meses() {
++        MetricsSite site = site();
++        site.setAllowedOrigin("https://pizzeriaramon.pe");
++        when(siteRepository.findByPublicKey("dv_abc")).thenReturn(Optional.of(site));
++
++        assertTrue(service.collect(new CollectRequestDTO("dv_abc", "PAGEVIEW", "/", null, null, null, null, null),
++                "http://localhost:5173", null));
++        assertTrue(service.collect(new CollectRequestDTO("dv_abc", "PAGEVIEW", "/", null, null, null, null, null),
++                "https://devutec.vercel.app", null));
++        assertTrue(service.collect(new CollectRequestDTO("dv_abc", "PAGEVIEW", "/", null, null, null, null, null),
++                "https://pizzeria-git-main-sofia.vercel.app", null));
++
++        assertNotNull(site.getFirstEventAt());
++        assertNull(site.getTrialEndsAt());
++        assertEquals("https://pizzeriaramon.pe", site.getAllowedOrigin());
++    }
++
++    @Test
++    void collect_desdeElServidorDelEstudianteSinOrigin_seAcepta() {
++        when(siteRepository.findByPublicKey("dv_abc")).thenReturn(Optional.of(site()));
++
++        assertTrue(service.collect(new CollectRequestDTO("dv_abc", "CUSTOM", "/", null, "Reporte Generado!", null, null, null),
++                null, "5.6.7.8"));
++
++        ArgumentCaptor<AmplitudeClient.Event> event = ArgumentCaptor.forClass(AmplitudeClient.Event.class);
++        verify(amplitude).send(event.capture());
++        assertEquals("devutec_custom", event.getValue().eventType());
++        assertEquals("reporte_generado_", event.getValue().properties().get("nombre"));
++    }
++
++    @Test
++    void collect_llaveDesconocidaTipoInvalidoOVelocidadImposible_seIgnora() {
++        lenient().when(siteRepository.findByPublicKey("dv_nada")).thenReturn(Optional.empty());
++        lenient().when(siteRepository.findByPublicKey("dv_abc")).thenReturn(Optional.of(site()));
++
++        assertFalse(service.collect(new CollectRequestDTO("dv_nada", "PAGEVIEW", "/", null, null, null, null, null), null, null));
++        assertFalse(service.collect(new CollectRequestDTO("dv_abc", "HACKEO", "/", null, null, null, null, null), null, null));
++        assertFalse(service.collect(new CollectRequestDTO("dv_abc", "PERFORMANCE", "/", 999_999, null, null, null, null), null, null));
++        assertFalse(service.collect(new CollectRequestDTO("dv_abc", "CUSTOM", "/", null, "   ", null, null, null), null, null));
++        assertFalse(service.collect(null, null, null));
++        verify(amplitude, never()).send(any());
++    }
++
++    @Test
++    void collect_demasiadosEventosEnUnMinutoDesdeLaMismaIp_dejaDeContar() {
++        when(siteRepository.findByPublicKey("dv_abc")).thenReturn(Optional.of(site()));
++        for (int i = 0; i < MetricsService.MAX_EVENTS_PER_MINUTE; i++) {
++            assertTrue(service.collect(new CollectRequestDTO("dv_abc", "CLICK", "/", null, null, null, null, null), null, "1.1.1.1"));
++        }
++
++        assertFalse(service.collect(new CollectRequestDTO("dv_abc", "CLICK", "/", null, null, null, null, null), null, "1.1.1.1"));
++        assertTrue(service.collect(new CollectRequestDTO("dv_abc", "CLICK", "/", null, null, null, null, null), null, "2.2.2.2"));
++    }
++
++    // ---------- Panel básico ----------
++
++    @Test
++    void get_conDatos_sumaElUltimoMesDesdeNuestraBaseYPromediaLaVelocidad() {
++        when(currentUserService.getCurrentUser()).thenReturn(client);
++        MetricsSite site = site();
++        site.setFirstEventAt(NOW.minusDays(3));
++        site.setTrialEndsAt(NOW.plusDays(87));
++        when(siteRepository.findByContractId(5L)).thenReturn(Optional.of(site));
++        LocalDate today = NOW.toLocalDate();
++        when(countRepository.findBySiteIdAndDayGreaterThanEqual(eq(9L), any())).thenReturn(List.of(
++                count(today, MetricType.PAGEVIEW, 30, 0, false),
++                count(today.minusDays(1), MetricType.PAGEVIEW, 12, 0, true),
++                count(today, MetricType.CONTACT, 4, 0, false),
++                count(today, MetricType.ORDER, 2, 0, false),
++                count(today, MetricType.PERFORMANCE, 2, 2500, false)));
++
++        MetricsResponseDTO response = service.get(5L);
++
++        assertEquals(42, response.summary().visits());
++        assertEquals(4, response.summary().contacts());
++        assertEquals(2, response.summary().orders());
++        assertEquals(1250, response.summary().averageLoadMs());
++        assertTrue(response.summary().includesTestData());
++        assertEquals(14, response.summary().lastDays().size());
++        assertEquals(30, response.summary().lastDays().get(13).visits());
++        assertEquals(4, response.summary().lastDays().get(13).contacts());
++        assertTrue(response.access().trialActive());
++        assertFalse(response.access().locked());
++    }
++
++    @Test
++    void get_terminoLaPruebaSinPlan_bloqueaLosNumeros() {
++        when(currentUserService.getCurrentUser()).thenReturn(client);
++        MetricsSite site = site();
++        site.setFirstEventAt(NOW.minusDays(100));
++        site.setTrialEndsAt(NOW.minusDays(10));
++        when(siteRepository.findByContractId(5L)).thenReturn(Optional.of(site));
++
++        MetricsResponseDTO response = service.get(5L);
++
++        assertTrue(response.access().locked());
++        assertNull(response.summary());
++        verify(countRepository, never()).findBySiteIdAndDayGreaterThanEqual(anyLong(), any());
++    }
++
++    @Test
++    void disable_borraLaLlaveYLosContadores() {
++        when(currentUserService.getCurrentUser()).thenReturn(client);
++        MetricsSite site = site();
++        when(siteRepository.findByContractId(5L)).thenReturn(Optional.of(site));
++
++        MetricsResponseDTO response = service.disable(5L);
++
++        verify(countRepository).deleteBySiteId(9L);
++        verify(siteRepository).delete(site);
++        assertFalse(response.enabled());
++    }
++
++    // ---------- Entrega final ----------
++
++    @Test
++    void checkFinalDelivery_pedidasYActivadasSinDatos_bloquea() {
++        project.setMetricsRequested(true);
++        when(siteRepository.findByContractId(5L)).thenReturn(Optional.of(site()));
++
++        InvalidOperationException error = assertThrows(InvalidOperationException.class, () -> service.checkFinalDelivery(contract));
++        assertTrue(error.getMessage().startsWith("El cliente pidió métricas"));
++    }
++
++    @Test
++    void checkFinalDelivery_conAlgunDato_dejaEntregar() {
++        project.setMetricsRequested(true);
++        MetricsSite site = site();
++        site.setFirstEventAt(NOW);
++        when(siteRepository.findByContractId(5L)).thenReturn(Optional.of(site));
++
++        assertDoesNotThrow(() -> service.checkFinalDelivery(contract));
++    }
++
++    @Test
++    void checkFinalDelivery_pedidasPeroNuncaActivadasONoPedidas_noBloquea() {
++        project.setMetricsRequested(true);
++        when(siteRepository.findByContractId(5L)).thenReturn(Optional.empty());
++        assertDoesNotThrow(() -> service.checkFinalDelivery(contract));
++
++        project.setMetricsRequested(false);
++        assertDoesNotThrow(() -> service.checkFinalDelivery(contract));
++    }
++
++    // ---------- Membresía ----------
++
++    @Test
++    void startSubscription_duranteLaPrueba_elPrimerCobroEsAlTerminarLos3Meses() {
++        when(currentUserService.getCurrentUser()).thenReturn(client);
++        MetricsSite site = site();
++        site.setTrialEndsAt(NOW.plusDays(60));
++        when(siteRepository.findByContractId(5L)).thenReturn(Optional.of(site));
++        when(stripe.createCheckout(eq(5L), eq(MetricsPlan.PRO), any(), any(), any()))
++                .thenReturn(new MetricsStripeGateway.SubscriptionSession("cs_1", "https://checkout.stripe.com/x", "open", null, "5", "PRO"));
++
++        MetricsSubscriptionDTOs.StartResponse response = service.startSubscription(5L, MetricsPlan.PRO);
++
++        assertEquals("https://checkout.stripe.com/x", response.checkoutUrl());
++        verify(stripe).createCheckout(eq(5L), eq(MetricsPlan.PRO), eq(NOW.plusDays(60).atZone(LIMA).toEpochSecond()), any(), any());
++    }
++
++    @Test
++    void startSubscription_sinPruebaActiva_cobraDesdeHoy() {
++        when(currentUserService.getCurrentUser()).thenReturn(client);
++        MetricsSite site = site();
++        site.setTrialEndsAt(NOW.minusDays(1));
++        when(siteRepository.findByContractId(5L)).thenReturn(Optional.of(site));
++        when(stripe.createCheckout(eq(5L), eq(MetricsPlan.BASIC), isNull(), any(), any()))
++                .thenReturn(new MetricsStripeGateway.SubscriptionSession("cs_2", "https://checkout.stripe.com/y", "open", null, "5", "BASIC"));
++
++        assertEquals("cs_2", service.startSubscription(5L, MetricsPlan.BASIC).sessionId());
++    }
++
++    @Test
++    void startSubscription_elFreelancer_noPuede() {
++        when(currentUserService.getCurrentUser()).thenReturn(freelancer);
++
++        assertThrows(ForbiddenOperationException.class, () -> service.startSubscription(5L, MetricsPlan.BASIC));
++    }
++
++    @Test
++    void confirmSubscription_completa_guardaElPlan() {
++        when(currentUserService.getCurrentUser()).thenReturn(client);
++        MetricsSite site = site();
++        when(siteRepository.findByContractId(5L)).thenReturn(Optional.of(site));
++        when(stripe.getCheckout("cs_1"))
++                .thenReturn(new MetricsStripeGateway.SubscriptionSession("cs_1", null, "complete", "sub_123", "5", "PRO"));
++
++        MetricsResponseDTO response = service.confirmSubscription(5L, "cs_1");
++
++        assertEquals(MetricsPlan.PRO, site.getPlan());
++        assertEquals("sub_123", site.getStripeSubscriptionId());
++        assertEquals(MetricsPlan.PRO, response.access().plan());
++    }
++
++    @Test
++    void confirmSubscription_deOtroContratoOSinPagar_noCambiaElPlan() {
++        when(currentUserService.getCurrentUser()).thenReturn(client);
++        MetricsSite site = site();
++        when(siteRepository.findByContractId(5L)).thenReturn(Optional.of(site));
++        when(stripe.getCheckout("cs_x"))
++                .thenReturn(new MetricsStripeGateway.SubscriptionSession("cs_x", null, "complete", "sub_9", "77", "PRO"));
++        when(stripe.getCheckout("cs_open"))
++                .thenReturn(new MetricsStripeGateway.SubscriptionSession("cs_open", null, "open", null, "5", "PRO"));
++
++        assertThrows(InvalidOperationException.class, () -> service.confirmSubscription(5L, "cs_x"));
++        assertThrows(InvalidOperationException.class, () -> service.confirmSubscription(5L, "cs_open"));
++        assertEquals(MetricsPlan.NONE, site.getPlan());
++    }
++
++    // ---------- Reporte Pro ----------
++
++    @Test
++    void advanced_sinPlanPro_explicaQueEsDelPro() {
++        when(currentUserService.getCurrentUser()).thenReturn(client);
++        when(siteRepository.findByContractId(5L)).thenReturn(Optional.of(site()));
++
++        AdvancedReportDTO report = service.advanced(5L);
++
++        assertFalse(report.available());
++        verify(amplitude, never()).segmentation(any(), any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyInt());
++    }
++
++    @Test
++    void advanced_conPro_leeAmplitudeYOrdenaDeMayorAMenor() {
++        when(currentUserService.getCurrentUser()).thenReturn(client);
++        MetricsSite site = site();
++        site.setPlan(MetricsPlan.PRO);
++        when(siteRepository.findByContractId(5L)).thenReturn(Optional.of(site));
++        when(amplitude.canRead()).thenReturn(true);
++        AmplitudeClient.Segmentation pages = new AmplitudeClient.Segmentation(List.of("/", "/carta"), List.of(10L, 25L),
++                List.of("2026-11-27", "2026-11-28"), List.of(List.of(4L, 6L), List.of(10L, 15L)));
++        AmplitudeClient.Segmentation empty = new AmplitudeClient.Segmentation(List.of(), List.of(), List.of(), List.of());
++        when(amplitude.segmentation(eq("devutec_pageview"), eq("dv_abc"), any(), any(), eq("pagina"), eq(1))).thenReturn(pages);
++        when(amplitude.segmentation(eq("devutec_pageview"), eq("dv_abc"), any(), any(), eq("origen"), eq(1))).thenReturn(empty);
++        when(amplitude.segmentation(eq("devutec_pageview"), eq("dv_abc"), any(), any(), eq("dispositivo"), eq(1))).thenReturn(empty);
++        when(amplitude.segmentation(eq("devutec_contact"), eq("dv_abc"), any(), any(), isNull(), eq(30))).thenReturn(empty);
++
++        AdvancedReportDTO report = service.advanced(5L);
++
++        assertTrue(report.available());
++        assertEquals("/carta", report.topPages().get(0).label());
++        assertEquals(25, report.topPages().get(0).total());
++    }
++
++    // ---------- Limpieza de datos ----------
++
++    @Test
++    void limpiezas_quitanLoQuePodriaSerPersonal() {
++        assertEquals("/", MetricsService.cleanPath(null));
++        assertEquals("/carta", MetricsService.cleanPath("carta?mesa=4"));
++        assertEquals("/pedido", MetricsService.cleanPath("/pedido#paso2"));
++        assertEquals(MetricsService.MAX_PATH, MetricsService.cleanPath("/" + "a".repeat(500)).length());
++        assertEquals("https://pizzeria.pe", MetricsService.cleanOrigin("https://Pizzeria.pe:443"));
++        assertEquals("http://localhost:5173", MetricsService.cleanOrigin("http://localhost:5173"));
++        assertNull(MetricsService.cleanOrigin("null"));
++        assertNull(MetricsService.cleanName("!!!"));
++        assertEquals("ejecucion", MetricsService.cleanName("Ejecucion"));
++    }
++
++    @Test
++    void amplitudeParse_leeEtiquetasConYSinAgrupar() {
++        java.util.Map<String, Object> data = java.util.Map.of(
++                "xValues", List.of("2026-11-27", "2026-11-28"),
++                "seriesLabels", List.of(List.of(0, "/carta"), List.of(1, "/")),
++                "series", List.of(List.of(3, 4), List.of(1, 0)));
++
++        AmplitudeClient.Segmentation result = AmplitudeClient.parse(java.util.Map.of("data", data));
++
++        assertEquals(List.of("/carta", "/"), result.labels());
++        assertEquals(List.of(7L, 1L), result.totals());
++        assertEquals(8, result.total());
++    }
++
++    private MetricsSite site() {
++        MetricsSite site = new MetricsSite();
++        site.setId(9L);
++        site.setContractId(5L);
++        site.setPublicKey("dv_abc");
++        site.setConsentedByUserId(1L);
++        site.setConsentedAt(NOW.minusDays(5));
++        site.setConsentVersion(MetricsService.CONSENT_VERSION);
++        return site;
++    }
++
++    private static MetricDailyCount count(LocalDate day, MetricType type, long total, long sumMs, boolean test) {
++        MetricDailyCount count = new MetricDailyCount();
++        count.setSiteId(9L);
++        count.setDay(day);
++        count.setType(type);
++        count.setTotal(total);
++        count.setSumValueMs(sumMs);
++        count.setTest(test);
++        return count;
++    }
++
++    private static User user(Long id) {
++        User user = new User();
++        user.setId(id);
++        return user;
++    }
++
++}
+diff --git a/src/test/java/pe/edu/utec/devutec/service/ContractServiceImplTest.java b/src/test/java/pe/edu/utec/devutec/service/ContractServiceImplTest.java
+index c961fd8..4db4638 100644
+--- a/src/test/java/pe/edu/utec/devutec/service/ContractServiceImplTest.java
++++ b/src/test/java/pe/edu/utec/devutec/service/ContractServiceImplTest.java
+@@ -67,6 +67,9 @@ class ContractServiceImplTest {
+     @Mock
+     private pe.edu.utec.devutec.payments.InstallmentService installmentService;
+ 
++    @Mock
++    private pe.edu.utec.devutec.metrics.MetricsService metricsService;
++
+     @InjectMocks
+     private ContractServiceImpl contractService;
+ 
+diff --git a/src/test/java/pe/edu/utec/devutec/service/ContractStagesTest.java b/src/test/java/pe/edu/utec/devutec/service/ContractStagesTest.java
+index a5ec2ef..a39731f 100644
+--- a/src/test/java/pe/edu/utec/devutec/service/ContractStagesTest.java
++++ b/src/test/java/pe/edu/utec/devutec/service/ContractStagesTest.java
+@@ -67,6 +67,9 @@ class ContractStagesTest {
+     @Mock
+     private pe.edu.utec.devutec.payments.InstallmentService installmentService;
+ 
++    @Mock
++    private pe.edu.utec.devutec.metrics.MetricsService metricsService;
++
+     @InjectMocks
+     private ContractServiceImpl contractService;
+ 
