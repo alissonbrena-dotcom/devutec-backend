@@ -112,7 +112,7 @@ public class TranslationService {
                               TranslationRepository translationRepository,
                               UserRepository userRepository,
                               CurrentUserService currentUserService,
-                              @Value("${translator.daily-limit:40}") int dailyLimit) {
+                              @Value("${translator.daily-limit:10}") int dailyLimit) {
         this(aiGateway, contractRepository, translationRepository, userRepository, currentUserService,
                 dailyLimit, Clock.systemDefaultZone());
     }
