@@ -71,6 +71,11 @@ public class Project {
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
+    // El cliente quiere ver las métricas de su web en DEVUTEC (lo pregunta el asistente o la casilla del formulario).
+    // El estudiante lo ve antes de postular: integrar el script es un requisito del cliente.
+    @Column(name = "metrics_requested")
+    private Boolean metricsRequested = false;
+
     // Al eliminar un proyecto se eliminan sus postulaciones; ProjectServiceImpl solo lo permite si está OPEN y sin contratos
     @OneToMany(mappedBy = "project", cascade = CascadeType.REMOVE, orphanRemoval = true)
     private List<Application> applications = new ArrayList<>();

@@ -47,9 +47,12 @@ public class ProjectCreateDTO {
     @Size(max = 30, message = "Se pueden enviar hasta 30 funcionalidades")
     private List<@Valid FeatureQuantityDTO> features;
 
+    // true si el cliente quiere métricas DEVUTEC de su web (asistente o casilla del formulario). null = no
+    private Boolean metricsRequested;
+
     // Constructor sin los campos del asistente (los proyectos creados a mano no los tienen)
     public ProjectCreateDTO(String title, String description, BigDecimal budget, LocalDate deadline,
                             String location, Set<Long> skillIds) {
-        this(title, description, budget, deadline, location, skillIds, null, null);
+        this(title, description, budget, deadline, location, skillIds, null, null, null);
     }
 }

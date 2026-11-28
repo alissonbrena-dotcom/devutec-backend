@@ -83,9 +83,14 @@ public class ProjectAssistantService {
             6. Plazo: para cuándo lo necesita.
             7. Presupuesto: cuánto tiene pensado invertir. Es opcional: si no sabe, dile que DEVUTEC le sugiere un \
             precio con proyectos parecidos.
+            8. Métricas DEVUTEC: pregúntalo SIEMPRE, una vez, adaptado al proyecto. Para una web o app: "¿Quieres ver \
+            cuántas personas visitan tu web y cuántas te contactan? Lo ves en tu perfil de DEVUTEC, con 3 meses \
+            gratis." Para una automatización: "¿Quieres ver cuántas veces se usa y cuánto tiempo te ahorra?". Si dice \
+            que sí, pon wantsMetrics = true; si dice que no o no responde, false. No insistas ni hables de precios.
 
             CUÁNDO TERMINAR:
-            - Pon ready = true cuando tengas claros los temas 1, 2, 3 y 6, y ya hayas preguntado por los demás que \
+            - Pon ready = true cuando tengas claros los temas 1, 2, 3 y 6, ya hayas preguntado por las métricas (8) y \
+            por los demás temas que \
             apliquen. Lo que haya quedado sin resolver va en openQuestions (preguntas cortas para que el estudiante \
             las confirme con el cliente en Descubrimiento).
             - El cliente ya escribió %d de %d mensajes. Si llegó al máximo, pon ready = true con lo que tengas y \
@@ -256,7 +261,8 @@ public class ProjectAssistantService {
                 budget,
                 commission.getRate(),
                 stages,
-                payments);
+                payments,
+                reply.wantsMetrics());
     }
 
     // Descripción que ven el cliente y los estudiantes: lo que pidió, su marca, su contenido, qué contacto mostrar
