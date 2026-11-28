@@ -2,7 +2,9 @@ package pe.edu.utec.devutec.auth.application;
 
 import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -24,6 +26,7 @@ import pe.edu.utec.devutec.events.UserRegisteredEvent;
 import pe.edu.utec.devutec.exceptions.DuplicateResourceException;
 import pe.edu.utec.devutec.exceptions.ForbiddenOperationException;
 import pe.edu.utec.devutec.exceptions.GoogleSignupRequiredException;
+import pe.edu.utec.devutec.exceptions.ApiException;
 import pe.edu.utec.devutec.exceptions.UnauthorizedException;
 import pe.edu.utec.devutec.model.FreelancerProfile;
 import pe.edu.utec.devutec.service.CurrentUserService;
@@ -43,11 +46,17 @@ public class AuthServiceImpl implements AuthService {
     private final ApplicationEventPublisher eventPublisher;
     private final CurrentUserService currentUserService;
 
+    // Los estudiantes se registran con su correo universitario (termina en .edu.pe). Se puede apagar con
+    // STUDENT_EMAIL_CHECK=false (por ejemplo, para cargar cuentas de demo con Gmail).
+    @Value("${auth.student-email-check:true}")
+    private boolean studentEmailCheck;
+
     @Override
     @Transactional
     public AuthResponse register(RegisterRequest request) {
         ensureEmailIsAvailable(request.getEmail());
         ensureRoleCanRegister(request.getRol());
+        ensureStudentEmail(request.getEmail(), request.getRol());
 
         User saved = createUser(request.getNombre(), request.getEmail(), request.getPassword(), request.getRol());
         return buildResponse(saved);
@@ -69,6 +78,7 @@ public class AuthServiceImpl implements AuthService {
             throw new GoogleSignupRequiredException();
         }
         ensureRoleCanRegister(request.getRol());
+        ensureStudentEmail(account.email(), request.getRol());
 
         // Quien entra con Google no usa contraseña; se guarda una aleatoria que nadie conoce
         User saved = createUser(account.nombre(), account.email(), UUID.randomUUID().toString(), request.getRol());
@@ -146,6 +156,22 @@ public class AuthServiceImpl implements AuthService {
         if (role == Role.ADMIN) {
             throw new ForbiddenOperationException("No se puede registrar un usuario con rol ADMIN");
         }
+    }
+
+    private void ensureStudentEmail(String email, Role role) {
+        if (studentEmailCheck && role == Role.FREELANCER && !isUniversityEmail(email)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST,
+                    "Para registrarte como estudiante usa tu correo universitario (el que termina en .edu.pe)");
+        }
+    }
+
+    // Correo de una universidad peruana: el dominio termina en .edu.pe (utec.edu.pe, pucp.edu.pe, uni.edu.pe...)
+    public static boolean isUniversityEmail(String email) {
+        if (email == null) return false;
+        int at = email.lastIndexOf('@');
+        if (at < 1) return false;
+        String domain = email.substring(at + 1).trim().toLowerCase();
+        return domain.endsWith(".edu.pe") && domain.length() > ".edu.pe".length();
     }
 
     private AuthResponse buildResponse(User user) {

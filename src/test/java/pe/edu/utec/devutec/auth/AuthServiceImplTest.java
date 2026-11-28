@@ -228,4 +228,51 @@ class AuthServiceImplTest {
                 () -> authService.confirmWithGoogle(new GoogleConfirmRequest("token-de-google")));
         verify(currentUserService, never()).getCurrentUser();
     }
+
+    @Test
+    void register_estudianteSinCorreoUniversitario_seRechaza() {
+        org.springframework.test.util.ReflectionTestUtils.setField(authService, "studentEmailCheck", true);
+        when(userRepository.existsByEmail("free@test.com")).thenReturn(false);
+
+        pe.edu.utec.devutec.exceptions.ApiException error = assertThrows(pe.edu.utec.devutec.exceptions.ApiException.class,
+                () -> authService.register(request(Role.FREELANCER)));
+        org.junit.jupiter.api.Assertions.assertTrue(error.getMessage().contains(".edu.pe"));
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void register_estudianteConCorreoUniversitario_seRegistra() {
+        org.springframework.test.util.ReflectionTestUtils.setField(authService, "studentEmailCheck", true);
+        RegisterRequest request = request(Role.FREELANCER);
+        request.setEmail("ana.perez@UTEC.edu.pe");
+        when(userRepository.existsByEmail("ana.perez@UTEC.edu.pe")).thenReturn(false);
+        when(passwordEncoder.encode("Password123!")).thenReturn("hash");
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        authService.register(request);
+
+        verify(userRepository, times(1)).save(any(User.class));
+    }
+
+    @Test
+    void register_clienteConGmail_siguePermitido() {
+        org.springframework.test.util.ReflectionTestUtils.setField(authService, "studentEmailCheck", true);
+        when(userRepository.existsByEmail("free@test.com")).thenReturn(false);
+        when(passwordEncoder.encode("Password123!")).thenReturn("hash");
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        authService.register(request(Role.CLIENT));
+
+        verify(userRepository, times(1)).save(any(User.class));
+    }
+
+    @Test
+    void correoUniversitario_soloDominiosEduPe() {
+        org.junit.jupiter.api.Assertions.assertTrue(AuthServiceImpl.isUniversityEmail("a@utec.edu.pe"));
+        org.junit.jupiter.api.Assertions.assertTrue(AuthServiceImpl.isUniversityEmail("a@alumnos.pucp.edu.pe"));
+        org.junit.jupiter.api.Assertions.assertFalse(AuthServiceImpl.isUniversityEmail("a@gmail.com"));
+        org.junit.jupiter.api.Assertions.assertFalse(AuthServiceImpl.isUniversityEmail("utec.edu.pe@gmail.com"));
+        org.junit.jupiter.api.Assertions.assertFalse(AuthServiceImpl.isUniversityEmail("a@edu.pe"));
+        org.junit.jupiter.api.Assertions.assertFalse(AuthServiceImpl.isUniversityEmail("a@utec.edu.pe.hacker.com"));
+    }
 }
