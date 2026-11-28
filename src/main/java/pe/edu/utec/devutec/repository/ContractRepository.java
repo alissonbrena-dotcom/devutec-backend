@@ -14,6 +14,8 @@ public interface ContractRepository extends JpaRepository<Contract, Long> {
 
     List<Contract> findByApplication_Project_ClientId(Long clientId);
     boolean existsByApplication_Project_Id(Long projectId);
+    // El estudiante contratado para el proyecto: puede descargar los archivos que subió el cliente
+    boolean existsByApplication_Project_IdAndApplication_Freelancer_User_Id(Long projectId, Long userId);
 
     // Contratos terminados con su pago y las habilidades del proyecto: los usa PriceEstimator para sugerir precios
     @EntityGraph(attributePaths = {"payment", "application.project.skills"})

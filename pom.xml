@@ -31,6 +31,12 @@
     </properties>
     <dependencies>
         <!-- SDK oficial de Claude (Anthropic): asistente de proyectos y Cuyi -->
+        <!-- PDF del negocio que adjunta el cliente: revisar, contar páginas, quitar lo activo y leer el texto -->
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>3.0.3</version>
+        </dependency>
         <dependency>
             <groupId>com.anthropic</groupId>
             <artifactId>anthropic-java</artifactId>

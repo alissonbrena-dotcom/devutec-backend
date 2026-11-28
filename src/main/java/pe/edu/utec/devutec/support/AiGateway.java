@@ -17,4 +17,14 @@ public interface AiGateway {
     default <T> T replyStructured(String instructions, List<ChatTurnDTO> turns, Class<T> type) {
         throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "El asistente de proyectos no está disponible en este momento");
     }
+
+    // Una imagen para que la IA la mire (ya revisada y vuelta a generar por el backend). mediaType: image/png o image/jpeg
+    record ImageInput(String mediaType, byte[] data) {
+    }
+
+    // Igual que replyStructured, pero el mensaje del usuario lleva imágenes (por ejemplo, el logo del negocio).
+    // Solo Claude lo soporta; los demás proveedores responden "no disponible" y el backend sigue sin el análisis.
+    default <T> T replyStructuredWithImages(String instructions, String text, List<ImageInput> images, Class<T> type) {
+        throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "El análisis de imágenes no está disponible en este momento");
+    }
 }
